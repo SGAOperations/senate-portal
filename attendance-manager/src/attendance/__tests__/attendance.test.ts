@@ -205,6 +205,59 @@ describe('AttendanceController', () => {
     await AttendanceService.deleteAttendance(newAttendance.attendanceId);
   });
 
+  it('checks in a member who was not on the meeting roster without changing existing attendance', async () => {
+    const existingAttendance = await prisma.attendance.create({
+      data: {
+        userId: testUserId,
+        meetingId: testMeeting3Id,
+        status: 'EXCUSED_ABSENCE',
+      },
+    });
+
+    const lateMember = await UsersService.getUserByNUID('001234571');
+    expect(lateMember?.userId).toBe(testUser3Id);
+    expect(await UsersService.getUserByNUID('999999999')).toBeNull();
+
+    await AttendanceService.upsertAttendance(
+      testUser3Id,
+      testMeeting3Id,
+      'PRESENT',
+    );
+
+    const meetingAttendance =
+      await AttendanceController.getMeetingAttendance(testMeeting3Id);
+    expect(meetingAttendance).toHaveLength(2);
+    expect(
+      meetingAttendance.find((record) => record.userId === testUser3Id)?.status,
+    ).toBe('PRESENT');
+    expect(
+      meetingAttendance.find((record) => record.userId === testUserId)?.status,
+    ).toBe('EXCUSED_ABSENCE');
+
+    await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+      testUserId,
+      testUser3Id,
+    ]);
+    const afterRosterSave =
+      await AttendanceController.getMeetingAttendance(testMeeting3Id);
+    expect(
+      afterRosterSave.find((record) => record.userId === testUserId)?.status,
+    ).toBe('EXCUSED_ABSENCE');
+    expect(
+      afterRosterSave.find((record) => record.userId === testUser3Id)?.status,
+    ).toBe('PRESENT');
+
+    await AttendanceService.deleteAttendance(existingAttendance.attendanceId);
+    const lateMemberAttendance = afterRosterSave.find(
+      (record) => record.userId === testUser3Id,
+    );
+    if (lateMemberAttendance) {
+      await AttendanceService.deleteAttendance(
+        lateMemberAttendance.attendanceId,
+      );
+    }
+  });
+
   it('should update attendance status', async () => {
     const updateData = { status: 'UNEXCUSED_ABSENCE' };
     const updated = await AttendanceController.updateAttendance(
