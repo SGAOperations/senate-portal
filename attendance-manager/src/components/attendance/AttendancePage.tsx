@@ -183,7 +183,15 @@ const AttendancePage: React.FC = () => {
   };
 
   // Function to start check-in process
-  const handleStartCheckIn = () => {
+  const handleStartCheckIn = async () => {
+    try {
+      const activeUsers = await meetingAPI.getUsers();
+      setUsers(activeUsers);
+    } catch {
+      alert(
+        'Unable to refresh member choices. You can still check in by NUID.',
+      );
+    }
     setAttendanceCheckStep('check-in');
   };
 
@@ -262,14 +270,9 @@ const AttendancePage: React.FC = () => {
       const response = await fetch(
         `/api/meeting/${selectedMeetingForCheck.meetingId}/users`,
         {
-          method: 'PUT',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userIds: [
-              ...attendanceUsers.map((attendee) => attendee.userId),
-              userId,
-            ],
-          }),
+          body: JSON.stringify({ userId }),
         },
       );
       if (!response.ok) {

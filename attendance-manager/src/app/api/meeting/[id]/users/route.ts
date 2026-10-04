@@ -31,3 +31,13 @@ export async function PUT(
   // return JSON with the payload (e.g. count)
   return NextResponse.json(result); // type: Response
 }
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const body = await request.json();
+  const result = await AttendanceController.addMeetingAttendee(id, body.userId);
+  return NextResponse.json(result, { status: 201 });
+}
