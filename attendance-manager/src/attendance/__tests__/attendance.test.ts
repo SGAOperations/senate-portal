@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { AttendanceController } from '../attendance.controller';
 import { prisma } from '../../lib/prisma';
 import dotenv from 'dotenv';
@@ -217,7 +218,8 @@ describe('AttendanceController', () => {
 
       const lateMember = await UsersService.getUserByNUID('001234571');
       expect(lateMember?.userId).toBe(testUser3Id);
-      expect(await UsersService.getUserByNUID('999999999')).toBeNull();
+      const nonexistentNuid = `nonexistent-${randomUUID()}`;
+      expect(await UsersService.getUserByNUID(nonexistentNuid)).toBeNull();
 
       await AttendanceController.addMeetingAttendee(
         testMeeting3Id,
