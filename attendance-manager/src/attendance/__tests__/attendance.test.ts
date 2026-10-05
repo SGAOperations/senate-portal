@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { AttendanceController } from '../attendance.controller';
 import { prisma } from '../../lib/prisma';
 import dotenv from 'dotenv';
@@ -203,6 +204,79 @@ describe('AttendanceController', () => {
     expect(attendance2).toBeDefined();
     expect(attendance2.length).toBe(2);
     await AttendanceService.deleteAttendance(newAttendance.attendanceId);
+  });
+
+  it('checks in a member who was not on the meeting roster without changing existing attendance', async () => {
+    try {
+      await prisma.attendance.create({
+        data: {
+          userId: testUserId,
+          meetingId: testMeeting3Id,
+          status: 'EXCUSED_ABSENCE',
+        },
+      });
+
+      const lateMember = await UsersService.getUserByNUID('001234571');
+      expect(lateMember?.userId).toBe(testUser3Id);
+      const nonexistentNuid = `nonexistent-${randomUUID()}`;
+      expect(await UsersService.getUserByNUID(nonexistentNuid)).toBeNull();
+
+      await AttendanceController.addMeetingAttendee(
+        testMeeting3Id,
+        testUser3Id,
+      );
+      const pendingAttendance = await prisma.attendance.findUnique({
+        where: {
+          userId_meetingId: {
+            userId: testUser3Id,
+            meetingId: testMeeting3Id,
+          },
+        },
+      });
+      expect(pendingAttendance?.status).toBe('PENDING');
+
+      await AttendanceService.upsertAttendance(
+        testUser3Id,
+        testMeeting3Id,
+        'PRESENT',
+      );
+      await AttendanceController.addMeetingAttendee(
+        testMeeting3Id,
+        testUser3Id,
+      );
+
+      const meetingAttendance =
+        await AttendanceController.getMeetingAttendance(testMeeting3Id);
+      expect(meetingAttendance).toHaveLength(2);
+      expect(
+        meetingAttendance.find((record) => record.userId === testUser3Id)
+          ?.status,
+      ).toBe('PRESENT');
+      expect(
+        meetingAttendance.find((record) => record.userId === testUserId)
+          ?.status,
+      ).toBe('EXCUSED_ABSENCE');
+
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser3Id,
+      ]);
+      const afterRosterSave =
+        await AttendanceController.getMeetingAttendance(testMeeting3Id);
+      expect(
+        afterRosterSave.find((record) => record.userId === testUserId)?.status,
+      ).toBe('EXCUSED_ABSENCE');
+      expect(
+        afterRosterSave.find((record) => record.userId === testUser3Id)?.status,
+      ).toBe('PRESENT');
+    } finally {
+      await prisma.attendance.deleteMany({
+        where: {
+          meetingId: testMeeting3Id,
+          userId: { in: [testUserId, testUser3Id] },
+        },
+      });
+    }
   });
 
   it('should update attendance status', async () => {

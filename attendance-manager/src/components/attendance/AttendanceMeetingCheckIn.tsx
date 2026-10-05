@@ -1,12 +1,21 @@
 import { MeetingApiData, AttendanceApiData } from '@/types';
-import React from 'react';
+import React, { useState } from 'react';
+
+interface AvailableMember {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  nuid: string;
+}
 
 interface AttendanceMeetingCheckInProps {
   selectedMeetingForCheck: MeetingApiData;
+  availableMembers: AvailableMember[];
   nuidInput: string;
 
   setNuidInput: (nuid: string) => void;
   handleMarkAttendance: () => void;
+  handleAddMember: (userId: string) => Promise<boolean>;
   attendanceRecord: Record<string, AttendanceApiData[]>;
   closeAttendanceCheck: () => void;
   setAttendanceCheckStep: (
@@ -16,13 +25,37 @@ interface AttendanceMeetingCheckInProps {
 
 const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
   selectedMeetingForCheck,
+  availableMembers,
   nuidInput,
   setNuidInput,
   handleMarkAttendance,
+  handleAddMember,
   attendanceRecord,
   closeAttendanceCheck,
   setAttendanceCheckStep,
 }) => {
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const meetingAttendance =
+    attendanceRecord[selectedMeetingForCheck.meetingId] ?? [];
+  const presentCount = meetingAttendance.filter(
+    (record) => record.status === 'PRESENT',
+  ).length;
+
+  const addMember = async () => {
+    if (!selectedMemberId) return;
+    setIsAddingMember(true);
+    try {
+      if (await handleAddMember(selectedMemberId)) {
+        setSelectedMemberId('');
+        setShowAddMember(false);
+      }
+    } finally {
+      setIsAddingMember(false);
+    }
+  };
+
   return (
     <>
       <div className='mb-6'>
@@ -65,30 +98,57 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
         />
       </div>
 
+      <div className='mb-6'>
+        <button
+          type='button'
+          onClick={() => setShowAddMember((isShown) => !isShown)}
+          className='text-sm font-medium text-[#C8102E] hover:text-[#A8102E]'
+        >
+          {showAddMember ? 'Cancel adding member' : 'Add member'}
+        </button>
+        {showAddMember && (
+          <div className='mt-3 flex flex-col gap-3 sm:flex-row'>
+            <select
+              value={selectedMemberId}
+              onChange={(event) => setSelectedMemberId(event.target.value)}
+              className='min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2'
+            >
+              <option value=''>Select an active member</option>
+              {availableMembers.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.firstName} {member.lastName} ({member.nuid})
+                </option>
+              ))}
+            </select>
+            <button
+              type='button'
+              disabled={!selectedMemberId || isAddingMember}
+              onClick={addMember}
+              className='rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50'
+            >
+              {isAddingMember ? 'Adding...' : 'Add to meeting'}
+            </button>
+            {availableMembers.length === 0 && (
+              <p className='text-sm text-gray-500 sm:self-center'>
+                All active members are already on this meeting.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className='bg-gray-50 rounded-lg p-4 mb-6'>
         <div className='flex justify-between items-center'>
           <span className='text-sm text-gray-700'>Attendance Progress</span>
           <span className='text-sm font-semibold text-gray-900'>
-            {
-              attendanceRecord[selectedMeetingForCheck.meetingId]?.filter(
-                (record) => record.status === 'PRESENT',
-              ).length
-            }{' '}
-            / {attendanceRecord[selectedMeetingForCheck.meetingId].length}{' '}
-            present
+            {presentCount} / {meetingAttendance.length} present
           </span>
         </div>
         <div className='mt-2 w-full bg-gray-200 rounded-full h-2'>
           <div
             className='bg-[#C8102E] h-2 rounded-full transition-all duration-300'
             style={{
-              width: `${
-                (attendanceRecord[selectedMeetingForCheck.meetingId]?.filter(
-                  (record) => record.status === 'PRESENT',
-                ).length /
-                  attendanceRecord[selectedMeetingForCheck.meetingId].length) *
-                100
-              }%`,
+              width: `${meetingAttendance.length ? (presentCount / meetingAttendance.length) * 100 : 0}%`,
             }}
           ></div>
         </div>

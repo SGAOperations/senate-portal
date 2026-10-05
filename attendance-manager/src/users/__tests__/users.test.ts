@@ -220,16 +220,25 @@ describe('UsersController.validateNuid', () => {
   });
 
   it('should reject non-existent NUID', async () => {
-    const response = await UsersController.validateNuid({
-      nuid: '999999999',
-      firstName: 'John',
-      lastName: 'Doe',
-    });
+    const getUserByNuid = jest
+      .spyOn(UsersService, 'getUserByNuid')
+      .mockResolvedValue(null);
 
-    expect(response).toBeInstanceOf(NextResponse);
-    const data = await response.json();
-    expect(data.valid).toBe(false);
-    expect(data.error).toBe('No user found with this NUID');
+    try {
+      const response = await UsersController.validateNuid({
+        nuid: '999999999',
+        firstName: 'John',
+        lastName: 'Doe',
+      });
+
+      expect(response).toBeInstanceOf(NextResponse);
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.valid).toBe(false);
+      expect(data.error).toBe('No user found with this NUID');
+    } finally {
+      getUserByNuid.mockRestore();
+    }
   });
 
   it('should reject mismatched name', async () => {

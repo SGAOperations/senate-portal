@@ -183,7 +183,15 @@ const AttendancePage: React.FC = () => {
   };
 
   // Function to start check-in process
-  const handleStartCheckIn = () => {
+  const handleStartCheckIn = async () => {
+    try {
+      const activeUsers = await meetingAPI.getUsers();
+      setUsers(activeUsers);
+    } catch {
+      alert(
+        'Unable to refresh member choices. You can still check in by NUID.',
+      );
+    }
     setAttendanceCheckStep('check-in');
   };
 
@@ -195,19 +203,19 @@ const AttendancePage: React.FC = () => {
     }
 
     try {
-      // Find user by NUID
-      const userToMark = attendanceUsers.find(
-        (u) => u.nuid === nuidInput.trim(),
+      const lookupResponse = await fetch(
+        `/api/users/get-user-by-nuid/${encodeURIComponent(nuidInput.trim())}`,
       );
+      const userToMark = lookupResponse.ok ? await lookupResponse.json() : null;
       if (!userToMark) {
         alert('NUID not found. Please check and try again.');
         return;
       }
+
       // Check if already marked as present
-      const attendanceForMeeting = userToMark.attendance.find(
-        (attendance: AttendanceType) =>
-          attendance.meetingId === selectedMeetingForCheck.meetingId,
-      );
+      const attendanceForMeeting = attendanceRecord[
+        selectedMeetingForCheck.meetingId
+      ]?.find((attendance) => attendance.userId === userToMark.userId);
       if (
         attendanceForMeeting?.status === 'PRESENT' ||
         attendanceForMeeting?.status === 'Present'
@@ -241,16 +249,45 @@ const AttendancePage: React.FC = () => {
         throw new Error('Failed to update attendance');
       }
 
-      alert(
-        `✓ ${userToMark.firstName} ${userToMark.lastName} marked as present!`,
-      );
       setNuidInput('');
+      await loadAttendanceUsers(selectedMeetingForCheck.meetingId);
+      alert(
+        `${userToMark.firstName} ${userToMark.lastName} marked as present!`,
+      );
 
       // Reload meetings to update statistics
       const allMeetings = await meetingAPI.getAllMeetings();
       setMeetings(allMeetings);
     } catch {
       alert('Failed to mark attendance. Please try again.');
+    }
+  };
+
+  const handleAddMeetingMember = async (userId: string) => {
+    if (!selectedMeetingForCheck) return false;
+
+    try {
+      const response = await fetch(
+        `/api/meeting/${selectedMeetingForCheck.meetingId}/users`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error('Failed to add member to meeting');
+      }
+
+      await loadAttendanceUsers(selectedMeetingForCheck.meetingId);
+      const addedMember = users.find((member) => member.userId === userId);
+      alert(
+        `${addedMember?.firstName ?? 'Member'} ${addedMember?.lastName ?? ''} added to the meeting.`,
+      );
+      return true;
+    } catch {
+      alert('Failed to add member. Please try again.');
+      return false;
     }
   };
 
@@ -513,9 +550,23 @@ const AttendancePage: React.FC = () => {
             {attendanceCheckStep === 'check-in' && selectedMeetingForCheck && (
               <AttendanceMeetingCheckIn
                 selectedMeetingForCheck={selectedMeetingForCheck}
+                availableMembers={users
+                  .filter(
+                    (member) =>
+                      !attendanceUsers.some(
+                        (attendee) => attendee.userId === member.userId,
+                      ),
+                  )
+                  .map(({ userId, firstName, lastName, nuid }) => ({
+                    userId,
+                    firstName,
+                    lastName,
+                    nuid,
+                  }))}
                 nuidInput={nuidInput}
                 setNuidInput={setNuidInput}
                 handleMarkAttendance={handleMarkAttendance}
+                handleAddMember={handleAddMeetingMember}
                 attendanceRecord={attendanceRecord}
                 closeAttendanceCheck={closeAttendanceCheck}
                 setAttendanceCheckStep={setAttendanceCheckStep}
