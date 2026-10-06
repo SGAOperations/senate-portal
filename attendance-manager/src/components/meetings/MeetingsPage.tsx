@@ -19,6 +19,7 @@ import EditMeetingModal from './EditMeetingModal';
 import CreateRequestModal from './CreateRequestModal';
 import { checkCanManageMeetings } from '@/utils/permissions';
 import DeleteMeetingModal from './DeleteMeetingModal';
+import { isMeetingRequestEligible } from './meetings.utils';
 
 const normalizeDate = (dateStr: string) => {
   if (!dateStr) {
@@ -314,20 +315,21 @@ const MeetingsPage: React.FC = () => {
 
   // Filter meetings based on active tab
   const filteredMeetings = meetings.filter((m) => {
-    // change to 'meetings' for implementation
-    const meetingDate = new Date(m.date);
+    const meetingStartsAt = new Date(
+      `${m.date}T${m.startTime || '00:00'}:00`,
+    );
+
     if (activeTab === 'past') {
-      return meetingDate <= today;
-    } else {
-      return meetingDate > today;
+      return meetingStartsAt <= today;
     }
+
+    return meetingStartsAt > today;
   });
-  function parseEST(dateString: string) {
-    return new Date(`${dateString}T00:00:00-05:00`);
-  }
 
   // Get upcoming meetings for request creation
-  const upcomingMeetingsList = meetings.filter((m) => parseEST(m.date) > today);
+  const upcomingMeetingsList = meetings.filter((m) =>
+    isMeetingRequestEligible(m.date, m.startTime),
+  );
 
   // Handle request submission
   const handleSubmitRequest = async () => {
