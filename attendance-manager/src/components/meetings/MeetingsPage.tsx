@@ -19,7 +19,7 @@ import EditMeetingModal from './EditMeetingModal';
 import CreateRequestModal from './CreateRequestModal';
 import { checkCanManageMeetings } from '@/utils/permissions';
 import DeleteMeetingModal from './DeleteMeetingModal';
-import { isMeetingRequestEligible } from './meetings.utils';
+import { isMeetingAdjustmentRequestEligible } from './meetings.utils';
 
 const normalizeDate = (dateStr: string) => {
   if (!dateStr) {
@@ -328,7 +328,7 @@ const MeetingsPage: React.FC = () => {
 
   // Get upcoming meetings for request creation
   const upcomingMeetingsList = meetings.filter((m) =>
-    isMeetingRequestEligible(m.date, m.startTime),
+    isMeetingAdjustmentRequestEligible(m.date, m.startTime),
   );
 
   // Handle request submission

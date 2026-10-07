@@ -1,4 +1,4 @@
-export const isMeetingRequestEligible = (
+export const isMeetingAdjustmentRequestEligible = (
   meetingDate: string | null | undefined,
   startTime?: string | null,
   now: Date = new Date(),
