@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { MeetingType } from '../generated/prisma';
+import type { CreateMeetingInput } from '../types';
 
 function groupBy<T, K extends string | number | symbol>(
   items: T[],
@@ -96,14 +97,7 @@ export const MeetingService = {
   },
 
   async createMeeting(
-    meetingData: {
-      name: string;
-      startTime: string;
-      date: string;
-      endTime: string;
-      notes: string;
-      type: MeetingType;
-    },
+    meetingData: Omit<CreateMeetingInput, 'attendeeIds'>,
     attendeeIds: string[],
   ) {
     // Create meeting - only pass meeting fields to Prisma
