@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { MeetingController } from '@/meeting/meeting.controller';
 import { AttendanceController } from '@/attendance/attendance.controller';
 import { requireAuth } from '@/utils/api-auth';
-import { checkCanManageAttendance } from '@/utils/permissions';
 /**
  * @swagger
  * /api/users:
@@ -26,7 +25,7 @@ export async function PUT(
 ) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!checkCanManageAttendance(user.roleType)) {
+  if (user.role.roleType !== 'EBOARD') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -46,7 +45,7 @@ export async function POST(
 ) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!checkCanManageAttendance(user.roleType)) {
+  if (user.role.roleType !== 'EBOARD') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
