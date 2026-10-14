@@ -65,19 +65,6 @@ export const AttendanceService = {
     });
   },
 
-  async addMeetingAttendee(meetingId: string, userId: string) {
-    return prisma.attendance.createMany({
-      data: [
-        {
-          userId,
-          meetingId,
-          status: AttendanceStatus.PENDING,
-        },
-      ],
-      skipDuplicates: true,
-    });
-  },
-
   // Create an attendance record
   async createAttendance(data: {
     userId: string;

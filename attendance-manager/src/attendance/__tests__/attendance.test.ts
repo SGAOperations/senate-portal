@@ -279,6 +279,48 @@ describe('AttendanceController', () => {
     }
   });
 
+  it('roster edits preserve statuses and do not silently delete all attendance records', async () => {
+    try {
+      await prisma.attendance.createMany({
+        data: [
+          { userId: testUserId, meetingId: testMeeting3Id, status: 'PRESENT' },
+          { userId: testUser2Id, meetingId: testMeeting3Id, status: 'EXCUSED_ABSENCE' },
+        ],
+      });
+
+      const statuses = async () => {
+        const rows = await AttendanceController.getMeetingAttendance(testMeeting3Id);
+        return Object.fromEntries(rows.map((r) => [r.userId, r.status]));
+      };
+
+      // 1. Adding someone keeps everyone else's status
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId, testUser2Id, testUser3Id,
+      ]);
+      expect(await statuses()).toEqual({
+        [testUserId]: 'PRESENT',            // old code would reset this to PENDING
+        [testUser2Id]: 'EXCUSED_ABSENCE',
+        [testUser3Id]: 'PENDING',           // new member starts PENDING
+      });
+
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId, testUser3Id,
+      ]);
+      expect(await statuses()).toEqual({
+        [testUserId]: 'PRESENT',
+        [testUser3Id]: 'PENDING',
+      });
+
+      const before = await statuses();
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId, testUser3Id,
+      ]);
+      expect(await statuses()).toEqual(before);
+    } finally {
+      await prisma.attendance.deleteMany({ where: { meetingId: testMeeting3Id } });
+    }
+  });
+
   it('should update attendance status', async () => {
     const updateData = { status: 'UNEXCUSED_ABSENCE' };
     const updated = await AttendanceController.updateAttendance(
