@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
-      DIRECT_URL: ${{ secrets.DATABASE_URL_TEST }}
       NODE_ENV: test
     steps:
       - name: Checkout repository
@@ -31,11 +30,7 @@ jobs:
       - name: Generate Prisma Client
         working-directory: attendance-manager
         run: npx prisma generate
-
-      - name: Run Migrations
-        working-directory: attendance-manager
-        run: npx prisma migrate deploy
-
+      
       - name: Lint
         working-directory: attendance-manager
         run: npm run lint

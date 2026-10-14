@@ -20,7 +20,6 @@ import { meetingAPI } from '@/utils/attendance_utils';
 import AttendancePageRequestsModal from './AttendancePageRequestsModal';
 import DeleteUserModal from './DeleteUserModal';
 import { ClipboardList, NotebookPen } from 'lucide-react';
-import { checkCanManageAttendance } from '@/utils/permissions';
 
 const AttendancePage: React.FC = () => {
   const { user } = useAuth();
@@ -73,7 +72,7 @@ const AttendancePage: React.FC = () => {
   const [declinedRequestIds, setDeclinedRequestIds] = useState<string[]>([]);
 
   // Check if user is admin (EBOARD)
-  const canManageAttendance = checkCanManageAttendance(user?.role);
+  const isAdmin = user?.role === 'EBOARD';
   useEffect(() => {
     const loadMeetings = async () => {
       const allMeetings = await meetingAPI.getAllMeetings();
@@ -371,8 +370,8 @@ const AttendancePage: React.FC = () => {
     setShowEditAttendanceModal(true);
   };
 
-  const eboardMembers = users.filter((m) => m.roleType === 'EBOARD');
-  const regularMembers = users.filter((m) => m.roleType === 'MEMBER');
+  const eboardMembers = users.filter((m) => m.role.roleType === 'EBOARD');
+  const regularMembers = users.filter((m) => m.role.roleType === 'MEMBER');
 
   return (
     <div className='flex-1 p-6 bg-gray-50'>
@@ -386,7 +385,7 @@ const AttendancePage: React.FC = () => {
             Manage SGA members and track attendance history
           </p>
         </div>
-        {canManageAttendance && (
+        {isAdmin && (
           <div className='flex flex-col space-y-3'>
             <button
               onClick={() => setShowAttendanceCheck(true)}
@@ -463,7 +462,7 @@ const AttendancePage: React.FC = () => {
         <AttendanceHistory
           meetingsWithAttendance={meetingsWithAttendance}
           attendanceRecord={attendanceRecord}
-          isAdmin={canManageAttendance}
+          isAdmin={isAdmin}
           openEditAttendanceModal={openEditAttendanceModal}
           loading={isLoadingHistory}
         />
