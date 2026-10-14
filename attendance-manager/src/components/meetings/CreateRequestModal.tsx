@@ -1,5 +1,9 @@
 import { MeetingApiData, RequestForm } from '@/types';
 import React from 'react';
+import {
+  formatMeetingDate,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
 
 interface CreateRequestModalProps {
   upcomingMeetingsList: MeetingApiData[];
@@ -71,8 +75,9 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                       {meeting.name}
                     </p>
                     <p className='text-xs text-gray-500'>
-                      {new Date(meeting.date).toLocaleDateString()} •{' '}
-                      {meeting.startTime} - {meeting.endTime}
+                      {formatMeetingDate(meeting.date)} •{' '}
+                      {formatMeetingTime(meeting.startTime)} -{' '}
+                      {formatMeetingTime(meeting.endTime)}
                     </p>
                     {meeting.notes && (
                       <p className='text-xs text-gray-400 mt-1'>

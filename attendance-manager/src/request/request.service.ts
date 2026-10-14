@@ -19,14 +19,12 @@ export const RequestService = {
     }
 
     const meeting = attendance.meeting;
-    if (!meeting?.date || !meeting?.startTime) {
+    if (!meeting?.startTime) {
       throw new Error('Meeting date or time missing');
     }
 
-    const meetingDateTime = new Date(`${meeting.date}T${meeting.startTime}:00`);
-
     const now = new Date();
-    const diffMs = meetingDateTime.getTime() - now.getTime();
+    const diffMs = meeting.startTime.getTime() - now.getTime();
     const hoursDiff = diffMs / (1000 * 60 * 60);
 
     const isLate = hoursDiff <= 24;

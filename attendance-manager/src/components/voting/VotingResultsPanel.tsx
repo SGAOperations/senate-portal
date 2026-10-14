@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { VotingEventWithRelations } from '@/types';
 import { getVoteCounts } from '@/utils/voting_utils';
 import VotingResultsModal from './VotingResultsModal';
+import { formatMeetingDate } from '@/meeting/meetingDateTime';
 
 interface VotingResultsPanelProps {
   events: VotingEventWithRelations[];
@@ -93,7 +94,7 @@ const VotingResultsPanel: React.FC<VotingResultsPanelProps> = ({
                       </div>
                       <div className='text-xs text-gray-500'>
                         {event.meeting?.date
-                          ? event.meeting.date
+                          ? formatMeetingDate(event.meeting.date)
                           : new Date(event.createdAt).toLocaleDateString()}
                       </div>
                     </td>
