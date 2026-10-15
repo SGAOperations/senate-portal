@@ -2,7 +2,6 @@ import React from 'react';
 import { LayoutDashboard, Calendar, Vote, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MeetingApiData, UserApiData, AttendanceApiData } from '@/types';
-import { checkCanViewMemberStats } from '@/utils/permissions';
 
 interface SidebarProps {
   activeTab: 'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile';
@@ -13,7 +12,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const { user } = useAuth();
-  const canViewMemberStats = checkCanViewMemberStats(user?.role);
+  const isAdmin = user?.role === 'EBOARD';
 
   const [meetings, setMeetings] = React.useState<MeetingApiData[]>([]);
   const [users, setUsers] = React.useState<UserApiData[]>([]);
@@ -33,7 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
         setMeetings(meetingsData);
 
         // Fetch users (for total members count)
-        if (canViewMemberStats) {
+        if (isAdmin) {
           const usersResponse = await fetch('/api/users');
           if (!usersResponse.ok) throw new Error('Failed to fetch users');
           const usersData = await usersResponse.json();
@@ -47,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     };
 
     fetchData();
-  }, [canViewMemberStats]);
+  }, [isAdmin]);
 
   // Calculate stats
   const today = new Date();
@@ -110,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
           <nav className='space-y-2'>
             {navItems.map((item) => {
               // Skip admin-only items for non-admin users
-              if (item.adminOnly && !canViewMemberStats) {
+              if (item.adminOnly && !isAdmin) {
                 return null;
               }
 
@@ -171,7 +170,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
                   {pendingAttendance}
                 </span>
               </div>
-              {canViewMemberStats && (
+              {isAdmin && (
                 <>
                   <div className='flex items-center justify-between'>
                     <span className='text-xs text-gray-500'>Total Members</span>

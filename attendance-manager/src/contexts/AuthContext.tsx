@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         id: userDetails.userId,
         email: userDetails.email,
         name: `${userDetails.firstName} ${userDetails.lastName}`,
-        role: userDetails.roleType,
+        role: userDetails.role.roleType,
         avatar: undefined,
       };
 
