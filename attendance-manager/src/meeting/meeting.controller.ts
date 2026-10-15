@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { MeetingService } from './meeting.service';
+import { z } from 'zod';
 import { MeetingType } from '../generated/prisma';
+import { CreateMeetingSchema } from '../types';
 
 export const MeetingController = {
   async listMeetings() {
@@ -37,45 +39,21 @@ export const MeetingController = {
   async createMeeting(request: Request) {
     const body = await request.json();
 
-    // Validate required fields
-    if (
-      !body.name ||
-      !body.startTime ||
-      !body.date ||
-      !body.endTime ||
-      body === undefined ||
-      !body.type
-    ) {
-      const requiredFields = ['name', 'startTime', 'date', 'endTime', 'type'];
-      const missingFields = requiredFields.filter((field) => {
-        const value = body[field];
-        return value === undefined || value === null || value === '';
-      });
+    const parsed = CreateMeetingSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Missing required fields', missingFields },
+        {
+          error: 'Invalid meeting data',
+          fieldErrors: z.flattenError(parsed.error).fieldErrors,
+        },
         { status: 400 },
       );
     }
 
-    // Validate type enum
-    if (body.type !== 'FULL_BODY' && body.type !== 'REGULAR') {
-      return NextResponse.json(
-        { error: 'Invalid meeting type. Must be FULL_BODY or REGULAR' },
-        { status: 400 },
-      );
-    }
-
-    // Validate attendeeIds if provided
-    if (body.attendeeIds && !Array.isArray(body.attendeeIds)) {
-      return NextResponse.json(
-        { error: 'attendeeIds must be an array' },
-        { status: 400 },
-      );
-    }
-
+    const { attendeeIds, ...meetingData } = parsed.data;
     const newMeeting = await MeetingService.createMeeting(
-      body,
-      body.attendeeIds || [],
+      meetingData,
+      attendeeIds,
     );
     return NextResponse.json(newMeeting, { status: 201 });
   },
