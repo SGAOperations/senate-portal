@@ -11,8 +11,22 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
       NODE_ENV: test
     steps:
       - name: Checkout repository
@@ -30,7 +44,11 @@ jobs:
       - name: Generate Prisma Client
         working-directory: attendance-manager
         run: npx prisma generate
-      
+
+      - name: Apply database migrations
+        working-directory: attendance-manager
+        run: npx prisma migrate deploy
+
       - name: Lint
         working-directory: attendance-manager
         run: npm run lint
