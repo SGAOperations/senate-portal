@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MeetingService } from './meeting.service';
 import { MeetingType } from '../generated/prisma';
+import { MeetingDateTimeInputError } from './meetingDateTime';
 
 export const MeetingController = {
   async listMeetings() {
@@ -73,11 +74,18 @@ export const MeetingController = {
       );
     }
 
-    const newMeeting = await MeetingService.createMeeting(
-      body,
-      body.attendeeIds || [],
-    );
-    return NextResponse.json(newMeeting, { status: 201 });
+    try {
+      const newMeeting = await MeetingService.createMeeting(
+        body,
+        body.attendeeIds || [],
+      );
+      return NextResponse.json(newMeeting, { status: 201 });
+    } catch (error) {
+      if (error instanceof MeetingDateTimeInputError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      throw error;
+    }
   },
 
   async updateMeeting(request: Request, params: { meetingId: string }) {
@@ -91,11 +99,18 @@ export const MeetingController = {
       );
     }
 
-    const updatedMeeting = await MeetingService.updateMeeting(
-      params.meetingId,
-      updates,
-    );
-    return NextResponse.json(updatedMeeting);
+    try {
+      const updatedMeeting = await MeetingService.updateMeeting(
+        params.meetingId,
+        updates,
+      );
+      return NextResponse.json(updatedMeeting);
+    } catch (error) {
+      if (error instanceof MeetingDateTimeInputError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      throw error;
+    }
   },
 
   async deleteMeeting(params: { meetingId: string }) {

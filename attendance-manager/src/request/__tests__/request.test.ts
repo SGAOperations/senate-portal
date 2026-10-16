@@ -74,9 +74,9 @@ describe('RequestController', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Request Meeting',
-        date: '2025-08-15',
-        startTime: '13:00',
-        endTime: '14:00',
+        date: new Date('2025-08-15T00:00:00.000Z'),
+        startTime: new Date('2025-08-15T13:00:00.000Z'),
+        endTime: new Date('2025-08-15T14:00:00.000Z'),
         notes: 'Meeting for request tests',
         type: 'REGULAR',
       },
@@ -167,9 +167,9 @@ describe('RequestController', () => {
     const newMeeting = await prisma.meeting.create({
       data: {
         name: 'Request Meeting 2',
-        date: '2025-09-01',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-09-01T00:00:00.000Z'),
+        startTime: new Date('2025-09-01T10:00:00.000Z'),
+        endTime: new Date('2025-09-01T11:00:00.000Z'),
         notes: 'Additional meeting for requests',
         type: 'REGULAR',
       },
@@ -203,17 +203,15 @@ describe('RequestController', () => {
   });
 
   it('should mark request as late when created within 24 hours of meeting', async () => {
+    const meetingStart = new Date(Date.now() + 6 * 60 * 60 * 1000);
     const soonMeeting = await prisma.meeting.create({
       data: {
         name: 'Soon Meeting',
-        date: new Date(Date.now() + 6 * 60 * 60 * 1000) // 6 hours from now
-          .toISOString()
-          .split('T')[0],
-        startTime: new Date(Date.now() + 6 * 60 * 60 * 1000)
-          .toISOString()
-          .split('T')[1]
-          .slice(0, 5),
-        endTime: '23:59',
+        date: new Date(
+          `${meetingStart.toISOString().slice(0, 10)}T00:00:00.000Z`,
+        ),
+        startTime: meetingStart,
+        endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Soon meeting',
         type: 'REGULAR',
       },
@@ -241,14 +239,15 @@ describe('RequestController', () => {
   });
 
   it('should mark request as not late when meeting is more than 24 hours away', async () => {
+    const meetingStart = new Date(Date.now() + 48 * 60 * 60 * 1000);
     const futureMeeting = await prisma.meeting.create({
       data: {
         name: 'Far Future Meeting',
-        date: new Date(Date.now() + 48 * 60 * 60 * 1000)
-          .toISOString()
-          .split('T')[0],
-        startTime: '12:00',
-        endTime: '13:00',
+        date: new Date(
+          `${meetingStart.toISOString().slice(0, 10)}T00:00:00.000Z`,
+        ),
+        startTime: meetingStart,
+        endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Far future meeting',
         type: 'REGULAR',
       },
@@ -315,9 +314,9 @@ describe('RequestController', () => {
     const newMeeting = await prisma.meeting.create({
       data: {
         name: 'Request Meeting 3',
-        date: '2025-09-02',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-09-02T00:00:00.000Z'),
+        startTime: new Date('2025-09-02T10:00:00.000Z'),
+        endTime: new Date('2025-09-02T11:00:00.000Z'),
         notes: 'Additional meeting for requests',
         type: 'REGULAR',
       },
@@ -380,9 +379,9 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     const newMeeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-09-10',
-        startTime: '14:00',
-        endTime: '15:00',
+        date: new Date('2025-09-10T00:00:00.000Z'),
+        startTime: new Date('2025-09-10T14:00:00.000Z'),
+        endTime: new Date('2025-09-10T15:00:00.000Z'),
         notes: 'Meeting for route endpoint tests',
         type: 'REGULAR',
       },
@@ -441,9 +440,9 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting 2',
-        date: '2025-09-11',
-        startTime: '15:00',
-        endTime: '16:00',
+        date: new Date('2025-09-11T00:00:00.000Z'),
+        startTime: new Date('2025-09-11T15:00:00.000Z'),
+        endTime: new Date('2025-09-11T16:00:00.000Z'),
         notes: 'Second meeting for route tests',
         type: 'REGULAR',
       },
@@ -554,9 +553,9 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     const meeting3 = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting 3',
-        date: '2025-09-12',
-        startTime: '16:00',
-        endTime: '17:00',
+        date: new Date('2025-09-12T00:00:00.000Z'),
+        startTime: new Date('2025-09-12T16:00:00.000Z'),
+        endTime: new Date('2025-09-12T17:00:00.000Z'),
         notes: 'Third meeting for route tests',
         type: 'REGULAR',
       },

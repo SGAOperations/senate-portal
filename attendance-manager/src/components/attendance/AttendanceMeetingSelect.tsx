@@ -1,6 +1,10 @@
 import { Calendar, Clock } from 'lucide-react';
 
 import React from 'react';
+import {
+  formatMeetingDate,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
 
 interface AttendanceMeetingSelectProps {
   meetingsWithAttendance: {
@@ -58,12 +62,13 @@ const AttendanceMeetingSelect: React.FC<AttendanceMeetingSelectProps> = ({
                     <div className='flex items-center space-x-4 mt-2'>
                       <div className='flex items-center space-x-1 text-xs text-gray-500'>
                         <Calendar className='w-4 h-4' />
-                        <span>{meeting.date}</span>
+                        <span>{formatMeetingDate(meeting.date)}</span>
                       </div>
                       <div className='flex items-center space-x-1 text-xs text-gray-500'>
                         <Clock className='w-4 h-4' />
                         <span>
-                          {meeting.startTime} - {meeting.endTime}
+                          {formatMeetingTime(meeting.startTime)} -{' '}
+                          {formatMeetingTime(meeting.endTime)}
                         </span>
                       </div>
                     </div>

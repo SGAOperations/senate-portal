@@ -57,9 +57,9 @@ describe('AttendanceController', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -69,9 +69,9 @@ describe('AttendanceController', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Test Meeting 2',
-        date: '2025-10-04',
-        startTime: '9:00',
-        endTime: '10:00',
+        date: new Date('2025-10-04T00:00:00.000Z'),
+        startTime: new Date('2025-10-04T09:00:00.000Z'),
+        endTime: new Date('2025-10-04T10:00:00.000Z'),
         notes: 'Test notes 2',
         type: 'FULL_BODY',
       },
@@ -81,9 +81,9 @@ describe('AttendanceController', () => {
     const meeting3 = await prisma.meeting.create({
       data: {
         name: 'Test Meeting 3',
-        date: '2025-10-05',
-        startTime: '11:00',
-        endTime: '12:00',
+        date: new Date('2025-10-05T00:00:00.000Z'),
+        startTime: new Date('2025-10-05T11:00:00.000Z'),
+        endTime: new Date('2025-10-05T12:00:00.000Z'),
         notes: 'Test notes 3',
         type: 'FULL_BODY',
       },
@@ -437,9 +437,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const regular1 = await prisma.meeting.create({
       data: {
         name: 'Regular Meeting 1',
-        date: '2025-01-01',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-01-01T00:00:00.000Z'),
+        startTime: new Date('2025-01-01T10:00:00.000Z'),
+        endTime: new Date('2025-01-01T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -449,9 +449,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const regular2 = await prisma.meeting.create({
       data: {
         name: 'Regular Meeting 2',
-        date: '2025-01-08',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-01-08T00:00:00.000Z'),
+        startTime: new Date('2025-01-08T10:00:00.000Z'),
+        endTime: new Date('2025-01-08T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -461,9 +461,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const regular3 = await prisma.meeting.create({
       data: {
         name: 'Regular Meeting 3',
-        date: '2025-01-15',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-01-15T00:00:00.000Z'),
+        startTime: new Date('2025-01-15T10:00:00.000Z'),
+        endTime: new Date('2025-01-15T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -473,9 +473,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const regular4 = await prisma.meeting.create({
       data: {
         name: 'Regular Meeting 4',
-        date: '2025-01-22',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-01-22T00:00:00.000Z'),
+        startTime: new Date('2025-01-22T10:00:00.000Z'),
+        endTime: new Date('2025-01-22T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -486,9 +486,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const fullBody1 = await prisma.meeting.create({
       data: {
         name: 'Full Body Meeting 1',
-        date: '2025-02-01',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-02-01T00:00:00.000Z'),
+        startTime: new Date('2025-02-01T10:00:00.000Z'),
+        endTime: new Date('2025-02-01T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'FULL_BODY',
       },
@@ -498,9 +498,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const fullBody2 = await prisma.meeting.create({
       data: {
         name: 'Full Body Meeting 2',
-        date: '2025-02-08',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-02-08T00:00:00.000Z'),
+        startTime: new Date('2025-02-08T10:00:00.000Z'),
+        endTime: new Date('2025-02-08T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'FULL_BODY',
       },

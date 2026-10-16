@@ -6,6 +6,7 @@ import { VoteType } from '@/utils/consts';
 import { getVoteCounts } from '@/utils/voting_utils';
 import { useActiveVotingEvents } from '@/hooks/useActiveVotingEvents';
 import { formatResultLabel } from './votingDisplayUtils';
+import { formatMeetingDate } from '@/meeting/meetingDateTime';
 import EditVotingRecordsModal from './EditVotingRecordsModal';
 
 interface OngoingVotingPanelProps {
@@ -91,7 +92,7 @@ const OngoingVotingPanel: React.FC<OngoingVotingPanelProps> = ({
                       </div>
                       <div className='text-xs text-gray-500'>
                         {event.meeting?.date
-                          ? event.meeting.date
+                          ? formatMeetingDate(event.meeting.date)
                           : new Date(event.createdAt).toLocaleDateString()}
                       </div>
                     </td>

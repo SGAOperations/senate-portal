@@ -70,9 +70,9 @@ describe('VotingService', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -82,9 +82,9 @@ describe('VotingService', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Test Meeting 2',
-        date: '2025-10-04',
-        startTime: '9:00',
-        endTime: '10:00',
+        date: new Date('2025-10-04T00:00:00.000Z'),
+        startTime: new Date('2025-10-04T09:00:00.000Z'),
+        endTime: new Date('2025-10-04T10:00:00.000Z'),
         notes: 'Test notes 2',
         type: 'FULL_BODY',
       },
@@ -203,9 +203,9 @@ describe('VotingController', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Controller Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -215,9 +215,9 @@ describe('VotingController', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Controller Test Meeting 2',
-        date: '2025-10-04',
-        startTime: '9:00',
-        endTime: '10:00',
+        date: new Date('2025-10-04T00:00:00.000Z'),
+        startTime: new Date('2025-10-04T09:00:00.000Z'),
+        endTime: new Date('2025-10-04T10:00:00.000Z'),
         notes: 'Test notes 2',
         type: 'FULL_BODY',
       },
@@ -576,9 +576,9 @@ describe('GET /api/voting-event', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -624,9 +624,9 @@ describe('GET /api/voting-event/[id]', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -725,9 +725,9 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Roll Call Results Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -974,9 +974,9 @@ describe('Secret ballot results (aggregates only)', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Secret Ballot Meeting',
-        date: '2025-09-01',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-09-01T00:00:00.000Z'),
+        startTime: new Date('2025-09-01T10:00:00.000Z'),
+        endTime: new Date('2025-09-01T11:00:00.000Z'),
         notes: 'Test',
         type: 'REGULAR',
       },
@@ -1083,9 +1083,9 @@ describe('GET /api/voting-event/by-type/[voteType]', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -1095,9 +1095,9 @@ describe('GET /api/voting-event/by-type/[voteType]', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting 2',
-        date: '2025-10-04',
-        startTime: '9:00',
-        endTime: '10:00',
+        date: new Date('2025-10-04T00:00:00.000Z'),
+        startTime: new Date('2025-10-04T09:00:00.000Z'),
+        endTime: new Date('2025-10-04T10:00:00.000Z'),
         notes: 'Test notes 2',
         type: 'FULL_BODY',
       },
@@ -1176,9 +1176,9 @@ describe('POST /api/voting-event', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -1332,9 +1332,9 @@ describe('PUT /api/voting-event/[id]', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: new Date('2025-08-04T00:00:00.000Z'),
+        startTime: new Date('2025-08-04T10:00:00.000Z'),
+        endTime: new Date('2025-08-04T11:00:00.000Z'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
