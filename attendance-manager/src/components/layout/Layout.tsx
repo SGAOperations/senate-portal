@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import LoginPage from '../profile/LoginPage';
 import { useActiveVotingEvent } from '@/hooks/useActiveVotingEvent';
 import ActiveVotingModal from '@/components/voting/ActiveVotingModal';
-import { checkCanAccessAttendance } from '@/utils/permissions';
 import { TriangleAlert } from 'lucide-react';
 
 const Layout: React.FC = () => {
@@ -18,7 +17,7 @@ const Layout: React.FC = () => {
     'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile'
   >('dashboard');
   const { user, isLoading } = useAuth();
-  const canAccessAttendance = checkCanAccessAttendance(user?.role);
+  const isAdmin = user?.role === 'EBOARD';
   const { activeEvent } = useActiveVotingEvent();
   const [canVoteInActiveEvent, setCanVoteInActiveEvent] = useState(false);
 
@@ -103,7 +102,7 @@ const Layout: React.FC = () => {
         return <VotingPage />;
       case 'attendance':
         // Check if user is admin
-        if (canAccessAttendance) {
+        if (isAdmin) {
           return <AttendancePage />;
         } else {
           return (

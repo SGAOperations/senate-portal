@@ -28,13 +28,6 @@ describe('UsersService', () => {
   let testRoleId: string;
 
   beforeAll(async () => {
-    // Clean up any leftover data from previous runs
-    await prisma.user.deleteMany({
-      where: {
-        nuid: { in: ['001234567', '001234568', '001234570', '001234571'] }
-      }
-    });
-
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
     });
@@ -48,9 +41,7 @@ describe('UsersService', () => {
       firstName: 'John',
       lastName: 'Doe',
       roleId: testRoleId,
-      roleType: RoleType.MEMBER,
-      isVotingMember: true,
-      password: null
+      password: null,
     });
   });
 
@@ -64,9 +55,9 @@ describe('UsersService', () => {
   });
 
   it('should fetch users by role type', async () => {
-    const users = await UsersService.getUsersByRole(RoleType.MEMBER);
+    const users = await UsersService.getUsersByRole('MEMBER');
     expect(users.length).toBeGreaterThan(0);
-    expect(users[0].roleType).toBe(RoleType.MEMBER);
+    expect(users[0].role.roleType).toBe('MEMBER');
   });
 
   it('should create a new user', async () => {
@@ -78,8 +69,6 @@ describe('UsersService', () => {
       firstName: 'Jane',
       lastName: 'Doe',
       roleId: testRoleId,
-      roleType: RoleType.MEMBER,
-      isVotingMember: true
     });
 
     expect(newUser).toBeDefined();
@@ -107,8 +96,6 @@ describe('UsersService', () => {
       firstName: 'Jane',
       lastName: 'Doe',
       roleId: testRoleId,
-      roleType: RoleType.MEMBER,
-      isVotingMember: true
     });
 
     const updatedUser = await UsersService.updateUser(newUser.userId, {
@@ -131,8 +118,6 @@ describe('UsersService', () => {
       firstName: 'Jane',
       lastName: 'Doe',
       roleId: testRoleId,
-      roleType: RoleType.MEMBER,
-      isVotingMember: true
     });
     await UsersService.deleteUser(newUser.userId);
     const deletedUser = await UsersService.getUserById(newUser.userId);
@@ -160,8 +145,6 @@ describe('UsersController.validateNuid', () => {
       lastName: 'Doe',
       roleId: testRoleId,
       password: null,
-      roleType: RoleType.MEMBER,
-      isVotingMember: true
     });
     testUserId = user.userId;
   });
@@ -276,10 +259,8 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
         firstName: 'Route',
         lastName: 'User',
         roleId: routeTestRoleId,
-        roleType: RoleType.MEMBER,
-        isVotingMember: true,
-        password: null
-      }
+        password: null,
+      },
     });
     routeTestUserId = user.userId;
     routeTestSupabaseAuthId = user.supabaseAuthId!;
@@ -309,7 +290,8 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     expect(data.firstName).toBe('Route');
     expect(data.lastName).toBe('User');
     expect(data.nuid).toBe('001234888');
-    expect(data.roleType).toBe('MEMBER');
+    expect(data.role).toBeDefined();
+    expect(data.role.roleType).toBe('MEMBER');
   });
 
   it('should return 404 when user is not found', async () => {
@@ -343,9 +325,8 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
         firstName: 'Eboard',
         lastName: 'Route',
         roleId: eboardRole.roleId,
-        roleType: RoleType.EBOARD,
-        password: null
-      }
+        password: null,
+      },
     });
 
     const req = new Request(
@@ -359,7 +340,9 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.roleType).toBe('EBOARD');
+    expect(data.role).toBeDefined();
+    expect(data.role.roleId).toBe(eboardRole.roleId);
+    expect(data.role.roleType).toBe('EBOARD');
 
     await prisma.user.delete({ where: { userId: eboardUser.userId } });
     await prisma.role.delete({ where: { roleId: eboardRole.roleId } });

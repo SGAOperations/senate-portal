@@ -1165,8 +1165,13 @@ describe('GET /api/voting-event/by-type/[voteType]', () => {
 
 describe('POST /api/voting-event', () => {
   let routeTestMeetingId: string;
+  let requireAuthSpy: jest.SpyInstance;
 
   beforeAll(async () => {
+    requireAuthSpy = jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
+      user: { role: { roleType: 'EBOARD' } } as any,
+      error: null,
+    });
     // Create a test meeting
     const meeting = await prisma.meeting.create({
       data: {
@@ -1182,6 +1187,7 @@ describe('POST /api/voting-event', () => {
   });
 
   afterAll(async () => {
+    requireAuthSpy.mockRestore();
     await MeetingService.deleteMeeting(routeTestMeetingId);
   });
 
@@ -1315,8 +1321,13 @@ describe('POST /api/voting-event', () => {
 describe('PUT /api/voting-event/[id]', () => {
   let routeTestMeetingId: string;
   let routeTestVotingEventId: string;
+  let requireAuthSpy: jest.SpyInstance;
 
   beforeAll(async () => {
+    requireAuthSpy = jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
+      user: { role: { roleType: 'EBOARD' } } as any,
+      error: null,
+    });
     // Create a test meeting
     const meeting = await prisma.meeting.create({
       data: {
@@ -1340,6 +1351,7 @@ describe('PUT /api/voting-event/[id]', () => {
   });
 
   afterAll(async () => {
+    requireAuthSpy.mockRestore();
     await VotingService.deleteVotingEvent(routeTestVotingEventId);
     await MeetingService.deleteMeeting(routeTestMeetingId);
   });

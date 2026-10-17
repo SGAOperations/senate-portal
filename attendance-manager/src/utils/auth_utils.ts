@@ -24,11 +24,8 @@ export const login = async (
     let userDetails: UserData = await res.json();
     if (
       !(
-        userDetails.roleType === 'SENATOR' ||
-        userDetails.roleType === 'SUPER_ADMIN' ||
-        userDetails.roleType === 'ADMIN' ||
-        userDetails.roleType === 'EBOARD' ||
-        userDetails.roleType === 'MEMBER'
+        userDetails.role.roleType === 'EBOARD' ||
+        userDetails.role.roleType === 'MEMBER'
       )
     ) {
       alert('Incorrect Roles');
@@ -44,7 +41,7 @@ export const login = async (
       id: userDetails.userId,
       email: credentials.email,
       name: userDetails.firstName + ' ' + userDetails.lastName,
-      role: userDetails.roleType,
+      role: userDetails.role.roleType,
       avatar: undefined,
     };
 
