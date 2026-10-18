@@ -17,7 +17,6 @@ import MeetingHistoryPanel from './MeetingHistoryPanel';
 import CreateMeetingModal from './CreateMeetingModal';
 import EditMeetingModal from './EditMeetingModal';
 import CreateRequestModal from './CreateRequestModal';
-import { checkCanManageMeetings } from '@/utils/permissions';
 import DeleteMeetingModal from './DeleteMeetingModal';
 import { isMeetingAdjustmentRequestEligible } from './meetings.utils';
 
@@ -40,9 +39,7 @@ const normalizeDate = (dateStr: string) => {
 
   const parsed = new Date(dateStr);
   if (!Number.isNaN(parsed.getTime())) {
-    return `${
-      parsed.getMonth() + 1
-    }/${parsed.getDate()}/${parsed.getFullYear()}`;
+    return `${parsed.getMonth() + 1}/${parsed.getDate()}/${parsed.getFullYear()}`;
   }
 
   const today = new Date();
@@ -95,7 +92,7 @@ const MeetingsPage: React.FC = () => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   // Check if user is admin (EBOARD)
-  const canManageMeetings = checkCanManageMeetings(user?.role);
+  const isAdmin = user?.role === 'EBOARD';
   const isMember = user?.role === 'MEMBER';
   const [remainingAbsences, setRemainingAbsences] =
     useState<RemainingAbsences | null>(null);
@@ -219,7 +216,7 @@ const MeetingsPage: React.FC = () => {
   }, []);
 
   const nonEboardMembers = useMemo(
-    () => members.filter((member) => member.roleType !== 'EBOARD'),
+    () => members.filter((member) => member.role.roleType !== 'EBOARD'),
     [members],
   );
   const nonEboardMemberIds = useMemo(
@@ -500,10 +497,9 @@ const MeetingsPage: React.FC = () => {
   };
 
   // visibleMeetings are meetings post-type-filter - sorted by most recent date
-  const visibleMeetings = (
-    typeFilter
-      ? filteredMeetings.filter((m) => m.type === typeFilter)
-      : filteredMeetings
+  const visibleMeetings = (typeFilter
+    ? filteredMeetings.filter(m => m.type === typeFilter)
+    : filteredMeetings
   ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Determine banner color based on remaining absences
@@ -550,7 +546,7 @@ const MeetingsPage: React.FC = () => {
           attendedMeetings={attendedMeetings}
           missedMeetings={missedMeetings}
           upcomingMeetings={upcomingMeetingsList.length}
-          canManageMeetings={canManageMeetings}
+          isAdmin={isAdmin}
           setShowCreateMeetingModal={setShowCreateMeetingModal}
         />
 

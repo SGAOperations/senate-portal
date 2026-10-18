@@ -23,8 +23,6 @@ model User {
   firstName  String
   lastName   String
   roleId     String
-  roleType       RoleType     @default(MEMBER)
-  isVotingMember Boolean      @default(false)
   password   String?  // Optional - Supabase handles authentication
   attendance Attendance[]
   role       Role         @relation(fields: [roleId], references: [roleId])
@@ -98,9 +96,6 @@ model VotingRecord {
 }
 
 enum RoleType {
-  SUPER_ADMIN
-  ADMIN
-  SENATOR
   EBOARD
   MEMBER
 }

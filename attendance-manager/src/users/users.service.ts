@@ -55,8 +55,6 @@ export const UsersService = {
     firstName: string;
     lastName: string;
     roleId: string;
-    roleType: RoleType;
-    isVotingMember: boolean;
     password?: string | null;
   }) {
     return prisma.user.create({
@@ -87,8 +85,6 @@ export const UsersService = {
       firstName: string;
       lastName: string;
       roleId: string;
-      roleType: RoleType;
-      isVotingMember: boolean;
     }>,
   ) {
     return prisma.user.update({
@@ -124,11 +120,16 @@ export const UsersService = {
     });
   },
 
-  async getUsersByRole(roleType: RoleType) {
+  async getUsersByRole(roleId: string) {
     return prisma.user.findMany({
       where: {
         deletedAt: null,
-        roleType,
+        role: {
+          roleType: roleId as RoleType,
+        },
+      },
+      include: {
+        role: true,
       },
     });
   },

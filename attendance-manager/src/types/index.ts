@@ -4,7 +4,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'SENATOR' | 'EBOARD' | 'MEMBER';
+  role: 'MEMBER' | 'EBOARD';
   avatar?: string;
 }
 
@@ -70,8 +70,7 @@ export interface UserData {
   email: string;
   firstName: string;
   lastName: string;
-  roleType: string;
-  isVotingMember: boolean;
+  role: RoleData;
   password: string;
 }
 
@@ -85,8 +84,7 @@ export interface UserApiData {
   nuid: string;
   attendance: AttendanceApiData[];
   attendanceId?: string;
-  roleType: string;
-  isVotingMember: boolean;
+  role: RoleData;
 }
 
 export interface AttendanceApiData {

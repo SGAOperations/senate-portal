@@ -123,7 +123,7 @@ describe('VotingRecordService', () => {
         votingEventId: testVotingEventId,
         userId: testUserId,
         result: 'YES',
-      }),
+      })
     ).rejects.toThrow('User has already voted for this event');
   });
 

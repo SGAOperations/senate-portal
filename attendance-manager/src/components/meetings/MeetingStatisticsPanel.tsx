@@ -6,7 +6,7 @@ interface MeetingStatisticsPanelProps {
   attendedMeetings: number;
   missedMeetings: number;
   upcomingMeetings: number;
-  canManageMeetings: boolean;
+  isAdmin: boolean;
 
   setShowCreateMeetingModal: (show: boolean) => void;
 }
@@ -15,7 +15,7 @@ const MeetingStatisticsPanel: React.FC<MeetingStatisticsPanelProps> = ({
   attendedMeetings,
   missedMeetings,
   upcomingMeetings,
-  canManageMeetings,
+  isAdmin,
   setShowCreateMeetingModal,
 }) => {
   return (
@@ -68,7 +68,7 @@ const MeetingStatisticsPanel: React.FC<MeetingStatisticsPanelProps> = ({
       </div>
 
       {/* Create Meeting Button - Only for Admins */}
-      {canManageMeetings && (
+      {isAdmin && (
         <div className='mt-6 space-y-3'>
           <button
             onClick={() => setShowCreateMeetingModal(true)}

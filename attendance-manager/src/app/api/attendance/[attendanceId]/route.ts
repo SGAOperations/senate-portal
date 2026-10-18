@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AttendanceController } from '../../../../attendance/attendance.controller';
 import { requireAuth } from '@/utils/api-auth';
-import { checkCanManageAttendance } from '@/utils/permissions';
 
 /**
  * Updates an Attendance
@@ -16,7 +15,7 @@ export async function PATCH(
 ) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!checkCanManageAttendance(user.roleType)) {
+  if (user.role.roleType !== 'EBOARD') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   try {
@@ -47,7 +46,7 @@ export async function DELETE(
 ) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!checkCanManageAttendance(user.roleType)) {
+  if (user.role.roleType !== 'EBOARD') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   try {
