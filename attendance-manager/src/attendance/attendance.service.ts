@@ -46,7 +46,7 @@ export const AttendanceService = {
   // Update attendees for meeting
   async updateMeetingAttendees(meetingId: string, userIds: string[]) {
     return prisma.$transaction(async (transaction) => {
-      await prisma.attendance.deleteMany({
+      await transaction.attendance.deleteMany({
         where: userIds.length
           ? { meetingId, userId: { notIn: userIds } }
           : { meetingId },
