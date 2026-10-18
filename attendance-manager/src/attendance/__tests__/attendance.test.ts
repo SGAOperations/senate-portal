@@ -223,6 +223,50 @@ describe('AttendanceController', () => {
     ).rejects.toThrow('Invalid attendance status');
   });
 
+    it('roster edits preserve statuses', async () => {
+    try {
+      await prisma.attendance.createMany({
+        data: [
+          { userId: testUserId, meetingId: testMeeting3Id, status: 'PRESENT' },
+          { userId: testUser2Id, meetingId: testMeeting3Id, status: 'EXCUSED_ABSENCE' },
+        ],
+      });
+
+      const statuses = async () => {
+        const rows = await AttendanceController.getMeetingAttendance(testMeeting3Id);
+        return Object.fromEntries(rows.map((r) => [r.userId, r.status]));
+      };
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser2Id,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual({
+        [testUserId]: 'PRESENT',
+        [testUser2Id]: 'EXCUSED_ABSENCE',
+        [testUser3Id]: 'PENDING',
+      });
+
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual({
+        [testUserId]: 'PRESENT',
+        [testUser3Id]: 'PENDING',
+      });
+
+      const before = await statuses();
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual(before);
+    } finally {
+      await prisma.attendance.deleteMany({ where: { meetingId: testMeeting3Id } });
+    }
+  });
+
   it('should delete attendance record', async () => {
     // Create record to delete
     const attendance = await prisma.attendance.create({
