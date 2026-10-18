@@ -62,7 +62,7 @@ export const AttendanceService = {
         })),
         skipDuplicates: true,
       });
-    })
+    });
   },
 
   // Create an attendance record
