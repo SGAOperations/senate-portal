@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AttendanceController } from '../../../../attendance/attendance.controller';
+import { requireAuth } from '@/utils/api-auth';
 
 /**
  * Updates an Attendance
@@ -12,6 +13,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ attendanceId: string }> },
 ) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+  if (user.role.roleType !== 'EBOARD') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   try {
     const { attendanceId } = await params;
     const data = await req.json();
@@ -38,6 +44,11 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ attendanceId: string }> },
 ) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+  if (user.role.roleType !== 'EBOARD') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   try {
     const { attendanceId } = await params; // Await params
     await AttendanceController.deleteAttendance(attendanceId);
