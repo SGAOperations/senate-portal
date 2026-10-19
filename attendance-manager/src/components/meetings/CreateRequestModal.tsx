@@ -4,7 +4,7 @@ import {
   formatMeetingDate,
   formatMeetingTime,
 } from '@/meeting/meetingDateTime';
-import { isMeetingRequestLate } from './meetings.utils';
+import { isMeetingRequestLate } from '@/utils/meeting-time';
 
 interface CreateRequestModalProps {
   upcomingMeetingsList: MeetingApiData[];

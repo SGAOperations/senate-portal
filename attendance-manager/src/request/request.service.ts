@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { AttendanceMode, TimeAdjustment } from '../generated/prisma';
+import { isMeetingRequestLate } from '../utils/meeting-time';
 
 export const RequestService = {
   // Create a new request
@@ -23,11 +24,7 @@ export const RequestService = {
       throw new Error('Meeting date or time missing');
     }
 
-    const now = new Date();
-    const diffMs = meeting.startTime.getTime() - now.getTime();
-    const hoursDiff = diffMs / (1000 * 60 * 60);
-
-    const isLate = hoursDiff <= 24;
+    const isLate = isMeetingRequestLate(meeting.startTime);
 
     return prisma.request.create({
       data: {
