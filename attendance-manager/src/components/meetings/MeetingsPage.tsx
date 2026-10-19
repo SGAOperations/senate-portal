@@ -300,7 +300,7 @@ const MeetingsPage: React.FC = () => {
 
   // Get upcoming meetings for request creation
   const upcomingMeetingsList = meetings.filter((m) =>
-    isMeetingAdjustmentRequestEligible(m.date, m.startTime),
+    isMeetingAdjustmentRequestEligible(m.startTime),
   );
 
   // Handle request submission
