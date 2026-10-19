@@ -4,6 +4,7 @@ import { prisma } from '../../lib/prisma';
 import { MeetingType } from '../../generated/prisma';
 import { UsersService } from '@/users/users.service';
 import { AttendanceService } from '@/attendance/attendance.service';
+import { formatMeetingDateInput, parseMeetingDate } from '../meetingDateTime';
 
 jest.setTimeout(20000);
 
@@ -46,10 +47,11 @@ describe('MeetingServices', () => {
 
   it('should keep in-progress meetings and drop ended ones in upcoming meetings', async () => {
     const hour = 60 * 60 * 1000;
+    const today = parseMeetingDate(formatMeetingDateInput(new Date()));
     const inProgress = await prisma.meeting.create({
       data: {
         name: 'In Progress Meeting',
-        date: new Date(),
+        date: today,
         startTime: new Date(Date.now() - hour),
         endTime: new Date(Date.now() + hour),
         notes: 'started an hour ago, ends in an hour',
@@ -59,7 +61,7 @@ describe('MeetingServices', () => {
     const ended = await prisma.meeting.create({
       data: {
         name: 'Ended Meeting',
-        date: new Date(),
+        date: today,
         startTime: new Date(Date.now() - 3 * hour),
         endTime: new Date(Date.now() - 2 * hour),
         notes: 'ended two hours ago',
