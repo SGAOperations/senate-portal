@@ -3,6 +3,7 @@ import { LayoutDashboard, Calendar, Vote, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MeetingApiData, UserApiData, AttendanceApiData } from '@/types';
 import { getMeetingDateRange } from '@/meeting/meetingDateTime';
+import { useCurrentSemester } from '@/hooks/useCurrentSemester';
 
 interface SidebarProps {
   activeTab: 'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile';
@@ -14,6 +15,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'EBOARD';
+  const currentSemester = useCurrentSemester();
 
   const [meetings, setMeetings] = React.useState<MeetingApiData[]>([]);
   const [users, setUsers] = React.useState<UserApiData[]>([]);
@@ -59,6 +61,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   }).length;
 
   const pendingAttendance = meetings.filter((m) => {
+    if (m.semesterId !== currentSemester?.semesterId) {
+      return false; // Only the current semester
+    }
     const meetingEnd = new Date(m.endTime);
     if (meetingEnd > now) {
       return false; // Only past meetings

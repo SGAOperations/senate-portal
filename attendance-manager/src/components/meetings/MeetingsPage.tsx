@@ -9,6 +9,7 @@ import {
 } from '../../types';
 import { z } from 'zod';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentSemester } from '../../hooks/useCurrentSemester';
 import ViewRequestsPanel from './ViewRequestsPanel';
 import ViewRequestsModal from './ViewRequestsModal';
 import AbsencesBanner from './AbsencesBanner';
@@ -26,6 +27,7 @@ import {
 
 const MeetingsPage: React.FC = () => {
   const { user } = useAuth();
+  const currentSemester = useCurrentSemester();
   const [activeTab, setActiveTab] = useState<'past' | 'upcoming'>('past');
   const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false);
   const [showEditMeetingModal, setShowEditMeetingModal] = useState(false);
@@ -267,8 +269,11 @@ const MeetingsPage: React.FC = () => {
 
   // Calculate statistics from real meetings
   const today = new Date();
-  // Calculate statistics from real data
-  const attendedMeetings = meetings.filter((m) => {
+  // Calculate statistics from real data, current semester only
+  const currentSemesterMeetings = meetings.filter(
+    (m) => m.semesterId === currentSemester?.semesterId,
+  );
+  const attendedMeetings = currentSemesterMeetings.filter((m) => {
     const meetingStart = new Date(m.startTime);
     if (meetingStart > today) return false; // Skip upcoming meetings
     // Check if current user attended this meeting
@@ -277,7 +282,7 @@ const MeetingsPage: React.FC = () => {
     );
   }).length;
 
-  const missedMeetings = meetings.filter((m) => {
+  const missedMeetings = currentSemesterMeetings.filter((m) => {
     const meetingStart = new Date(m.startTime);
     if (meetingStart > today) return false; // Skip upcoming meetings
     // Check if current user was absent
