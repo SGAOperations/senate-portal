@@ -54,7 +54,7 @@ export const AttendanceService = {
 
       if (userIds.length === 0) return { count: 0 };
 
-      return prisma.attendance.createMany({
+      return transaction.attendance.createMany({
         data: userIds.map((userId) => ({
           userId,
           meetingId,
@@ -62,6 +62,19 @@ export const AttendanceService = {
         })),
         skipDuplicates: true,
       });
+    });
+  },
+
+  async addMeetingAttendee(meetingId: string, userId: string) {
+    return prisma.attendance.createMany({
+      data: [
+        {
+          userId,
+          meetingId,
+          status: AttendanceStatus.PENDING,
+        },
+      ],
+      skipDuplicates: true,
     });
   },
 

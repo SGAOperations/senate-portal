@@ -1,4 +1,6 @@
+import { NextResponse } from 'next/server';
 import { VotingController } from '@/voting/voting.controller';
+import { requireAuth } from '@/utils/api-auth';
 
 /**
  * @swagger
@@ -30,5 +32,10 @@ export async function GET() {
  *         description: Missing required fields or invalid data.
  */
 export async function POST(request: Request) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+  if (user.role.roleType !== 'EBOARD') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   return VotingController.createVotingEvent(request);
 }

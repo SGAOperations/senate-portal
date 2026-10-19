@@ -79,6 +79,16 @@ export const AttendanceController = {
     return AttendanceService.updateMeetingAttendees(meetingId, userIds);
   },
 
+  async addMeetingAttendee(meetingId: string, userId: string) {
+    if (!meetingId || typeof meetingId !== 'string') {
+      throw new Error('Invalid or missing meetingId');
+    }
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('Invalid or missing userId');
+    }
+    return AttendanceService.addMeetingAttendee(meetingId, userId);
+  },
+
   async updateAttendance(attendanceId: string, data: any) {
     if (!attendanceId || typeof attendanceId !== 'string') {
       throw new Error('Invalid or missing attendanceId');
