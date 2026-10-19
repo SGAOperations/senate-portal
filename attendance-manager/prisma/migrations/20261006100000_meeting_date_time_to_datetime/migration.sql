@@ -78,60 +78,49 @@ DECLARE
   invalid_count bigint;
   invalid_rows text;
 BEGIN
-  SELECT count(*)
-  INTO invalid_count
-  FROM "Meeting"
-  WHERE pg_temp.parse_meeting_date("date") IS NULL
-    OR pg_temp.parse_meeting_time("startTime") IS NULL
-    OR pg_temp.parse_meeting_time("endTime") IS NULL
-    OR (
-      pg_temp.parse_meeting_date("date") IS NOT NULL
-      AND pg_temp.parse_meeting_time("startTime") IS NOT NULL
-      AND ((pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("startTime"))
-        AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York'
-        <> pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("startTime")
+  -- The invalid-row condition is written once here so the count and the
+  -- listed rows below can never disagree.
+  WITH invalid_meetings AS (
+    SELECT "meetingId", "date", "startTime", "endTime"
+    FROM "Meeting"
+    WHERE pg_temp.parse_meeting_date("date") IS NULL
+      OR pg_temp.parse_meeting_time("startTime") IS NULL
+      OR pg_temp.parse_meeting_time("endTime") IS NULL
+      OR (
+        pg_temp.parse_meeting_date("date") IS NOT NULL
+        AND pg_temp.parse_meeting_time("startTime") IS NOT NULL
+        AND ((pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("startTime"))
+          AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York'
+          <> pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("startTime")
+      )
+      OR (
+        pg_temp.parse_meeting_date("date") IS NOT NULL
+        AND pg_temp.parse_meeting_time("endTime") IS NOT NULL
+        AND ((pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("endTime"))
+          AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York'
+          <> pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("endTime")
+      )
+  )
+  SELECT
+    (SELECT count(*) FROM invalid_meetings),
+    (
+      SELECT string_agg(
+        format(
+          'meetingId=%s date=%L startTime=%L endTime=%L',
+          "meetingId", "date", "startTime", "endTime"
+        ),
+        E'\n'
+      )
+      FROM (
+        SELECT "meetingId", "date", "startTime", "endTime"
+        FROM invalid_meetings
+        ORDER BY "meetingId"
+        LIMIT 20
+      ) AS first_invalid_meetings
     )
-    OR (
-      pg_temp.parse_meeting_date("date") IS NOT NULL
-      AND pg_temp.parse_meeting_time("endTime") IS NOT NULL
-      AND ((pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("endTime"))
-        AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York'
-        <> pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("endTime")
-    );
+  INTO invalid_count, invalid_rows;
 
   IF invalid_count > 0 THEN
-    SELECT string_agg(
-      format(
-        'meetingId=%s date=%L startTime=%L endTime=%L',
-        "meetingId", "date", "startTime", "endTime"
-      ),
-      E'\n'
-    )
-    INTO invalid_rows
-    FROM (
-      SELECT "meetingId", "date", "startTime", "endTime"
-      FROM "Meeting"
-      WHERE pg_temp.parse_meeting_date("date") IS NULL
-        OR pg_temp.parse_meeting_time("startTime") IS NULL
-        OR pg_temp.parse_meeting_time("endTime") IS NULL
-        OR (
-          pg_temp.parse_meeting_date("date") IS NOT NULL
-          AND pg_temp.parse_meeting_time("startTime") IS NOT NULL
-          AND ((pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("startTime"))
-            AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York'
-            <> pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("startTime")
-        )
-        OR (
-          pg_temp.parse_meeting_date("date") IS NOT NULL
-          AND pg_temp.parse_meeting_time("endTime") IS NOT NULL
-          AND ((pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("endTime"))
-            AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York'
-            <> pg_temp.parse_meeting_date("date") + pg_temp.parse_meeting_time("endTime")
-        )
-      ORDER BY "meetingId"
-      LIMIT 20
-    ) AS invalid_meetings;
-
     RAISE EXCEPTION
       'Cannot convert Meeting date/time columns: % row(s) are unparseable. First invalid rows:%',
       invalid_count,
