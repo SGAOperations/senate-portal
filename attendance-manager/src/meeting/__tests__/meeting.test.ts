@@ -44,6 +44,42 @@ describe('MeetingServices', () => {
     expect(fetchedMeeting?.meetingId).toBe(newMeeting.meetingId);
   });
 
+  it('should keep in-progress meetings and drop ended ones in upcoming meetings', async () => {
+    const hour = 60 * 60 * 1000;
+    const inProgress = await prisma.meeting.create({
+      data: {
+        name: 'In Progress Meeting',
+        date: new Date(),
+        startTime: new Date(Date.now() - hour),
+        endTime: new Date(Date.now() + hour),
+        notes: 'started an hour ago, ends in an hour',
+        type: MeetingType.REGULAR,
+      },
+    });
+    const ended = await prisma.meeting.create({
+      data: {
+        name: 'Ended Meeting',
+        date: new Date(),
+        startTime: new Date(Date.now() - 3 * hour),
+        endTime: new Date(Date.now() - 2 * hour),
+        notes: 'ended two hours ago',
+        type: MeetingType.REGULAR,
+      },
+    });
+
+    try {
+      const upcoming = await MeetingService.getUpcomingMeetings();
+      const ids = upcoming.map(
+        (m) => (m as unknown as { meetingId: string }).meetingId,
+      );
+      expect(ids).toContain(inProgress.meetingId);
+      expect(ids).not.toContain(ended.meetingId);
+    } finally {
+      await MeetingService.deleteMeeting(inProgress.meetingId);
+      await MeetingService.deleteMeeting(ended.meetingId);
+    }
+  });
+
   it('should update a meeting', async () => {
     const [newMeeting] = await MeetingService.getAllMeeting();
     const updatedMeeting = await MeetingService.updateMeeting(

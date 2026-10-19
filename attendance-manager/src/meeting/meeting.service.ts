@@ -58,7 +58,8 @@ export const MeetingService = {
       eligibleCount: attendance.length,
     });
     const upcoming = await prisma.meeting.findMany({
-      where: { deletedAt: null, startTime: { gte: now } },
+      // Keep in-progress meetings: voting happens while a meeting is running.
+      where: { deletedAt: null, endTime: { gte: now } },
       orderBy: { startTime: 'asc' },
       include,
     });
