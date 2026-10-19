@@ -109,8 +109,9 @@ const ViewRequestsModal: React.FC<ViewRequestsModalProps> = ({
                     {/* Request Status (pending only in this view) */}
                     <div className='mt-3'>
                       {request.attendance.status === 'PENDING' && (
-                        <span className='inline-block px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800'>
-                          ⏳ Pending
+                        <span className='inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800'>
+                          <Clock className='w-3 h-3' aria-hidden='true' />
+                          Pending
                         </span>
                       )}
                       {request.attendance.status === 'UNEXCUSED_ABSENCE' && (

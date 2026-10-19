@@ -1,5 +1,6 @@
 import { MeetingApiData, RequestForm } from '@/types';
 import React from 'react';
+import { Clock } from 'lucide-react';
 import {
   formatMeetingDate,
   formatMeetingTime,
@@ -107,8 +108,9 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               role='alert'
               className='mt-3 p-4 bg-amber-50 border border-amber-300 rounded-xl'
             >
-              <p className='text-sm font-medium text-amber-900'>
-                ⏰ This request will be marked as late
+              <p className='flex items-center gap-2 text-sm font-medium text-amber-900'>
+                <Clock className='w-4 h-4 shrink-0' aria-hidden='true' />
+                This request will be marked as late
               </p>
               <p className='text-xs text-amber-800 mt-1'>
                 Requests made {LATE_REQUEST_WINDOW_HOURS} hours or less before a
