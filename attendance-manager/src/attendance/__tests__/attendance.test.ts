@@ -283,6 +283,55 @@ describe('AttendanceController', () => {
     }
   });
 
+    it('roster edits preserve statuses', async () => {
+    try {
+      // Arrange: two members already on the roster with recorded statuses
+      await prisma.attendance.createMany({
+        data: [
+          { userId: testUserId, meetingId: testMeeting3Id, status: 'PRESENT' },
+          { userId: testUser2Id, meetingId: testMeeting3Id, status: 'EXCUSED_ABSENCE' },
+        ],
+      });
+
+      const statuses = async () => {
+        const rows = await AttendanceController.getMeetingAttendance(testMeeting3Id);
+        return Object.fromEntries(rows.map((r) => [r.userId, r.status]));
+      };
+
+      // 1. Adding a member preserves existing statuses
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser2Id,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual({
+        [testUserId]: 'PRESENT',
+        [testUser2Id]: 'EXCUSED_ABSENCE',
+        [testUser3Id]: 'PENDING',
+      });
+
+      // 2. Removing a member deletes only their row
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual({
+        [testUserId]: 'PRESENT',
+        [testUser3Id]: 'PENDING',
+      });
+
+      // 3. Same payload twice is a no-op
+      const before = await statuses();
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual(before);
+    } finally {
+      await prisma.attendance.deleteMany({ where: { meetingId: testMeeting3Id } });
+    }
+  });
+
   it('should update attendance status', async () => {
     const updateData = { status: 'UNEXCUSED_ABSENCE' };
     const updated = await AttendanceController.updateAttendance(
