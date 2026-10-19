@@ -1,5 +1,6 @@
 import { MeetingApiData, AttendanceApiData } from '@/types';
 import React, { useState } from 'react';
+import { formatMeetingDate } from '@/meeting/meetingDateTime';
 
 interface AvailableMember {
   userId: string;
@@ -69,7 +70,8 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
           </button>
         </h3>
         <p className='text-sm text-gray-600'>
-          {selectedMeetingForCheck.name} • {selectedMeetingForCheck.date}
+          {selectedMeetingForCheck.name} •{' '}
+          {formatMeetingDate(selectedMeetingForCheck.date)}
         </p>
       </div>
 

@@ -1,20 +1,11 @@
 export const isMeetingAdjustmentRequestEligible = (
-  meetingDate: string | null | undefined,
-  startTime?: string | null,
+  startTime: string | null | undefined,
   now: Date = new Date(),
 ): boolean => {
-  if (!meetingDate) {
-    return false;
-  }
+  if (!startTime) return false;
 
-  const normalizedStartTime = startTime || '00:00';
-  const meetingDateTime = new Date(`${meetingDate}T${normalizedStartTime}:00`);
-
-  if (Number.isNaN(meetingDateTime.getTime())) {
-    return false;
-  }
-
-  return meetingDateTime > now;
+  const startsAt = new Date(startTime);
+  return !Number.isNaN(startsAt.getTime()) && startsAt > now;
 };
 
 // Mirrors the server rule in RequestService.createRequest: a request made
@@ -22,22 +13,16 @@ export const isMeetingAdjustmentRequestEligible = (
 export const LATE_REQUEST_WINDOW_HOURS = 24;
 
 export const isMeetingRequestLate = (
-  meetingDate: string | null | undefined,
-  startTime?: string | null,
+  startTime: string | null | undefined,
   now: Date = new Date(),
 ): boolean => {
-  if (!meetingDate) {
-    return false;
-  }
+  if (!startTime) return false;
 
-  const meetingDateTime = new Date(`${meetingDate}T${startTime || '00:00'}:00`);
-
-  if (Number.isNaN(meetingDateTime.getTime())) {
-    return false;
-  }
+  const startsAt = new Date(startTime);
+  if (Number.isNaN(startsAt.getTime())) return false;
 
   const hoursUntilMeeting =
-    (meetingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    (startsAt.getTime() - now.getTime()) / (1000 * 60 * 60);
 
   return hoursUntilMeeting <= LATE_REQUEST_WINDOW_HOURS;
 };

@@ -1,6 +1,10 @@
 import { RequestApiData } from '@/types';
 import { Calendar, Clock, FileText } from 'lucide-react';
 import React from 'react';
+import {
+  formatMeetingDate,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
 
 interface ViewRequestsModalProps {
   myRequests: RequestApiData[];
@@ -49,16 +53,19 @@ const ViewRequestsModal: React.FC<ViewRequestsModalProps> = ({
                         <div className='flex items-center space-x-1'>
                           <Calendar className='w-4 h-4' />
                           <span>
-                            {new Date(
-                              request.attendance.meeting.date,
-                            ).toLocaleDateString()}
+                            {formatMeetingDate(request.attendance.meeting.date)}
                           </span>
                         </div>
                         <div className='flex items-center space-x-1'>
                           <Clock className='w-4 h-4' />
                           <span>
-                            {request.attendance.meeting.startTime} -{' '}
-                            {request.attendance.meeting.endTime}
+                            {formatMeetingTime(
+                              request.attendance.meeting.startTime,
+                            )}{' '}
+                            -{' '}
+                            {formatMeetingTime(
+                              request.attendance.meeting.endTime,
+                            )}
                           </span>
                         </div>
                       </div>

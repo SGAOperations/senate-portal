@@ -4,6 +4,7 @@ import { VoteType, getVoteTypeLabel } from '@/utils/consts';
 import { getVoteCounts } from '@/utils/voting_utils';
 import { Building2, Calendar, ClipboardList } from 'lucide-react';
 import VoteBreakdown from './VoteBreakdown';
+import { formatMeetingDate } from '@/meeting/meetingDateTime';
 
 interface ActiveVoteCardProps {
   event: VotingEventWithRelations;
@@ -45,7 +46,7 @@ const ActiveVoteCard: React.FC<ActiveVoteCardProps> = ({
           <>
             <div className='flex items-center gap-1.5'>
               <Calendar className='h-3.5 w-3.5 shrink-0' />
-              <span>{meeting.date}</span>
+              <span>{formatMeetingDate(meeting.date)}</span>
             </div>
             <div className='flex items-center gap-1.5'>
               <Building2 className='h-3.5 w-3.5 shrink-0' />
