@@ -1,9 +1,14 @@
 import { MeetingApiData, RequestForm } from '@/types';
 import React from 'react';
+import { Clock } from 'lucide-react';
 import {
   formatMeetingDate,
   formatMeetingTime,
 } from '@/meeting/meetingDateTime';
+import {
+  isMeetingRequestLate,
+  LATE_REQUEST_WINDOW_HOURS,
+} from '@/utils/meeting-time';
 
 interface CreateRequestModalProps {
   upcomingMeetingsList: MeetingApiData[];
@@ -22,6 +27,12 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   setShowCreateRequestModal,
   handleSubmitRequest,
 }) => {
+  const lateMeetings = upcomingMeetingsList.filter(
+    (meeting) =>
+      requestForm.selectedMeetings.includes(meeting.meetingId) &&
+      isMeetingRequestLate(meeting.startTime),
+  );
+
   return (
     <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
       <div className='bg-white rounded-2xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto'>
@@ -92,6 +103,23 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           <p className='text-sm text-gray-500 mt-2'>
             {requestForm.selectedMeetings.length} meeting(s) selected
           </p>
+          {lateMeetings.length > 0 && (
+            <div
+              role='alert'
+              className='mt-3 p-4 bg-amber-50 border border-amber-300 rounded-xl'
+            >
+              <p className='flex items-center gap-2 text-sm font-medium text-amber-900'>
+                <Clock className='w-4 h-4 shrink-0' aria-hidden='true' />
+                This request will be marked as late
+              </p>
+              <p className='text-xs text-amber-800 mt-1'>
+                Requests made {LATE_REQUEST_WINDOW_HOURS} hours or less before a
+                meeting are still submitted, but they are flagged as late so the
+                E-board can review them. Late for:{' '}
+                {lateMeetings.map((meeting) => meeting.name).join(', ')}.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Request Type Checkboxes */}
