@@ -4,7 +4,10 @@ import {
   formatMeetingDate,
   formatMeetingTime,
 } from '@/meeting/meetingDateTime';
-import { isMeetingRequestLate } from '@/utils/meeting-time';
+import {
+  isMeetingRequestLate,
+  LATE_REQUEST_WINDOW_HOURS,
+} from '@/utils/meeting-time';
 
 interface CreateRequestModalProps {
   upcomingMeetingsList: MeetingApiData[];
@@ -108,9 +111,9 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 ⏰ This request will be marked as late
               </p>
               <p className='text-xs text-amber-800 mt-1'>
-                Requests made less than 24 hours before a meeting are still
-                submitted, but they are flagged as late so the E-board can
-                review them. Late for:{' '}
+                Requests made {LATE_REQUEST_WINDOW_HOURS} hours or less before a
+                meeting are still submitted, but they are flagged as late so the
+                E-board can review them. Late for:{' '}
                 {lateMeetings.map((meeting) => meeting.name).join(', ')}.
               </p>
             </div>
