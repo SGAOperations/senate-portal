@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server';
 import { UsersService } from './users.service';
 import { RoleType } from '../generated/prisma';
 import { AttendanceService } from '../attendance/attendance.service';
+import { z } from 'zod';
+
+const CreateUserSchema = z.object({
+  userId: z.uuid(),
+  nuid: z.string().regex(/^\d{9}$/),
+  password: z.string().nullish(),
+  email: z.email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  roleId: z.string(),
+  roleType: z.enum(RoleType),
+  isVotingMember: z.boolean(),
+})
 
 export const UsersController = {
   async listUsers() {
@@ -69,22 +82,25 @@ export const UsersController = {
 
   async createUser(request: Request) {
     const body = await request.json();
-    if (
-      !body.userId ||
-      !body.nuid || // Added validation
-      !body.email ||
-      !body.firstName ||
-      !body.lastName
-    ) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 },
-      );
-    }
+    // Adds required fields before zod formatting
     const roleId = await UsersService.getRoleIdByRoleType(RoleType.MEMBER);
     body.roleId = roleId;
+    body.roleType = RoleType.MEMBER;
     body.password = body.password ?? null;
-    const newUser = await UsersService.createUser(body);
+    body.isVotingMember = false;
+
+    // zod parse
+    const result = CreateUserSchema.safeParse(body);
+    if (!result.success){
+      return NextResponse.json(
+        { 
+          error: 'Invalid field types',
+          details: z.flattenError(result.error).fieldErrors
+        },
+        { status: 400 }
+      )
+    }
+    const newUser = await UsersService.createUser(result.data);
     return NextResponse.json(newUser, { status: 201 });
   },
 
