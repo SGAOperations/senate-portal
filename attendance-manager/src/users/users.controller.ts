@@ -14,7 +14,7 @@ const CreateUserSchema = z.object({
   roleId: z.string(),
   roleType: z.enum(RoleType),
   isVotingMember: z.boolean(),
-})
+});
 
 export const UsersController = {
   async listUsers() {
@@ -93,12 +93,12 @@ export const UsersController = {
     const result = CreateUserSchema.safeParse(body);
     if (!result.success){
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid field types',
-          details: z.flattenError(result.error).fieldErrors
+          details: z.flattenError(result.error).fieldErrors,
         },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
     const newUser = await UsersService.createUser(result.data);
     return NextResponse.json(newUser, { status: 201 });
