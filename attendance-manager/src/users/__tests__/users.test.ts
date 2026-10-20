@@ -66,14 +66,8 @@ describe('UsersService', () => {
   let testRoleId: string;
 
   beforeAll(async () => {
-    await cleanupUsersAndAttendanceByNuids(USERS_SERVICE_TEST_NUIDS);
-
     // Clean up any leftover data from previous runs
-    await prisma.user.deleteMany({
-      where: {
-        nuid: { in: ['001234567', '001234568', '001234570', '001234571'] }
-      }
-    });
+    await cleanupUsersAndAttendanceByNuids(USERS_SERVICE_TEST_NUIDS);
 
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
@@ -211,18 +205,23 @@ describe('UsersController.createUser', () => {
     ...overrides,
   });
 
-  beforeAll(async () => {
-    await prisma.user.deleteMany({
+  // routed through the shared helper so dependent rows go first
+  const cleanupThisBlock = async () => {
+    const stale = await prisma.user.findMany({
       where: { nuid: { startsWith: NUID_PREFIX } },
+      select: { nuid: true },
     });
+    await cleanupUsersAndAttendanceByNuids(stale.map(({ nuid }) => nuid));
+  };
+
+  beforeAll(async () => {
+    await cleanupThisBlock();
     const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
     createUserTestRoleId = role.roleId;
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({
-      where: { nuid: { startsWith: NUID_PREFIX } },
-    });
+    await cleanupThisBlock();
     await UsersService.deleteRole(createUserTestRoleId);
   });
 
@@ -240,8 +239,11 @@ describe('UsersController.createUser', () => {
     const response = await postCreateUser(body);
 
     expect(response.status).toBe(400);
-    // nothing was written
-    expect(await prisma.user.findFirst({ where: { nuid: body.nuid } })).toBeNull();
+    // nothing was written. email is namespaced to this block, so unlike nuid
+    // below it cannot collide with unrelated rows in the shared test database.
+    expect(
+      await prisma.user.findFirst({ where: { email: body.email } }),
+    ).toBeNull();
   });
 
   it('rejects a userId that is not a uuid', async () => {
@@ -256,10 +258,16 @@ describe('UsersController.createUser', () => {
     ['right length, all letters', 'abcdefghi'],
     ['empty', ''],
   ])('rejects a nuid that is %s', async (_label, nuid) => {
-    const response = await postCreateUser(validBody({ nuid }));
+    const body = validBody({ nuid });
+    const response = await postCreateUser(body);
 
     expect(response.status).toBe(400);
-    expect(await prisma.user.findFirst({ where: { nuid } })).toBeNull();
+    // These nuids are deliberately outside this block's namespace, and the
+    // shared test database already contains unrelated rows with values like
+    // ''. Assert on the userId we generated, which is unique to this request.
+    expect(
+      await prisma.user.findUnique({ where: { userId: body.userId } }),
+    ).toBeNull();
   });
 
   it('accepts a nuid with a leading zero as a string', async () => {
