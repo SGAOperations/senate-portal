@@ -24,10 +24,50 @@ jest.mock('../users.service', () => {
   };
 });
 
+const USERS_SERVICE_TEST_NUIDS = [
+  '001234567',
+  '001234568',
+  '001234570',
+  '001234571',
+];
+
+async function cleanupUsersAndAttendanceByNuids(nuids: string[]) {
+  const users = await prisma.user.findMany({
+    where: { nuid: { in: nuids } },
+    select: { userId: true },
+  });
+
+  if (users.length === 0) return;
+
+  const userIds = users.map(({ userId }) => userId);
+
+  await prisma.request.deleteMany({
+    where: {
+      attendance: {
+        userId: { in: userIds },
+      },
+    },
+  });
+
+  await prisma.attendance.deleteMany({
+    where: {
+      userId: { in: userIds },
+    },
+  });
+
+  await prisma.user.deleteMany({
+    where: {
+      userId: { in: userIds },
+    },
+  });
+}
+
 describe('UsersService', () => {
   let testRoleId: string;
 
   beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_SERVICE_TEST_NUIDS);
+
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
     });
@@ -46,11 +86,7 @@ describe('UsersService', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({
-      where: {
-        nuid: { in: ['001234567', '001234568', '001234570', '001234571'] },
-      },
-    });
+    await cleanupUsersAndAttendanceByNuids(USERS_SERVICE_TEST_NUIDS);
     await UsersService.deleteRole(testRoleId);
   });
 
