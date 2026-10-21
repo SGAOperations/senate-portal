@@ -1,8 +1,11 @@
-import React from 'react';
 import { MeetingApiData, MeetingType } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { checkCanEditMeetings } from '@/utils/permissions';
 import { Calendar } from 'lucide-react';
+import React from 'react';
+import {
+  formatMeetingDate,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
 
 interface MeetingHistoryPanelProps {
   setActiveTab: (option: 'past' | 'upcoming') => void;
@@ -36,7 +39,7 @@ const MeetingHistoryPanel: React.FC<MeetingHistoryPanelProps> = ({
     return type;
   };
   const { user } = useAuth();
-  const canEditMeetings = checkCanEditMeetings(user?.role);
+  const isEboard = user?.role === 'EBOARD';
 
   return (
     <div className='bg-white rounded-2xl shadow-lg p-6 border border-gray-100'>
@@ -129,7 +132,7 @@ const MeetingHistoryPanel: React.FC<MeetingHistoryPanelProps> = ({
               <th className='text-right py-3 px-4 font-medium text-gray-900'>
                 # of Members
               </th>
-              {canEditMeetings && (
+              {isEboard && (
                 <th className='text-center py-3 px-4 font-medium text-gray-900'>
                   Actions
                 </th>
@@ -137,15 +140,18 @@ const MeetingHistoryPanel: React.FC<MeetingHistoryPanelProps> = ({
             </tr>
           </thead>
           <tbody>
-            {visibleMeetings.map((meeting) => (
+          {visibleMeetings.map((meeting) => (
               <tr
                 key={meeting.meetingId}
                 className='border-b border-gray-100 hover:bg-gray-50'
               >
                 <td className='py-3 px-4'>
-                  <div className='text-sm text-gray-900'>{meeting.date}</div>
+                  <div className='text-sm text-gray-900'>
+                    {formatMeetingDate(meeting.date)}
+                  </div>
                   <div className='text-xs text-gray-500'>
-                    {meeting.startTime} - {meeting.endTime}
+                    {formatMeetingTime(meeting.startTime)} -{' '}
+                    {formatMeetingTime(meeting.endTime)}
                   </div>
                 </td>
                 <td className='py-3 px-4'>
@@ -170,7 +176,7 @@ const MeetingHistoryPanel: React.FC<MeetingHistoryPanelProps> = ({
                   </div>
                 </td>
                 <td className='py-3 px-4 text-center'>
-                  {canEditMeetings && (
+                  {isEboard && (
                     <div className='flex items-center gap-2'>
                       <button
                         onClick={() => handleEditMeeting(meeting)}

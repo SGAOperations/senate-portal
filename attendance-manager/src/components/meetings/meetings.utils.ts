@@ -1,18 +1,9 @@
+import { parseMeetingStart } from '@/utils/meeting-time';
+
 export const isMeetingAdjustmentRequestEligible = (
-  meetingDate: string | null | undefined,
-  startTime?: string | null,
+  startTime: string | null | undefined,
   now: Date = new Date(),
 ): boolean => {
-  if (!meetingDate) {
-    return false;
-  }
-
-  const normalizedStartTime = startTime || '00:00';
-  const meetingDateTime = new Date(`${meetingDate}T${normalizedStartTime}:00`);
-
-  if (Number.isNaN(meetingDateTime.getTime())) {
-    return false;
-  }
-
-  return meetingDateTime > now;
+  const startsAt = parseMeetingStart(startTime);
+  return startsAt !== null && startsAt > now;
 };

@@ -1,5 +1,11 @@
 import { prisma } from '../lib/prisma';
 import { MeetingType } from '../generated/prisma';
+import {
+  formatMeetingDateInput,
+  formatMeetingTimeInput,
+  parseMeetingDate,
+  parseMeetingDateTime,
+} from './meetingDateTime';
 
 function groupBy<T, K extends string | number | symbol>(
   items: T[],
@@ -34,7 +40,7 @@ export const MeetingService = {
   },
 
   async getUpcomingMeetings() {
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
     const include = {
       attendance: {
         where: { status: 'PRESENT' as const },
@@ -52,15 +58,16 @@ export const MeetingService = {
       eligibleCount: attendance.length,
     });
     const upcoming = await prisma.meeting.findMany({
-      where: { deletedAt: null, date: { gte: today } },
-      orderBy: { date: 'asc' },
+      // Keep in-progress meetings: voting happens while a meeting is running.
+      where: { deletedAt: null, endTime: { gte: now } },
+      orderBy: { startTime: 'asc' },
       include,
     });
     if (upcoming.length > 0) return upcoming.map(toResult);
     // Fallback: no upcoming meetings, return all so the dropdown is never empty
     const all = await prisma.meeting.findMany({
       where: { deletedAt: null },
-      orderBy: { date: 'desc' },
+      orderBy: { startTime: 'desc' },
       include,
     });
     return all.map(toResult);
@@ -72,7 +79,7 @@ export const MeetingService = {
         deletedAt: null,
       },
     });
-    return groupBy(meetings, (meeting) => meeting.date);
+    return groupBy(meetings, (meeting) => formatMeetingDateInput(meeting.date));
   },
 
   async getMeetingById(meetingId: string) {
@@ -110,9 +117,12 @@ export const MeetingService = {
     const meeting = await prisma.meeting.create({
       data: {
         name: meetingData.name,
-        startTime: meetingData.startTime,
-        date: meetingData.date,
-        endTime: meetingData.endTime,
+        startTime: parseMeetingDateTime(
+          meetingData.date,
+          meetingData.startTime,
+        ),
+        date: parseMeetingDate(meetingData.date),
+        endTime: parseMeetingDateTime(meetingData.date, meetingData.endTime),
         notes: meetingData.notes,
         type: meetingData.type,
       },
@@ -142,13 +152,48 @@ export const MeetingService = {
       notes: string;
       date: string;
       type: MeetingType;
-      updatedAt: string;
     }>,
   ) {
-    updates.updatedAt = new Date().toISOString();
+    const existingMeeting = await prisma.meeting.findUniqueOrThrow({
+      where: { meetingId },
+      select: { date: true, startTime: true, endTime: true },
+    });
+    const meetingDate =
+      updates.date ?? formatMeetingDateInput(existingMeeting.date);
+    const shouldUpdateStartTime =
+      updates.date !== undefined || updates.startTime !== undefined;
+    const shouldUpdateEndTime =
+      updates.date !== undefined || updates.endTime !== undefined;
+
     return prisma.meeting.update({
       where: { meetingId },
-      data: updates,
+      data: {
+        ...(updates.name !== undefined ? { name: updates.name } : {}),
+        ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
+        ...(updates.type !== undefined ? { type: updates.type } : {}),
+        ...(updates.date !== undefined
+          ? { date: parseMeetingDate(updates.date) }
+          : {}),
+        ...(shouldUpdateStartTime
+          ? {
+              startTime: parseMeetingDateTime(
+                meetingDate,
+                updates.startTime ??
+                  formatMeetingTimeInput(existingMeeting.startTime),
+              ),
+            }
+          : {}),
+        ...(shouldUpdateEndTime
+          ? {
+              endTime: parseMeetingDateTime(
+                meetingDate,
+                updates.endTime ??
+                  formatMeetingTimeInput(existingMeeting.endTime),
+              ),
+            }
+          : {}),
+        updatedAt: new Date(),
+      },
     });
   },
 
@@ -180,7 +225,7 @@ export const MeetingService = {
   async softDeleteMeeting(meetingId: string) {
     return prisma.meeting.update({
       where: { meetingId },
-      data: { deletedAt: new Date().toISOString() },
+      data: { deletedAt: new Date() },
     });
   },
 };

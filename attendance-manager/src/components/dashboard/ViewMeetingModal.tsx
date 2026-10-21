@@ -1,4 +1,8 @@
 import React from 'react';
+import {
+  formatMeetingDate,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
 
 interface ViewMeetingModalProps {
   meeting: {
@@ -42,7 +46,7 @@ const ViewMeetingModal: React.FC<ViewMeetingModalProps> = ({
                 Date
               </label>
               <p className='w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900'>
-                {meeting.date}
+                {formatMeetingDate(meeting.date)}
               </p>
             </div>
             <div>
@@ -50,7 +54,7 @@ const ViewMeetingModal: React.FC<ViewMeetingModalProps> = ({
                 Start Time
               </label>
               <p className='w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900'>
-                {meeting.startTime}
+                {formatMeetingTime(meeting.startTime)}
               </p>
             </div>
             <div>
@@ -58,7 +62,7 @@ const ViewMeetingModal: React.FC<ViewMeetingModalProps> = ({
                 End Time
               </label>
               <p className='w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900'>
-                {meeting.endTime}
+                {formatMeetingTime(meeting.endTime)}
               </p>
             </div>
           </div>

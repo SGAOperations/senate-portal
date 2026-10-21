@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { checkCanEditProfile } from '@/utils/permissions';
 
 const ProfilePage: React.FC = () => {
   const { user, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const canEditProfile = checkCanEditProfile(user?.role);
+  const isAdmin = user?.role === 'EBOARD';
   const handleLogout = () => {
     logout();
   };
@@ -100,10 +99,10 @@ const ProfilePage: React.FC = () => {
           {/* Action Buttons */}
           <div
             className={`flex space-x-4 mt-8 pt-6 border-t border-gray-200 ${
-              canEditProfile ? '' : 'justify-center'
+              isAdmin ? '' : 'justify-center'
             }`}
           >
-            {canEditProfile && (
+            {isAdmin && (
               <button
                 onClick={() => setIsEditing(!isEditing)}
                 className='flex-1 px-4 py-2 bg-[#C8102E] text-white rounded-lg hover:bg-[#A8102E] transition-colors'
@@ -114,7 +113,7 @@ const ProfilePage: React.FC = () => {
             <button
               onClick={() => setShowLogoutModal(true)}
               className={`px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors ${
-                canEditProfile ? 'flex-1' : 'px-8'
+                isAdmin ? 'flex-1' : 'px-8'
               }`}
             >
               Sign Out

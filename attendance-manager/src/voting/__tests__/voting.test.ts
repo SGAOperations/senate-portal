@@ -8,6 +8,10 @@ import { prisma } from '../../lib/prisma';
 import { MeetingService } from '@/meeting/meeting.service';
 import { VoteType } from '@/utils/consts';
 import * as apiAuth from '@/utils/api-auth';
+import {
+  parseMeetingDate,
+  parseMeetingDateTime,
+} from '@/meeting/meetingDateTime';
 
 jest.setTimeout(20000);
 
@@ -70,9 +74,9 @@ describe('VotingService', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -82,9 +86,9 @@ describe('VotingService', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Test Meeting 2',
-        date: '2025-10-04',
-        startTime: '9:00',
-        endTime: '10:00',
+        date: parseMeetingDate('2025-10-04'),
+        startTime: parseMeetingDateTime('2025-10-04', '09:00'),
+        endTime: parseMeetingDateTime('2025-10-04', '10:00'),
         notes: 'Test notes 2',
         type: 'FULL_BODY',
       },
@@ -203,9 +207,9 @@ describe('VotingController', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Controller Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -215,9 +219,9 @@ describe('VotingController', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Controller Test Meeting 2',
-        date: '2025-10-04',
-        startTime: '9:00',
-        endTime: '10:00',
+        date: parseMeetingDate('2025-10-04'),
+        startTime: parseMeetingDateTime('2025-10-04', '09:00'),
+        endTime: parseMeetingDateTime('2025-10-04', '10:00'),
         notes: 'Test notes 2',
         type: 'FULL_BODY',
       },
@@ -576,9 +580,9 @@ describe('GET /api/voting-event', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -624,9 +628,9 @@ describe('GET /api/voting-event/[id]', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -725,9 +729,9 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Roll Call Results Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -974,9 +978,9 @@ describe('Secret ballot results (aggregates only)', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Secret Ballot Meeting',
-        date: '2025-09-01',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-09-01'),
+        startTime: parseMeetingDateTime('2025-09-01', '10:00'),
+        endTime: parseMeetingDateTime('2025-09-01', '11:00'),
         notes: 'Test',
         type: 'REGULAR',
       },
@@ -1083,9 +1087,9 @@ describe('GET /api/voting-event/by-type/[voteType]', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -1095,9 +1099,9 @@ describe('GET /api/voting-event/by-type/[voteType]', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting 2',
-        date: '2025-10-04',
-        startTime: '9:00',
-        endTime: '10:00',
+        date: parseMeetingDate('2025-10-04'),
+        startTime: parseMeetingDateTime('2025-10-04', '09:00'),
+        endTime: parseMeetingDateTime('2025-10-04', '10:00'),
         notes: 'Test notes 2',
         type: 'FULL_BODY',
       },
@@ -1165,15 +1169,20 @@ describe('GET /api/voting-event/by-type/[voteType]', () => {
 
 describe('POST /api/voting-event', () => {
   let routeTestMeetingId: string;
+  let requireAuthSpy: jest.SpyInstance;
 
   beforeAll(async () => {
+    requireAuthSpy = jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
+      user: { role: { roleType: 'EBOARD' } } as any,
+      error: null,
+    });
     // Create a test meeting
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -1182,6 +1191,7 @@ describe('POST /api/voting-event', () => {
   });
 
   afterAll(async () => {
+    requireAuthSpy.mockRestore();
     await MeetingService.deleteMeeting(routeTestMeetingId);
   });
 
@@ -1315,15 +1325,20 @@ describe('POST /api/voting-event', () => {
 describe('PUT /api/voting-event/[id]', () => {
   let routeTestMeetingId: string;
   let routeTestVotingEventId: string;
+  let requireAuthSpy: jest.SpyInstance;
 
   beforeAll(async () => {
+    requireAuthSpy = jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
+      user: { role: { roleType: 'EBOARD' } } as any,
+      error: null,
+    });
     // Create a test meeting
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -1340,6 +1355,7 @@ describe('PUT /api/voting-event/[id]', () => {
   });
 
   afterAll(async () => {
+    requireAuthSpy.mockRestore();
     await VotingService.deleteVotingEvent(routeTestVotingEventId);
     await MeetingService.deleteMeeting(routeTestMeetingId);
   });

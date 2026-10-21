@@ -23,8 +23,6 @@ model User {
   firstName  String
   lastName   String
   roleId     String
-  roleType       RoleType     @default(MEMBER)
-  isVotingMember Boolean      @default(false)
   password   String?  // Optional - Supabase handles authentication
   attendance Attendance[]
   role       Role         @relation(fields: [roleId], references: [roleId])
@@ -36,9 +34,9 @@ model User {
 model Meeting {
   meetingId  String       @id @default(uuid())
   name       String
-  date       String
-  startTime  String
-  endTime    String
+  date       DateTime     @db.Timestamptz(3)
+  startTime  DateTime     @db.Timestamptz(3)
+  endTime    DateTime     @db.Timestamptz(3)
   notes      String
   type       MeetingType
   attendance Attendance[]
@@ -98,9 +96,6 @@ model VotingRecord {
 }
 
 enum RoleType {
-  SUPER_ADMIN
-  ADMIN
-  SENATOR
   EBOARD
   MEMBER
 }

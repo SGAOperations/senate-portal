@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MeetingApiData } from '@/types';
 import { VoteType, getVoteTypeLabel } from '@/utils/consts';
 import { X } from 'lucide-react';
+import { formatMeetingDate } from '@/meeting/meetingDateTime';
 
 const FIXED_OPTIONS = ['Abstain', 'No Confidence'] as const;
 
@@ -93,7 +94,7 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({
           <option value=''>Select a meeting</option>
           {meetings.map((m) => (
             <option key={m.meetingId} value={m.meetingId}>
-              {m.date} — {m.name}
+              {formatMeetingDate(m.date)} — {m.name}
             </option>
           ))}
         </select>

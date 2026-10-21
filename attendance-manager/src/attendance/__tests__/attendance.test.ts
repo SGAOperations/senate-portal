@@ -6,6 +6,10 @@ import { UsersService } from '@/users/users.service';
 import { MeetingService } from '@/meeting/meeting.service';
 import { AttendanceService } from '../attendance.service';
 import { RequestService } from '@/request/request.service';
+import {
+  parseMeetingDate,
+  parseMeetingDateTime,
+} from '@/meeting/meetingDateTime';
 
 dotenv.config();
 jest.setTimeout(20000);
@@ -57,9 +61,9 @@ describe('AttendanceController', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -69,9 +73,9 @@ describe('AttendanceController', () => {
     const meeting2 = await prisma.meeting.create({
       data: {
         name: 'Test Meeting 2',
-        date: '2025-10-04',
-        startTime: '9:00',
-        endTime: '10:00',
+        date: parseMeetingDate('2025-10-04'),
+        startTime: parseMeetingDateTime('2025-10-04', '09:00'),
+        endTime: parseMeetingDateTime('2025-10-04', '10:00'),
         notes: 'Test notes 2',
         type: 'FULL_BODY',
       },
@@ -81,9 +85,9 @@ describe('AttendanceController', () => {
     const meeting3 = await prisma.meeting.create({
       data: {
         name: 'Test Meeting 3',
-        date: '2025-10-05',
-        startTime: '11:00',
-        endTime: '12:00',
+        date: parseMeetingDate('2025-10-05'),
+        startTime: parseMeetingDateTime('2025-10-05', '11:00'),
+        endTime: parseMeetingDateTime('2025-10-05', '12:00'),
         notes: 'Test notes 3',
         type: 'FULL_BODY',
       },
@@ -279,6 +283,55 @@ describe('AttendanceController', () => {
     }
   });
 
+    it('roster edits preserve statuses', async () => {
+    try {
+      // Arrange: two members already on the roster with recorded statuses
+      await prisma.attendance.createMany({
+        data: [
+          { userId: testUserId, meetingId: testMeeting3Id, status: 'PRESENT' },
+          { userId: testUser2Id, meetingId: testMeeting3Id, status: 'EXCUSED_ABSENCE' },
+        ],
+      });
+
+      const statuses = async () => {
+        const rows = await AttendanceController.getMeetingAttendance(testMeeting3Id);
+        return Object.fromEntries(rows.map((r) => [r.userId, r.status]));
+      };
+
+      // 1. Adding a member preserves existing statuses
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser2Id,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual({
+        [testUserId]: 'PRESENT',
+        [testUser2Id]: 'EXCUSED_ABSENCE',
+        [testUser3Id]: 'PENDING',
+      });
+
+      // 2. Removing a member deletes only their row
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual({
+        [testUserId]: 'PRESENT',
+        [testUser3Id]: 'PENDING',
+      });
+
+      // 3. Same payload twice is a no-op
+      const before = await statuses();
+      await AttendanceController.updateMeetingAttendees(testMeeting3Id, [
+        testUserId,
+        testUser3Id,
+      ]);
+      expect(await statuses()).toEqual(before);
+    } finally {
+      await prisma.attendance.deleteMany({ where: { meetingId: testMeeting3Id } });
+    }
+  });
+
   it('should update attendance status', async () => {
     const updateData = { status: 'UNEXCUSED_ABSENCE' };
     const updated = await AttendanceController.updateAttendance(
@@ -437,9 +490,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const regular1 = await prisma.meeting.create({
       data: {
         name: 'Regular Meeting 1',
-        date: '2025-01-01',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-01-01'),
+        startTime: parseMeetingDateTime('2025-01-01', '10:00'),
+        endTime: parseMeetingDateTime('2025-01-01', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -449,9 +502,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const regular2 = await prisma.meeting.create({
       data: {
         name: 'Regular Meeting 2',
-        date: '2025-01-08',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-01-08'),
+        startTime: parseMeetingDateTime('2025-01-08', '10:00'),
+        endTime: parseMeetingDateTime('2025-01-08', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -461,9 +514,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const regular3 = await prisma.meeting.create({
       data: {
         name: 'Regular Meeting 3',
-        date: '2025-01-15',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-01-15'),
+        startTime: parseMeetingDateTime('2025-01-15', '10:00'),
+        endTime: parseMeetingDateTime('2025-01-15', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -473,9 +526,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const regular4 = await prisma.meeting.create({
       data: {
         name: 'Regular Meeting 4',
-        date: '2025-01-22',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-01-22'),
+        startTime: parseMeetingDateTime('2025-01-22', '10:00'),
+        endTime: parseMeetingDateTime('2025-01-22', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -486,9 +539,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const fullBody1 = await prisma.meeting.create({
       data: {
         name: 'Full Body Meeting 1',
-        date: '2025-02-01',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-02-01'),
+        startTime: parseMeetingDateTime('2025-02-01', '10:00'),
+        endTime: parseMeetingDateTime('2025-02-01', '11:00'),
         notes: 'Test notes',
         type: 'FULL_BODY',
       },
@@ -498,9 +551,9 @@ describe('getRemainingUnexcusedAbsences', () => {
     const fullBody2 = await prisma.meeting.create({
       data: {
         name: 'Full Body Meeting 2',
-        date: '2025-02-08',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-02-08'),
+        startTime: parseMeetingDateTime('2025-02-08', '10:00'),
+        endTime: parseMeetingDateTime('2025-02-08', '11:00'),
         notes: 'Test notes',
         type: 'FULL_BODY',
       },

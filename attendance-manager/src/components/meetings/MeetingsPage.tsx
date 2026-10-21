@@ -17,37 +17,12 @@ import MeetingHistoryPanel from './MeetingHistoryPanel';
 import CreateMeetingModal from './CreateMeetingModal';
 import EditMeetingModal from './EditMeetingModal';
 import CreateRequestModal from './CreateRequestModal';
-import { checkCanManageMeetings } from '@/utils/permissions';
 import DeleteMeetingModal from './DeleteMeetingModal';
 import { isMeetingAdjustmentRequestEligible } from './meetings.utils';
-
-const normalizeDate = (dateStr: string) => {
-  if (!dateStr) {
-    const today = new Date();
-    return `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
-  }
-
-  // Already in MM/DD/YYYY format
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-    return dateStr;
-  }
-
-  // Convert YYYY-MM-DD to MM/DD/YYYY.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    const [year, month, day] = dateStr.split('-');
-    return `${Number(month)}/${Number(day)}/${year}`;
-  }
-
-  const parsed = new Date(dateStr);
-  if (!Number.isNaN(parsed.getTime())) {
-    return `${
-      parsed.getMonth() + 1
-    }/${parsed.getDate()}/${parsed.getFullYear()}`;
-  }
-
-  const today = new Date();
-  return `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
-};
+import {
+  formatMeetingDateInput,
+  formatMeetingTimeInput,
+} from '../../meeting/meetingDateTime';
 
 const MeetingsPage: React.FC = () => {
   const { user } = useAuth();
@@ -95,7 +70,7 @@ const MeetingsPage: React.FC = () => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   // Check if user is admin (EBOARD)
-  const canManageMeetings = checkCanManageMeetings(user?.role);
+  const isAdmin = user?.role === 'EBOARD';
   const isMember = user?.role === 'MEMBER';
   const [remainingAbsences, setRemainingAbsences] =
     useState<RemainingAbsences | null>(null);
@@ -127,9 +102,9 @@ const MeetingsPage: React.FC = () => {
     setEditingMeeting(meeting);
     setEditMeeting({
       name: meeting.name,
-      date: normalizeDate(meeting.date),
-      startTime: meeting.startTime,
-      endTime: meeting.endTime,
+      date: formatMeetingDateInput(meeting.date),
+      startTime: formatMeetingTimeInput(meeting.startTime),
+      endTime: formatMeetingTimeInput(meeting.endTime),
       notes: meeting.notes,
       type: meeting.type as 'FULL_BODY' | 'REGULAR',
     });
@@ -219,7 +194,7 @@ const MeetingsPage: React.FC = () => {
   }, []);
 
   const nonEboardMembers = useMemo(
-    () => members.filter((member) => member.roleType !== 'EBOARD'),
+    () => members.filter((member) => member.role.roleType !== 'EBOARD'),
     [members],
   );
   const nonEboardMemberIds = useMemo(
@@ -294,8 +269,8 @@ const MeetingsPage: React.FC = () => {
   const today = new Date();
   // Calculate statistics from real data
   const attendedMeetings = meetings.filter((m) => {
-    const meetingDate = new Date(m.date);
-    if (meetingDate > today) return false; // Skip upcoming meetings
+    const meetingStart = new Date(m.startTime);
+    if (meetingStart > today) return false; // Skip upcoming meetings
     // Check if current user attended this meeting
     return m.attendance.some(
       (a) => a.userId === user?.id && a.status === 'PRESENT',
@@ -303,8 +278,8 @@ const MeetingsPage: React.FC = () => {
   }).length;
 
   const missedMeetings = meetings.filter((m) => {
-    const meetingDate = new Date(m.date);
-    if (meetingDate > today) return false; // Skip upcoming meetings
+    const meetingStart = new Date(m.startTime);
+    if (meetingStart > today) return false; // Skip upcoming meetings
     // Check if current user was absent
     return m.attendance.some(
       (a) =>
@@ -315,20 +290,17 @@ const MeetingsPage: React.FC = () => {
 
   // Filter meetings based on active tab
   const filteredMeetings = meetings.filter((m) => {
-    const meetingStartsAt = new Date(
-      `${m.date}T${m.startTime || '00:00'}:00`,
-    );
-
+    const meetingStart = new Date(m.startTime);
     if (activeTab === 'past') {
-      return meetingStartsAt <= today;
+      return meetingStart <= today;
+    } else {
+      return meetingStart > today;
     }
-
-    return meetingStartsAt > today;
   });
 
   // Get upcoming meetings for request creation
   const upcomingMeetingsList = meetings.filter((m) =>
-    isMeetingAdjustmentRequestEligible(m.date, m.startTime),
+    isMeetingAdjustmentRequestEligible(m.startTime),
   );
 
   // Handle request submission
@@ -499,12 +471,14 @@ const MeetingsPage: React.FC = () => {
     }
   };
 
-  // visibleMeetings are meetings post-type-filter - sorted by most recent date
+  // visibleMeetings are meetings post-type-filter, sorted by start time.
   const visibleMeetings = (
     typeFilter
       ? filteredMeetings.filter((m) => m.type === typeFilter)
       : filteredMeetings
-  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  ).sort(
+    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+  );
 
   // Determine banner color based on remaining absences
   const getBannerColor = () => {
@@ -550,7 +524,7 @@ const MeetingsPage: React.FC = () => {
           attendedMeetings={attendedMeetings}
           missedMeetings={missedMeetings}
           upcomingMeetings={upcomingMeetingsList.length}
-          canManageMeetings={canManageMeetings}
+          isAdmin={isAdmin}
           setShowCreateMeetingModal={setShowCreateMeetingModal}
         />
 

@@ -3,6 +3,11 @@ import { UserContext } from '../profile/LoginPage';
 import { User } from '@/types';
 import ViewMeetingModal from './ViewMeetingModal';
 import {
+  formatCalendarDateKey,
+  formatMeetingDateLabel,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
+import {
   AlertCircle,
   Calendar,
   ChevronLeft,
@@ -174,29 +179,29 @@ const Dashboard: React.FC = () => {
   };
 
   const hasMeeting = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = formatCalendarDateKey(date);
     return meetingsByDate[dateString] && meetingsByDate[dateString].length > 0;
   };
 
   const getMeetingsForDate = (date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = formatCalendarDateKey(date);
     return meetingsByDate[dateString] || [];
   };
 
   // Get meetings within the next 3 weeks
   const getUpcomingMeetings = () => {
-    const today = new Date();
-    const threeWeeksFromNow = new Date();
-    threeWeeksFromNow.setDate(today.getDate() + 21);
+    const now = new Date();
+    const threeWeeksFromNow = new Date(now);
+    threeWeeksFromNow.setDate(now.getDate() + 21);
 
     return meetings
       .filter((meeting: Meeting) => {
-        const meetingDate = new Date(meeting.date);
-        return meetingDate >= today && meetingDate <= threeWeeksFromNow;
+        const meetingStart = new Date(meeting.startTime);
+        return meetingStart >= now && meetingStart <= threeWeeksFromNow;
       })
       .sort(
         (a: Meeting, b: Meeting) =>
-          new Date(a.date).getTime() - new Date(b.date).getTime(),
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
       );
   };
 
@@ -206,21 +211,6 @@ const Dashboard: React.FC = () => {
     }
     return getUpcomingMeetings();
   };
-
-  function formatMeetingDate(dateString: string) {
-    const [year, month, day] = dateString.split('-');
-    const localDate = new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
-    );
-
-    return localDate.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
-  }
 
   const days = getDaysInMonth(currentDate);
   const displayMeetings = getDisplayMeetings();
@@ -421,12 +411,13 @@ const Dashboard: React.FC = () => {
                   <div className='flex items-center space-x-4 text-sm text-gray-500 mb-3'>
                     <div className='flex items-center space-x-1'>
                       <Calendar className='w-4 h-4' />
-                      <span>{formatMeetingDate(meeting.date)}</span>
+                      <span>{formatMeetingDateLabel(meeting.date)}</span>
                     </div>
                     <div className='flex items-center space-x-1'>
                       <Clock className='w-4 h-4' />
                       <span>
-                        {meeting.startTime} - {meeting.endTime}
+                        {formatMeetingTime(meeting.startTime)} -{' '}
+                        {formatMeetingTime(meeting.endTime)}
                       </span>
                     </div>
                   </div>

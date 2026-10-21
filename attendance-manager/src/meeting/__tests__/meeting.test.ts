@@ -4,6 +4,7 @@ import { prisma } from '../../lib/prisma';
 import { MeetingType } from '../../generated/prisma';
 import { UsersService } from '@/users/users.service';
 import { AttendanceService } from '@/attendance/attendance.service';
+import { formatMeetingDateInput, parseMeetingDate } from '../meetingDateTime';
 
 jest.setTimeout(20000);
 
@@ -23,9 +24,9 @@ describe('MeetingServices', () => {
     expect(newMeeting).toBeDefined();
     expect(newMeeting.name).toBe('test2');
     expect(newMeeting.meetingId).toBeDefined();
-    expect(newMeeting.startTime).toBe('8:12:56 PM');
-    expect(newMeeting.date).toBe('7/30/2025');
-    expect(newMeeting.endTime).toBe('8:13:15 PM');
+    expect(newMeeting.startTime.toISOString()).toBe('2025-07-31T00:12:56.000Z');
+    expect(newMeeting.date.toISOString()).toBe('2025-07-30T04:00:00.000Z');
+    expect(newMeeting.endTime.toISOString()).toBe('2025-07-31T00:13:15.000Z');
     expect(newMeeting.notes).toBe('notes');
     expect(newMeeting.type).toBe(MeetingType.REGULAR);
     expect(newMeeting.deletedAt).toBe(null);
@@ -44,6 +45,43 @@ describe('MeetingServices', () => {
     expect(fetchedMeeting?.meetingId).toBe(newMeeting.meetingId);
   });
 
+  it('should keep in-progress meetings and drop ended ones in upcoming meetings', async () => {
+    const hour = 60 * 60 * 1000;
+    const today = parseMeetingDate(formatMeetingDateInput(new Date()));
+    const inProgress = await prisma.meeting.create({
+      data: {
+        name: 'In Progress Meeting',
+        date: today,
+        startTime: new Date(Date.now() - hour),
+        endTime: new Date(Date.now() + hour),
+        notes: 'started an hour ago, ends in an hour',
+        type: MeetingType.REGULAR,
+      },
+    });
+    const ended = await prisma.meeting.create({
+      data: {
+        name: 'Ended Meeting',
+        date: today,
+        startTime: new Date(Date.now() - 3 * hour),
+        endTime: new Date(Date.now() - 2 * hour),
+        notes: 'ended two hours ago',
+        type: MeetingType.REGULAR,
+      },
+    });
+
+    try {
+      const upcoming = await MeetingService.getUpcomingMeetings();
+      const ids = upcoming.map(
+        (m) => (m as unknown as { meetingId: string }).meetingId,
+      );
+      expect(ids).toContain(inProgress.meetingId);
+      expect(ids).not.toContain(ended.meetingId);
+    } finally {
+      await MeetingService.deleteMeeting(inProgress.meetingId);
+      await MeetingService.deleteMeeting(ended.meetingId);
+    }
+  });
+
   it('should update a meeting', async () => {
     const [newMeeting] = await MeetingService.getAllMeeting();
     const updatedMeeting = await MeetingService.updateMeeting(
@@ -60,9 +98,13 @@ describe('MeetingServices', () => {
 
     expect(updatedMeeting.name).toBe('test');
     expect(updatedMeeting.meetingId).toBe(newMeeting.meetingId);
-    expect(updatedMeeting.startTime).toBe('8:07:56 PM');
-    expect(updatedMeeting.date).toBe('7/29/2025');
-    expect(updatedMeeting.endTime).toBe('8:08:15 PM');
+    expect(updatedMeeting.startTime.toISOString()).toBe(
+      '2025-07-30T00:07:56.000Z',
+    );
+    expect(updatedMeeting.date.toISOString()).toBe('2025-07-29T04:00:00.000Z');
+    expect(updatedMeeting.endTime.toISOString()).toBe(
+      '2025-07-30T00:08:15.000Z',
+    );
     expect(updatedMeeting.notes).toBe('notes');
     expect(updatedMeeting.type).toBe(MeetingType.FULL_BODY);
   });
@@ -148,9 +190,9 @@ describe('MeetingController', () => {
     expect(response).toBeDefined();
     const responseData = await response.json();
     expect(responseData.name).toBe('Updated Meeting Name');
-    expect(responseData.startTime).toBe('14:00');
-    expect(responseData.date).toBe('2025-12-02');
-    expect(responseData.endTime).toBe('15:00');
+    expect(responseData.startTime).toBe('2025-12-02T19:00:00.000Z');
+    expect(responseData.date).toBe('2025-12-02T05:00:00.000Z');
+    expect(responseData.endTime).toBe('2025-12-02T20:00:00.000Z');
     expect(responseData.notes).toBe('Updated notes');
     expect(responseData.type).toBe(MeetingType.FULL_BODY);
 
@@ -217,7 +259,7 @@ describe('MeetingController', () => {
     expect(response).toBeDefined();
     const responseData = await response.json();
     expect(responseData.name).toBe('Partially Updated Name');
-    expect(responseData.startTime).toBe('10:00');
+    expect(responseData.startTime).toBe('2025-12-01T15:00:00.000Z');
     expect(responseData.notes).toBe('Original notes');
 
     await MeetingService.deleteMeeting(testMeeting.meetingId);
