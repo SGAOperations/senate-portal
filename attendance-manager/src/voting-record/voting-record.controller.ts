@@ -106,7 +106,7 @@ export const VotingRecordController = {
       return NextResponse.json(
         {
           error: 'Invalid request body',
-          details: parsed.error.flatten(),
+          details: z.flattenError(parsed.error).fieldErrors,
         },
         { status: 400 },
       );

@@ -359,7 +359,7 @@ describe('VotingRecordController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('Missing required fields');
+      expect(responseData.error).toBe('Invalid request body');
     });
 
     it('should reject invalid field types', async () => {
@@ -378,7 +378,7 @@ describe('VotingRecordController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('Invalid field types');
+      expect(responseData.error).toBe('Invalid request body');
     });
 
     it('should handle optional updatedBy field', async () => {
@@ -912,7 +912,7 @@ describe('POST /api/voting-record', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain('Missing required fields');
+    expect(data.error).toBe('Invalid request body');
   });
 
   it('should return 409 when user has already voted for the event', async () => {
