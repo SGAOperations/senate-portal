@@ -9,7 +9,7 @@ import {
 } from '../../types';
 import { z } from 'zod';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCurrentSemester } from '../../hooks/useCurrentSemester';
+import { useCurrentSemester } from '../../contexts/SemesterContext';
 import ViewRequestsPanel from './ViewRequestsPanel';
 import ViewRequestsModal from './ViewRequestsModal';
 import AbsencesBanner from './AbsencesBanner';
@@ -27,7 +27,8 @@ import {
 
 const MeetingsPage: React.FC = () => {
   const { user } = useAuth();
-  const currentSemester = useCurrentSemester();
+  const { currentSemester, isLoading: isSemesterLoading } =
+    useCurrentSemester();
   const [activeTab, setActiveTab] = useState<'past' | 'upcoming'>('past');
   const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false);
   const [showEditMeetingModal, setShowEditMeetingModal] = useState(false);
@@ -269,29 +270,34 @@ const MeetingsPage: React.FC = () => {
 
   // Calculate statistics from real meetings
   const today = new Date();
-  // Calculate statistics from real data, current semester only
-  const currentSemesterMeetings = meetings.filter(
-    (m) => m.semesterId === currentSemester?.semesterId,
-  );
-  const attendedMeetings = currentSemesterMeetings.filter((m) => {
-    const meetingStart = new Date(m.startTime);
-    if (meetingStart > today) return false; // Skip upcoming meetings
-    // Check if current user attended this meeting
-    return m.attendance.some(
-      (a) => a.userId === user?.id && a.status === 'PRESENT',
-    );
-  }).length;
+  // Calculate statistics from real data
+  const currentSemesterMeetings = currentSemester
+    ? meetings.filter((m) => m.semesterId === currentSemester.semesterId)
+    : null;
+  const attendedMeetings = currentSemesterMeetings
+    ? currentSemesterMeetings.filter((m) => {
+        const meetingStart = new Date(m.startTime);
+        if (meetingStart > today) return false; // Skip upcoming meetings
+        // Check if current user attended this meeting
+        return m.attendance.some(
+          (a) => a.userId === user?.id && a.status === 'PRESENT',
+        );
+      }).length
+    : null;
 
-  const missedMeetings = currentSemesterMeetings.filter((m) => {
-    const meetingStart = new Date(m.startTime);
-    if (meetingStart > today) return false; // Skip upcoming meetings
-    // Check if current user was absent
-    return m.attendance.some(
-      (a) =>
-        a.userId === user?.id &&
-        (a.status === 'UNEXCUSED_ABSENCE' || a.status === 'EXCUSED_ABSENCE'),
-    );
-  }).length;
+  const missedMeetings = currentSemesterMeetings
+    ? currentSemesterMeetings.filter((m) => {
+        const meetingStart = new Date(m.startTime);
+        if (meetingStart > today) return false; // Skip upcoming meetings
+        // Check if current user was absent
+        return m.attendance.some(
+          (a) =>
+            a.userId === user?.id &&
+            (a.status === 'UNEXCUSED_ABSENCE' ||
+              a.status === 'EXCUSED_ABSENCE'),
+        );
+      }).length
+    : null;
 
   // Filter meetings based on active tab
   const filteredMeetings = meetings.filter((m) => {
@@ -529,6 +535,12 @@ const MeetingsPage: React.FC = () => {
           attendedMeetings={attendedMeetings}
           missedMeetings={missedMeetings}
           upcomingMeetings={upcomingMeetingsList.length}
+          isSemesterLoading={isSemesterLoading}
+          semesterLabel={
+            currentSemester
+              ? `${currentSemester.term === 'FALL' ? 'Fall' : 'Spring'} ${currentSemester.year}`
+              : null
+          }
           isAdmin={isAdmin}
           setShowCreateMeetingModal={setShowCreateMeetingModal}
         />

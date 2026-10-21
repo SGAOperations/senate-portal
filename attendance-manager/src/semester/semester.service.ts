@@ -1,9 +1,17 @@
 import { prisma } from '../lib/prisma';
-import { Term } from '../generated/prisma';
+import { Prisma, Term } from '../generated/prisma';
 import { formatMeetingDateInput } from '../meeting/meetingDateTime';
+
+type Db = Prisma.TransactionClient;
 
 function toSemesterDay(value: Date): Date {
   return new Date(`${formatMeetingDateInput(value)}T00:00:00.000Z`);
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function addDays(day: Date, days: number): Date {
+  return new Date(day.getTime() + days * DAY_MS);
 }
 
 function defaultSemesterFor(day: Date) {
@@ -17,10 +25,23 @@ function defaultSemesterFor(day: Date) {
   };
 }
 
+function findNeighbors(db: Db, startsOn: Date, endsOn: Date) {
+  return Promise.all([
+    db.semester.findFirst({
+      where: { endsOn: { lt: startsOn } },
+      orderBy: { endsOn: 'desc' },
+    }),
+    db.semester.findFirst({
+      where: { startsOn: { gt: endsOn } },
+      orderBy: { startsOn: 'asc' },
+    }),
+  ]);
+}
+
 export const SemesterService = {
-  async getSemesterForDate(date: Date) {
+  async getSemesterForDate(date: Date, db: Db = prisma) {
     const day = toSemesterDay(date);
-    return prisma.semester.findFirst({
+    return db.semester.findFirst({
       where: { startsOn: { lte: day }, endsOn: { gte: day } },
     });
   },
@@ -32,19 +53,96 @@ export const SemesterService = {
     });
   },
 
-  async getOrCreateSemesterIdForDate(date: Date): Promise<string> {
-    const existing = await SemesterService.getSemesterForDate(date);
+  async getOrCreateSemesterIdForDate(
+    date: Date,
+    db: Db = prisma,
+  ): Promise<string> {
+    const existing = await SemesterService.getSemesterForDate(date, db);
     if (existing) return existing.semesterId;
 
-    const { term, year, startsOn, endsOn } = defaultSemesterFor(
-      toSemesterDay(date),
-    );
-    const semester = await prisma.semester.upsert({
-      // eslint-disable-next-line
+    const day = toSemesterDay(date);
+    const [previous, next] = await findNeighbors(db, day, day);
+
+    const { term, year, ...defaults } = defaultSemesterFor(day);
+    const sameTerm = await db.semester.findUnique({
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      where: { term_year: { term, year } },
+    });
+
+    if (sameTerm) {
+      const daysAfterPrevious = previous
+        ? day.getTime() - previous.endsOn.getTime()
+        : Infinity;
+      const daysBeforeNext = next
+        ? next.startsOn.getTime() - day.getTime()
+        : Infinity;
+      const closest = daysAfterPrevious <= daysBeforeNext ? previous : next;
+      if (closest) return closest.semesterId;
+    }
+
+    let { startsOn, endsOn } = defaults;
+    if (previous && previous.endsOn >= startsOn) {
+      startsOn = addDays(previous.endsOn, 1);
+    }
+    if (next && next.startsOn <= endsOn) {
+      endsOn = addDays(next.startsOn, -1);
+    }
+    const semester = await db.semester.upsert({
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       where: { term_year: { term, year } },
       update: {},
       create: { term, year, startsOn, endsOn },
     });
     return semester.semesterId;
+  },
+
+  async updateSemesterDates(semesterId: string, startsOn: Date, endsOn: Date) {
+    return prisma.$transaction(
+      async (tx) => {
+        const before = await tx.semester.findUniqueOrThrow({
+          where: { semesterId },
+        });
+        const oldNeighbors = await findNeighbors(
+          tx,
+          before.startsOn,
+          before.endsOn,
+        );
+
+        const semester = await tx.semester.update({
+          where: { semesterId },
+          data: { startsOn, endsOn },
+        });
+        const newNeighbors = await findNeighbors(
+          tx,
+          semester.startsOn,
+          semester.endsOn,
+        );
+
+        const affectedIds = new Set([semesterId]);
+        for (const neighbor of [...oldNeighbors, ...newNeighbors]) {
+          if (neighbor) affectedIds.add(neighbor.semesterId);
+        }
+
+        const meetings = await tx.meeting.findMany({
+          where: { semesterId: { in: [...affectedIds] } },
+          select: { meetingId: true, date: true, semesterId: true },
+        });
+        for (const meeting of meetings) {
+          const assigned = await SemesterService.getOrCreateSemesterIdForDate(
+            meeting.date,
+            tx,
+          );
+          if (assigned !== meeting.semesterId) {
+            await tx.meeting.update({
+              where: { meetingId: meeting.meetingId },
+              data: { semesterId: assigned },
+            });
+          }
+        }
+
+        return semester;
+      },
+      { timeout: 20_000 },
+    );
   },
 };

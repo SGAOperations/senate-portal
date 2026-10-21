@@ -130,10 +130,8 @@ export const AttendanceService = {
   },
 
   // Get remaining unexcused absences for a user
-  async getRemainingUnexcusedAbsences(userId: string) {
-    // Only meetings in the current semester count, and soft-deleted meetings
-    // never do.
-    const currentSemester = await SemesterService.getCurrentSemester();
+  async getRemainingUnexcusedAbsences(userId: string, now: Date = new Date()) {
+    const currentSemester = await SemesterService.getCurrentSemester(now);
     const unexcusedAbsences = currentSemester
       ? await prisma.attendance.findMany({
           where: {
