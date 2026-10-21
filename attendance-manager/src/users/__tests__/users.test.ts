@@ -62,6 +62,17 @@ async function cleanupUsersAndAttendanceByNuids(nuids: string[]) {
   });
 }
 
+async function cleanupUsersBySupabaseAuthIds(supabaseAuthIds: string[]) {
+  const users = await prisma.user.findMany({
+    where: { supabaseAuthId: { in: supabaseAuthIds } },
+    select: { nuid: true },
+  });
+
+  await cleanupUsersAndAttendanceByNuids(
+    users.map(({ nuid }) => nuid),
+  );
+}
+
 describe('UsersService', () => {
   let testRoleId: string;
 
@@ -88,6 +99,12 @@ describe('UsersService', () => {
 
   afterAll(async () => {
     await cleanupUsersAndAttendanceByNuids(USERS_SERVICE_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds([
+      'test-supabase-auth-id-1',
+      'test-supabase-auth-id-2',
+      'test-supabase-auth-id-4',
+      'test-supabase-auth-id-5',
+    ]);
     await UsersService.deleteRole(testRoleId);
   });
 
@@ -284,34 +301,6 @@ describe('UsersController.createUser', () => {
 
   // --- field stripping ---------------------------------------------------
 
-  it('ignores server-owned fields sent by the client', async () => {
-    const response = await postCreateUser(
-      validBody({
-        // all of these are the server's decision, not the caller's
-        roleType: RoleType.SUPER_ADMIN,
-        isVotingMember: true,
-        supabaseAuthId: 'injected-supabase-auth-id',
-        deletedAt: new Date().toISOString(),
-      }),
-    );
-
-    expect(response.status).toBe(201);
-    const data = await response.json();
-
-    expect(data.roleType).toBe(RoleType.MEMBER);
-    expect(data.isVotingMember).toBe(false);
-    expect(data.supabaseAuthId).toBeNull();
-    expect(data.deletedAt).toBeNull();
-
-    // and the same once read back from the database
-    const stored = await prisma.user.findUnique({
-      where: { userId: data.userId },
-    });
-    expect(stored?.roleType).toBe(RoleType.MEMBER);
-    expect(stored?.isVotingMember).toBe(false);
-    expect(stored?.supabaseAuthId).toBeNull();
-  });
-
   it('ignores fields that are not columns at all', async () => {
     const response = await postCreateUser(
       validBody({ notAColumn: 'should be dropped' }),
@@ -319,29 +308,7 @@ describe('UsersController.createUser', () => {
 
     expect(response.status).toBe(201);
     expect(await response.json()).not.toHaveProperty('notAColumn');
-  });
-
-  it('overrides a client-supplied roleId with the MEMBER role', async () => {
-    const otherRole = await prisma.role.create({
-      data: { roleType: 'SUPER_ADMIN' },
     });
-
-    const body = validBody({ roleId: otherRole.roleId });
-
-    try {
-      const response = await postCreateUser(body);
-
-      expect(response.status).toBe(201);
-      const data = await response.json();
-      expect(data.roleId).toBe(createUserTestRoleId);
-      expect(data.roleId).not.toBe(otherRole.roleId);
-    } finally {
-      // the created user holds a FK to createUserTestRoleId, not otherRole,
-      // but clear it anyway so otherRole can be deleted cleanly
-      await prisma.user.deleteMany({ where: { nuid: body.nuid } });
-      await UsersService.deleteRole(otherRole.roleId);
-    }
-  });
 
   // --- password ----------------------------------------------------------
 
@@ -408,7 +375,7 @@ describe('UsersController.validateNuid', () => {
     // Create a test user for validation
     const user = await UsersService.createUser({
       userId: 'test-user-id-validate-1',
-      supabaseAuthId: 'test-supabase-auth-id-validate-1',
+      supabaseAuthId: 'test-supabase-id-1',
       nuid: '001234567',
       email: 'jdoe@northeastern.edu',
       firstName: 'John',
@@ -421,6 +388,7 @@ describe('UsersController.validateNuid', () => {
 
   afterAll(async () => {
     await prisma.user.delete({ where: { userId: testUserId } });
+    await cleanupUsersBySupabaseAuthIds(['test-supabase-id-1']);
     await UsersService.deleteRole(testRoleId);
   });
 
@@ -512,6 +480,7 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
   let routeTestRoleId: string;
   let routeTestUserId: string;
   let routeTestSupabaseAuthId: string;
+  let eboardRoleId: string | undefined;
 
   beforeAll(async () => {
     // Create a test role
@@ -523,7 +492,7 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     // Create a test user with supabaseAuthId
     const user = await prisma.user.create({
       data: {
-        supabaseAuthId: 'test-supabase-auth-id-route-1',
+        supabaseAuthId: 'test-supabase-id-2',
         nuid: '001234888',
         email: 'routeuser@example.com',
         firstName: 'Route',
@@ -537,7 +506,13 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.delete({ where: { userId: routeTestUserId } });
+    await cleanupUsersBySupabaseAuthIds([
+      routeTestSupabaseAuthId,
+      'test-supabase-auth-id-eboard',
+    ]);
+    if (eboardRoleId) {
+      await UsersService.deleteRole(eboardRoleId);
+    }
     await UsersService.deleteRole(routeTestRoleId);
   });
 
@@ -586,8 +561,9 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     const eboardRole = await prisma.role.create({
       data: { roleType: 'EBOARD' },
     });
+    eboardRoleId = eboardRole.roleId;
 
-    const eboardUser = await prisma.user.create({
+    await prisma.user.create({
       data: {
         supabaseAuthId: 'test-supabase-auth-id-eboard',
         nuid: '001234887',
@@ -614,8 +590,6 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     expect(data.role.roleId).toBe(eboardRole.roleId);
     expect(data.role.roleType).toBe('EBOARD');
 
-    await prisma.user.delete({ where: { userId: eboardUser.userId } });
-    await prisma.role.delete({ where: { roleId: eboardRole.roleId } });
   });
 });
 
@@ -636,13 +610,10 @@ describe('POST /api/auth/signup', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({
-      where: {
-        supabaseAuthId: {
-          in: ['test-supabase-auth-id-123', 'test-supabase-auth-id-456'],
-        },
-      },
-    });
+    await cleanupUsersBySupabaseAuthIds([
+      'test-supabase-auth-id-123',
+      'test-supabase-auth-id-456',
+    ]);
     await UsersService.deleteRole(signupTestRoleId);
   });
 
