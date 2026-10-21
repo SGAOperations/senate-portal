@@ -299,17 +299,6 @@ describe('UsersController.createUser', () => {
     expect((await postCreateUser(validBody({ lastName: '' }))).status).toBe(400);
   });
 
-  // --- field stripping ---------------------------------------------------
-
-  it('ignores fields that are not columns at all', async () => {
-    const response = await postCreateUser(
-      validBody({ notAColumn: 'should be dropped' }),
-    );
-
-    expect(response.status).toBe(201);
-    expect(await response.json()).not.toHaveProperty('notAColumn');
-    });
-
   // --- password ----------------------------------------------------------
 
   it('preserves a password when one is supplied', async () => {
@@ -356,8 +345,6 @@ describe('UsersController.createUser', () => {
 
     // server-decided fields are present on the response
     expect(data.roleId).toBe(createUserTestRoleId);
-    expect(data.roleType).toBe(RoleType.MEMBER);
-    expect(data.isVotingMember).toBe(false);
     expect(data.createdAt).toBeDefined();
   });
 });

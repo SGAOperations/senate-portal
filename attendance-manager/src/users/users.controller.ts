@@ -5,15 +5,12 @@ import { AttendanceService } from '../attendance/attendance.service';
 import { z } from 'zod';
 
 const CreateUserSchema = z.object({
-  userId: z.string(),
+  userId: z.string().min(1),
   nuid: z.string().regex(/^\d{9}$/),
   password: z.string().nullish(),
   email: z.email(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  roleId: z.string(),
-  roleType: z.enum(RoleType),
-  isVotingMember: z.boolean(),
 });
 
 export const UsersController = {
@@ -90,12 +87,6 @@ export const UsersController = {
 
   async createUser(request: Request) {
     const body = await request.json();
-    // Adds required fields before zod formatting
-    const roleId = await UsersService.getRoleIdByRoleType(RoleType.MEMBER);
-    body.roleId = roleId;
-    body.roleType = RoleType.MEMBER;
-    body.password = body.password ?? null;
-    body.isVotingMember = false;
 
     // zod parse
     const result = CreateUserSchema.safeParse(body);
@@ -108,7 +99,15 @@ export const UsersController = {
         { status: 400 },
       );
     }
-    const newUser = await UsersService.createUser(result.data);
+    const roleId = await UsersService.getRoleIdByRoleType(RoleType.MEMBER);
+    if (!roleId) {
+      console.error('MEMBER role not found');
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+    const newUser = await UsersService.createUser({
+      ...result.data,
+      roleId,
+    });
     return NextResponse.json(newUser, { status: 201 });
   },
 
