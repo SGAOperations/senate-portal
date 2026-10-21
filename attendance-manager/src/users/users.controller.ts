@@ -5,7 +5,7 @@ import { AttendanceService } from '../attendance/attendance.service';
 import { z } from 'zod';
 
 const CreateUserSchema = z.object({
-  userId: z.uuid(),
+  userId: z.string(),
   nuid: z.string().regex(/^\d{9}$/),
   password: z.string().nullish(),
   email: z.email(),

@@ -177,11 +177,12 @@ describe('UsersController.createUser', () => {
   const NUID_PREFIX = '0020000';
   let nuidCounter = 0;
 
-  // nuid and email are @unique, so each created user needs its own.
+  // userId, nuid and email are all unique, so each created user needs its own.
   const freshIdentity = () => {
     nuidCounter += 1;
     const n = String(nuidCounter).padStart(2, '0');
     return {
+      userId: `create-user-test-id-${n}`,
       nuid: `${NUID_PREFIX}${n}`,
       email: `create-user-${n}@northeastern.edu`,
     };
@@ -198,7 +199,6 @@ describe('UsersController.createUser', () => {
 
   // A complete, valid body. Spread and override per test.
   const validBody = (overrides: Record<string, unknown> = {}) => ({
-    userId: crypto.randomUUID(),
     ...freshIdentity(),
     firstName: 'Valid',
     lastName: 'Body',
@@ -244,11 +244,6 @@ describe('UsersController.createUser', () => {
     expect(
       await prisma.user.findFirst({ where: { email: body.email } }),
     ).toBeNull();
-  });
-
-  it('rejects a userId that is not a uuid', async () => {
-    const response = await postCreateUser(validBody({ userId: 'test-user-id' }));
-    expect(response.status).toBe(400);
   });
 
   it.each([
