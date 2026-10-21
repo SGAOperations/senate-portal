@@ -90,10 +90,10 @@ export const UsersController = {
 
     // zod parse
     const result = CreateUserSchema.safeParse(body);
-    if (!result.success){
+    if (!result.success) {
       return NextResponse.json(
         {
-          error: 'Invalid field types',
+          error: 'Invalid request body',
           details: z.flattenError(result.error).fieldErrors,
         },
         { status: 400 },
@@ -101,8 +101,10 @@ export const UsersController = {
     }
     const roleId = await UsersService.getRoleIdByRoleType(RoleType.MEMBER);
     if (!roleId) {
-      console.error('MEMBER role not found');
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Member role does not exist' },
+        { status: 500 },
+      );
     }
     const newUser = await UsersService.createUser({
       ...result.data,
