@@ -32,6 +32,9 @@ const Layout: React.FC = () => {
       return;
     }
 
+    // new vote or user: don't carry over the previous result
+    setCanVoteInActiveEvent(false);
+
     let isCancelled = false;
     let isChecking = false;
 
@@ -80,9 +83,7 @@ const Layout: React.FC = () => {
           setCanVoteInActiveEvent(!hasAlreadyVoted.hasVoted);
         }
       } catch {
-        if (!isCancelled) {
-          setCanVoteInActiveEvent(false);
-        }
+        // keep the current state on a failed re-check so a network blip doesn't close the pop-up
       } finally {
         isChecking = false;
       }
