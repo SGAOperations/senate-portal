@@ -21,22 +21,29 @@ const Layout: React.FC = () => {
   const { activeEvent } = useActiveVotingEvent();
   const [canVoteInActiveEvent, setCanVoteInActiveEvent] = useState(false);
 
+  const userId = user?.id;
+  const votingEventId = activeEvent?.votingEventId;
+  const meetingId = activeEvent?.meetingId;
+
   useEffect(() => {
-    if (!user || !activeEvent) {
+    if (!userId || !votingEventId || !meetingId) {
       setCanVoteInActiveEvent(false);
       return;
     }
 
     let isCancelled = false;
+    let isChecking = false;
 
     const checkMeetingSignInStatus = async () => {
-      setCanVoteInActiveEvent(false);
+      // skip if the previous check is still in flight so results can't land out of order
+      if (isChecking) {
+        return;
+      }
+      isChecking = true;
 
       try {
         // check if user is signed in to the meeting associated with the active voting event
-        const res = await fetch(
-          `/api/attendance/meeting/${activeEvent.meetingId}`,
-        );
+        const res = await fetch(`/api/attendance/meeting/${meetingId}`);
 
         if (!res.ok) {
           throw new Error('Failed to fetch meeting attendance');
@@ -48,7 +55,7 @@ const Layout: React.FC = () => {
         }> = await res.json();
 
         const isPresent = attendanceRecords.some(
-          (record) => record.userId === user.id && record.status === 'PRESENT',
+          (record) => record.userId === userId && record.status === 'PRESENT',
         );
 
         if (!isPresent) {
@@ -60,7 +67,7 @@ const Layout: React.FC = () => {
 
         // Check if user has already voted for this event
         const hasVotedRes = await fetch(
-          `/api/voting-record/has-voted/${activeEvent.votingEventId}`,
+          `/api/voting-record/has-voted/${votingEventId}`,
         );
 
         if (!hasVotedRes.ok) {
@@ -75,15 +82,20 @@ const Layout: React.FC = () => {
         if (!isCancelled) {
           setCanVoteInActiveEvent(false);
         }
+      } finally {
+        isChecking = false;
       }
     };
 
     checkMeetingSignInStatus();
+    // keep re-checking so a member checked in after the vote opens still gets the pop-up
+    const intervalId = window.setInterval(checkMeetingSignInStatus, 3000);
 
     return () => {
       isCancelled = true;
+      window.clearInterval(intervalId);
     };
-  }, [activeEvent, user]);
+  }, [userId, votingEventId, meetingId]);
 
   const handleProfileClick = () => {
     setActiveTab('profile');
