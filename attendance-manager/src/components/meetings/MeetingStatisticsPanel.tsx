@@ -7,6 +7,7 @@ interface MeetingStatisticsPanelProps {
   missedMeetings: number | null;
   upcomingMeetings: number;
   isSemesterLoading: boolean;
+  semesterError: string | null;
   semesterLabel: string | null;
   isAdmin: boolean;
 
@@ -18,6 +19,7 @@ const MeetingStatisticsPanel: React.FC<MeetingStatisticsPanelProps> = ({
   missedMeetings,
   upcomingMeetings,
   isSemesterLoading,
+  semesterError,
   semesterLabel,
   isAdmin,
   setShowCreateMeetingModal,
@@ -25,16 +27,20 @@ const MeetingStatisticsPanel: React.FC<MeetingStatisticsPanelProps> = ({
   const semesterStat = (value: number | null) =>
     isSemesterLoading ? '…' : (value ?? '—');
 
+  let semesterStatus = semesterLabel ?? 'No current semester';
+  if (isSemesterLoading) semesterStatus = 'Loading semester…';
+  else if (semesterError) semesterStatus = "Couldn't load the current semester";
+
   return (
     <div className='lg:col-span-1'>
       <div className='bg-white rounded-2xl shadow-lg p-6 border border-gray-100'>
         <h2 className='text-lg font-semibold text-gray-900'>
           Meeting Statistics
         </h2>
-        <p className='text-sm text-gray-500 mb-6'>
-          {isSemesterLoading
-            ? 'Loading semester…'
-            : (semesterLabel ?? 'No current semester')}
+        <p
+          className={`text-sm mb-6 ${semesterError ? 'text-red-500' : 'text-gray-500'}`}
+        >
+          {semesterStatus}
         </p>
 
         <div className='space-y-6'>

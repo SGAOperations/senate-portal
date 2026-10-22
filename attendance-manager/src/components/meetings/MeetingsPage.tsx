@@ -27,8 +27,11 @@ import {
 
 const MeetingsPage: React.FC = () => {
   const { user } = useAuth();
-  const { currentSemester, isLoading: isSemesterLoading } =
-    useCurrentSemester();
+  const {
+    currentSemester,
+    isLoading: isSemesterLoading,
+    error: semesterError,
+  } = useCurrentSemester();
   const [activeTab, setActiveTab] = useState<'past' | 'upcoming'>('past');
   const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false);
   const [showEditMeetingModal, setShowEditMeetingModal] = useState(false);
@@ -536,6 +539,7 @@ const MeetingsPage: React.FC = () => {
           missedMeetings={missedMeetings}
           upcomingMeetings={upcomingMeetingsList.length}
           isSemesterLoading={isSemesterLoading}
+          semesterError={semesterError}
           semesterLabel={
             currentSemester
               ? `${currentSemester.term === 'FALL' ? 'Fall' : 'Spring'} ${currentSemester.year}`

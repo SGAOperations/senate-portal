@@ -1,5 +1,10 @@
 import { prisma } from '../../lib/prisma';
-import { SemesterService } from '../semester.service';
+import {
+  SemesterDateRangeError,
+  SemesterNotFoundError,
+  SemesterOverlapError,
+  SemesterService,
+} from '../semester.service';
 import { AttendanceService } from '@/attendance/attendance.service';
 import {
   parseMeetingDate,
@@ -140,12 +145,32 @@ describe('SemesterService.updateSemesterDates', () => {
         day('2097-09-01'),
         day('2098-01-20'),
       ),
-    ).rejects.toThrow();
+    ).rejects.toThrow(SemesterOverlapError);
 
     const fall = await prisma.semester.findUniqueOrThrow({
       where: { semesterId: fallId },
     });
     expect(fall.endsOn).toEqual(day('2097-12-15'));
     expect(await meetingSemesterId()).toBe(fallId);
+  });
+
+  it('rejects a range that ends before it starts', async () => {
+    await expect(
+      SemesterService.updateSemesterDates(
+        fallId,
+        day('2097-12-15'),
+        day('2097-09-01'),
+      ),
+    ).rejects.toThrow(SemesterDateRangeError);
+  });
+
+  it('rejects an unknown semester', async () => {
+    await expect(
+      SemesterService.updateSemesterDates(
+        'no-such-semester',
+        day('2097-09-01'),
+        day('2097-12-15'),
+      ),
+    ).rejects.toThrow(SemesterNotFoundError);
   });
 });

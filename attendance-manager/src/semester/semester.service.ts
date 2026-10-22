@@ -4,6 +4,10 @@ import { formatMeetingDateInput } from '../meeting/meetingDateTime';
 
 type Db = Prisma.TransactionClient;
 
+export class SemesterNotFoundError extends Error {}
+export class SemesterDateRangeError extends Error {}
+export class SemesterOverlapError extends Error {}
+
 function toSemesterDay(value: Date): Date {
   return new Date(`${formatMeetingDateInput(value)}T00:00:00.000Z`);
 }
@@ -97,11 +101,32 @@ export const SemesterService = {
   },
 
   async updateSemesterDates(semesterId: string, startsOn: Date, endsOn: Date) {
+    if (startsOn > endsOn) {
+      throw new SemesterDateRangeError('startsOn must be on or before endsOn');
+    }
+
     return prisma.$transaction(
       async (tx) => {
-        const before = await tx.semester.findUniqueOrThrow({
+        const before = await tx.semester.findUnique({
           where: { semesterId },
         });
+        if (!before) {
+          throw new SemesterNotFoundError(`Semester ${semesterId} not found`);
+        }
+
+        const overlapping = await tx.semester.findFirst({
+          where: {
+            semesterId: { not: semesterId },
+            startsOn: { lte: endsOn },
+            endsOn: { gte: startsOn },
+          },
+        });
+        if (overlapping) {
+          throw new SemesterOverlapError(
+            `Those dates overlap ${overlapping.term} ${overlapping.year}`,
+          );
+        }
+
         const oldNeighbors = await findNeighbors(
           tx,
           before.startsOn,
