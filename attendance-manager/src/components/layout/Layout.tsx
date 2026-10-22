@@ -20,6 +20,7 @@ const Layout: React.FC = () => {
   const isAdmin = user?.role === 'EBOARD';
   const { activeEvent } = useActiveVotingEvent();
   const [canVoteInActiveEvent, setCanVoteInActiveEvent] = useState(false);
+  const [dismissedVoteId, setDismissedVoteId] = useState<string | null>(null);
 
   const userId = user?.id;
   const votingEventId = activeEvent?.votingEventId;
@@ -173,9 +174,14 @@ const Layout: React.FC = () => {
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         <main className='flex-1 relative'>
           {renderContent()}
-          {activeEvent && canVoteInActiveEvent && (
-            <ActiveVotingModal event={activeEvent} />
-          )}
+          {activeEvent &&
+            canVoteInActiveEvent &&
+            activeEvent.votingEventId !== dismissedVoteId && (
+              <ActiveVotingModal
+                event={activeEvent}
+                onDismiss={() => setDismissedVoteId(activeEvent.votingEventId)}
+              />
+            )}
         </main>
       </div>
     </div>
