@@ -7,7 +7,7 @@ import { yesNoOptions } from '@/utils/consts';
 interface ActiveVotingModalProps {
   event: VotingEventApiData;
   onVoted?: () => void;
-  onDismiss?: () => void;
+  onDismiss: () => void;
 }
 
 const ActiveVotingModal: React.FC<ActiveVotingModalProps> = ({
