@@ -27,7 +27,13 @@ const Layout: React.FC = () => {
   const meetingId = activeEvent?.meetingId;
 
   useEffect(() => {
-    if (!userId || !votingEventId || !meetingId) {
+    // no polling once the member has dismissed this vote
+    if (
+      !userId ||
+      !votingEventId ||
+      !meetingId ||
+      votingEventId === dismissedVoteId
+    ) {
       setCanVoteInActiveEvent(false);
       return;
     }
@@ -37,6 +43,7 @@ const Layout: React.FC = () => {
 
     let isCancelled = false;
     let isChecking = false;
+    let intervalId: number | undefined;
 
     const checkMeetingSignInStatus = async () => {
       // skip if the previous check is still in flight so results can't land out of order
@@ -82,6 +89,10 @@ const Layout: React.FC = () => {
         if (!isCancelled) {
           setCanVoteInActiveEvent(!hasAlreadyVoted.hasVoted);
         }
+        // nothing left to check once the member has voted
+        if (hasAlreadyVoted.hasVoted) {
+          window.clearInterval(intervalId);
+        }
       } catch {
         // keep the current state on a failed re-check so a network blip doesn't close the pop-up
       } finally {
@@ -89,15 +100,15 @@ const Layout: React.FC = () => {
       }
     };
 
-    checkMeetingSignInStatus();
     // keep re-checking so a member checked in after the vote opens still gets the pop-up
-    const intervalId = window.setInterval(checkMeetingSignInStatus, 3000);
+    intervalId = window.setInterval(checkMeetingSignInStatus, 3000);
+    checkMeetingSignInStatus();
 
     return () => {
       isCancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [userId, votingEventId, meetingId]);
+  }, [userId, votingEventId, meetingId, dismissedVoteId]);
 
   const handleProfileClick = () => {
     setActiveTab('profile');
