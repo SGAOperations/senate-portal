@@ -45,16 +45,36 @@ export const AttendanceService = {
 
   // Update attendees for meeting
   async updateMeetingAttendees(meetingId: string, userIds: string[]) {
-    await prisma.attendance.deleteMany({
-      where: { meetingId },
-    });
+    return prisma.$transaction(async (transaction) => {
+      await transaction.attendance.deleteMany({
+        where: userIds.length
+          ? { meetingId, userId: { notIn: userIds } }
+          : { meetingId },
+      });
 
+      if (userIds.length === 0) return { count: 0 };
+
+      return transaction.attendance.createMany({
+        data: userIds.map((userId) => ({
+          userId,
+          meetingId,
+          status: AttendanceStatus.PENDING,
+        })),
+        skipDuplicates: true,
+      });
+    });
+  },
+
+  async addMeetingAttendee(meetingId: string, userId: string) {
     return prisma.attendance.createMany({
-      data: userIds.map((userId) => ({
-        userId,
-        meetingId,
-        status: AttendanceStatus.PENDING,
-      })),
+      data: [
+        {
+          userId,
+          meetingId,
+          status: AttendanceStatus.PENDING,
+        },
+      ],
+      skipDuplicates: true,
     });
   },
 

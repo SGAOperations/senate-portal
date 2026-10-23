@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MeetingController } from '@/meeting/meeting.controller';
 import { AttendanceController } from '@/attendance/attendance.controller';
+import { requireAuth } from '@/utils/api-auth';
 /**
  * @swagger
  * /api/users:
@@ -22,6 +23,12 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+  if (user.role.roleType !== 'EBOARD') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const { id } = await params; // necessary
   const body = await request.json();
   const result = await AttendanceController.updateMeetingAttendees(
@@ -30,4 +37,20 @@ export async function PUT(
   );
   // return JSON with the payload (e.g. count)
   return NextResponse.json(result); // type: Response
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+  if (user.role.roleType !== 'EBOARD') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const body = await request.json();
+  const result = await AttendanceController.addMeetingAttendee(id, body.userId);
+  return NextResponse.json(result, { status: 201 });
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { LayoutDashboard, Calendar, Vote, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MeetingApiData, UserApiData, AttendanceApiData } from '@/types';
+import { getMeetingDateRange } from '@/meeting/meetingDateTime';
 
 interface SidebarProps {
   activeTab: 'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile';
@@ -49,18 +50,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   }, [isAdmin]);
 
   // Calculate stats
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const { start: todayStart, end: tomorrowStart } = getMeetingDateRange(now);
 
   const todaysMeetings = meetings.filter((m) => {
     const meetingDate = new Date(m.date);
-    meetingDate.setHours(0, 0, 0, 0);
-    return meetingDate.getTime() === today.getTime();
+    return meetingDate >= todayStart && meetingDate < tomorrowStart;
   }).length;
 
   const pendingAttendance = meetings.filter((m) => {
-    const meetingDate = new Date(m.date);
-    if (meetingDate > today) {
+    const meetingEnd = new Date(m.endTime);
+    if (meetingEnd > now) {
       return false; // Only past meetings
     }
     return m.attendance.some(

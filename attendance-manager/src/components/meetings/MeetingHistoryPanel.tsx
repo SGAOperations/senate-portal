@@ -2,6 +2,10 @@ import { MeetingApiData, MeetingType } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar } from 'lucide-react';
 import React from 'react';
+import {
+  formatMeetingDate,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
 
 interface MeetingHistoryPanelProps {
   setActiveTab: (option: 'past' | 'upcoming') => void;
@@ -142,9 +146,12 @@ const MeetingHistoryPanel: React.FC<MeetingHistoryPanelProps> = ({
                 className='border-b border-gray-100 hover:bg-gray-50'
               >
                 <td className='py-3 px-4'>
-                  <div className='text-sm text-gray-900'>{meeting.date}</div>
+                  <div className='text-sm text-gray-900'>
+                    {formatMeetingDate(meeting.date)}
+                  </div>
                   <div className='text-xs text-gray-500'>
-                    {meeting.startTime} - {meeting.endTime}
+                    {formatMeetingTime(meeting.startTime)} -{' '}
+                    {formatMeetingTime(meeting.endTime)}
                   </div>
                 </td>
                 <td className='py-3 px-4'>
