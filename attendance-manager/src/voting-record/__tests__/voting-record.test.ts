@@ -1,6 +1,7 @@
 import { VotingRecordService } from '../voting-record.service';
 import { VotingRecordController } from '../voting-record.controller';
 import { prisma } from '../../lib/prisma';
+import { semesterIdFor } from '@/utils/test-helpers';
 import { VotingService } from '@/voting/voting.service';
 import { MeetingService } from '@/meeting/meeting.service';
 import { UsersService } from '@/users/users.service';
@@ -61,6 +62,7 @@ describe('VotingRecordService', () => {
       data: {
         name: 'Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -235,6 +237,7 @@ describe('VotingRecordController', () => {
       data: {
         name: 'Controller Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -567,6 +570,7 @@ describe('GET /api/voting-record', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -665,6 +669,7 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -827,6 +832,7 @@ describe('POST /api/voting-record', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -969,6 +975,7 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
       data: {
         name: 'PATCH Route Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
