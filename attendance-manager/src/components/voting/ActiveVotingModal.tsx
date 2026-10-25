@@ -7,11 +7,13 @@ import { yesNoOptions } from '@/utils/consts';
 interface ActiveVotingModalProps {
   event: VotingEventApiData;
   onVoted?: () => void;
+  onDismiss: () => void;
 }
 
 const ActiveVotingModal: React.FC<ActiveVotingModalProps> = ({
   event,
   onVoted,
+  onDismiss,
 }) => {
   const { user } = useAuth();
   const [choice, setChoice] = useState<string | null>(null);
@@ -22,10 +24,6 @@ const ActiveVotingModal: React.FC<ActiveVotingModalProps> = ({
   if (!user || hasVoted) {
     return null;
   }
-
-  const handleDismiss = () => {
-    setHasVoted(true);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +70,7 @@ const ActiveVotingModal: React.FC<ActiveVotingModalProps> = ({
           <h2 className='text-xl font-semibold text-gray-900'>Active Vote</h2>
           <button
             type='button'
-            onClick={handleDismiss}
+            onClick={onDismiss}
             className='ml-4 inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C8102E]'
             aria-label='Dismiss vote'
           >

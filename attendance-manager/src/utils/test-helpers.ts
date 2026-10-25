@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { SemesterService } from '@/semester/semester.service';
 
 /**
  * Cleans up all test data in the correct order to respect foreign key constraints.
@@ -22,5 +23,14 @@ export async function cleanupTestData() {
   await prisma.attendance.deleteMany();
   await prisma.user.deleteMany();
   await prisma.meeting.deleteMany();
+  await prisma.semester.deleteMany();
   await prisma.role.deleteMany();
+}
+
+/**
+ * Semester id for a meeting date, for fixtures that create meetings directly
+ * through Prisma instead of MeetingService.createMeeting.
+ */
+export function semesterIdFor(date: Date): Promise<string> {
+  return SemesterService.getOrCreateSemesterIdForDate(date);
 }

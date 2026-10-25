@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { AttendanceStatus, MeetingType } from '../generated/prisma';
+import { SemesterService } from '../semester/semester.service';
 
 function convertToAttendanceStatus(status: string): AttendanceStatus {
   switch (status) {
@@ -24,7 +25,7 @@ export const AttendanceService = {
   // Get all attendance records for a user
   async getUserAttendance(userId: string) {
     return prisma.attendance.findMany({
-      where: { userId },
+      where: { userId, meeting: { deletedAt: null } },
       include: {
         meeting: true,
         request: true,
@@ -129,16 +130,23 @@ export const AttendanceService = {
   },
 
   // Get remaining unexcused absences for a user
-  async getRemainingUnexcusedAbsences(userId: string) {
-    const unexcusedAbsences = await prisma.attendance.findMany({
-      where: {
-        userId,
-        status: AttendanceStatus.UNEXCUSED_ABSENCE,
-      },
-      include: {
-        meeting: true,
-      },
-    });
+  async getRemainingUnexcusedAbsences(userId: string, now: Date = new Date()) {
+    const currentSemester = await SemesterService.getCurrentSemester(now);
+    const unexcusedAbsences = currentSemester
+      ? await prisma.attendance.findMany({
+          where: {
+            userId,
+            status: AttendanceStatus.UNEXCUSED_ABSENCE,
+            meeting: {
+              semesterId: currentSemester.semesterId,
+              deletedAt: null,
+            },
+          },
+          include: {
+            meeting: true,
+          },
+        })
+      : [];
 
     // Count unexcused absences by meeting type
     const regularCount = unexcusedAbsences.filter(
