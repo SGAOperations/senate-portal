@@ -1,5 +1,6 @@
 import { RequestController } from '../request.controller';
 import { prisma } from '../../lib/prisma';
+import { semesterIdFor } from '@/utils/test-helpers';
 import { POST } from '../../app/api/attendance/[attendanceId]/requests/route';
 import { UsersService } from '@/users/users.service';
 import { MeetingService } from '@/meeting/meeting.service';
@@ -80,6 +81,7 @@ describe('RequestController', () => {
       data: {
         name: 'Request Meeting',
         date: parseMeetingDate('2025-08-15'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-15')),
         startTime: parseMeetingDateTime('2025-08-15', '13:00'),
         endTime: parseMeetingDateTime('2025-08-15', '14:00'),
         notes: 'Meeting for request tests',
@@ -173,6 +175,7 @@ describe('RequestController', () => {
       data: {
         name: 'Request Meeting 2',
         date: parseMeetingDate('2025-09-01'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-01')),
         startTime: parseMeetingDateTime('2025-09-01', '10:00'),
         endTime: parseMeetingDateTime('2025-09-01', '11:00'),
         notes: 'Additional meeting for requests',
@@ -213,6 +216,7 @@ describe('RequestController', () => {
       data: {
         name: 'Soon Meeting',
         date: parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        semesterId: await semesterIdFor(parseMeetingDate(formatMeetingDateInput(meetingStart))),
         startTime: meetingStart,
         endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Soon meeting',
@@ -247,6 +251,7 @@ describe('RequestController', () => {
       data: {
         name: 'Far Future Meeting',
         date: parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        semesterId: await semesterIdFor(parseMeetingDate(formatMeetingDateInput(meetingStart))),
         startTime: meetingStart,
         endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Far future meeting',
@@ -316,6 +321,7 @@ describe('RequestController', () => {
       data: {
         name: 'Request Meeting 3',
         date: parseMeetingDate('2025-09-02'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-02')),
         startTime: parseMeetingDateTime('2025-09-02', '10:00'),
         endTime: parseMeetingDateTime('2025-09-02', '11:00'),
         notes: 'Additional meeting for requests',
@@ -381,6 +387,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-09-10'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-10')),
         startTime: parseMeetingDateTime('2025-09-10', '14:00'),
         endTime: parseMeetingDateTime('2025-09-10', '15:00'),
         notes: 'Meeting for route endpoint tests',
@@ -442,6 +449,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
       data: {
         name: 'Route Test Meeting 2',
         date: parseMeetingDate('2025-09-11'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-11')),
         startTime: parseMeetingDateTime('2025-09-11', '15:00'),
         endTime: parseMeetingDateTime('2025-09-11', '16:00'),
         notes: 'Second meeting for route tests',
@@ -555,6 +563,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
       data: {
         name: 'Route Test Meeting 3',
         date: parseMeetingDate('2025-09-12'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-12')),
         startTime: parseMeetingDateTime('2025-09-12', '16:00'),
         endTime: parseMeetingDateTime('2025-09-12', '17:00'),
         notes: 'Third meeting for route tests',
