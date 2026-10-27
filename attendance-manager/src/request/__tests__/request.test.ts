@@ -25,7 +25,7 @@ interface AttendanceRequest {
   requestId: string;
   attendanceId: string;
   reason: string;
-  attendanceMode: 'ONLINE' | 'IN_PERSON';
+  attendanceMode: 'ONLINE' | 'IN_PERSON' | 'ABSENT';
   timeAdjustment: 'ARRIVING_LATE' | 'LEAVING_EARLY';
   isLate: boolean;
   attendance: Attendance;
@@ -208,6 +208,55 @@ describe('RequestController', () => {
     await RequestService.deleteRequest(newRequest.requestId);
     await AttendanceService.deleteAttendance(testAttendanceId2);
     await MeetingService.deleteMeeting(newMeeting.meetingId);
+  });
+
+  it('should create a request for a member who will not attend', async () => {
+    const absentMeeting = await prisma.meeting.create({
+      data: {
+        name: 'Request Meeting Absent',
+        date: parseMeetingDate('2025-09-02'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-02')),
+        startTime: parseMeetingDateTime('2025-09-02', '10:00'),
+        endTime: parseMeetingDateTime('2025-09-02', '11:00'),
+        notes: 'Meeting the member cannot attend',
+        type: 'REGULAR',
+      },
+    });
+    const absentAttendance = await prisma.attendance.create({
+      data: {
+        userId: testUserId,
+        meetingId: absentMeeting.meetingId,
+        status: 'PENDING',
+      },
+    });
+
+    const newRequest = await RequestController.createRequest({
+      attendanceId: absentAttendance.attendanceId,
+      reason: 'I am out of town and cannot attend',
+      attendanceMode: 'ABSENT',
+    });
+
+    expect(newRequest).toBeDefined();
+    expect(newRequest.attendanceMode).toBe('ABSENT');
+    // not attending means there is no arriving-late / leaving-early adjustment
+    expect(newRequest.timeAdjustment).toBeFalsy();
+
+    const stored = await RequestController.getRequest(newRequest.requestId);
+    expect(stored?.attendanceMode).toBe('ABSENT');
+
+    await RequestService.deleteRequest(newRequest.requestId);
+    await AttendanceService.deleteAttendance(absentAttendance.attendanceId);
+    await MeetingService.deleteMeeting(absentMeeting.meetingId);
+  });
+
+  it('should reject an unrecognized attendance mode', async () => {
+    await expect(
+      RequestController.createRequest({
+        attendanceId: testAttendanceId,
+        reason: 'Mode that does not exist',
+        attendanceMode: 'MAYBE',
+      }),
+    ).rejects.toThrow('Invalid input data for creating request');
   });
 
   it('should mark request as late when created within 24 hours of meeting', async () => {
