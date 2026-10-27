@@ -213,6 +213,11 @@ describe('UsersController.createUser', () => {
   // userId, nuid and email are all unique, so each created user needs its own.
   const newNuid = () => {
     nuidCounter += 1;
+    if (nuidCounter > USERS_TEST_NUIDS.length) {
+      throw new Error(
+        `Exhausted USERS_TEST_NUIDS after ${USERS_TEST_NUIDS.length} generated values`,
+      );
+    }
     return {
       userId: `create-user-test-id-${nuidCounter}`,
       nuid: USERS_TEST_NUIDS[nuidCounter-1],
