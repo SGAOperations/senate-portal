@@ -170,6 +170,11 @@ const AttendancePageRequestsModal: React.FC<
                               👤 Attending In Person
                             </span>
                           )}
+                          {request.attendanceMode === 'ABSENT' && (
+                            <span className='inline-block px-2 py-1 text-xs font-medium bg-gray-200 text-gray-800 rounded-full'>
+                              🚫 Not Attending
+                            </span>
+                          )}
                           {request.timeAdjustment === 'ARRIVING_LATE' && (
                             <span className='inline-block px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full'>
                               ⏰ Arriving Late
