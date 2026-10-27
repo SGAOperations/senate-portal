@@ -211,7 +211,7 @@ describe('UsersController.createUser', () => {
   let nuidCounter = 0;
 
   // userId, nuid and email are all unique, so each created user needs its own.
-  const freshIdentity = () => {
+  const newNuid = () => {
     nuidCounter += 1;
     return {
       userId: `create-user-test-id-${nuidCounter}`,
@@ -231,7 +231,7 @@ describe('UsersController.createUser', () => {
 
   // A complete, valid body. Spread and override per test.
   const validBody = (overrides: Record<string, unknown> = {}) => ({
-    ...freshIdentity(),
+    ...newNuid(),
     firstName: 'Valid',
     lastName: 'Body',
     ...overrides,
