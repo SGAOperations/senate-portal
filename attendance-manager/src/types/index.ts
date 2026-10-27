@@ -109,7 +109,7 @@ export interface RequestApiData {
   requestId: string;
   attendanceId: string;
   reason: string;
-  attendanceMode: 'ONLINE' | 'IN_PERSON';
+  attendanceMode: 'ONLINE' | 'IN_PERSON' | 'ABSENT';
   timeAdjustment: 'ARRIVING_LATE' | 'LEAVING_EARLY';
   attendance: AttendanceApiData;
   isLate: boolean;
@@ -134,6 +134,7 @@ export interface RequestForm {
     leavingEarly: boolean;
     comingLate: boolean;
     goingOnline: boolean;
+    notAttending: boolean;
   };
   explanation: string;
 }
@@ -188,7 +189,7 @@ export const AttendanceStatus = z.enum([
   'EXCUSED_ABSENCE',
   'PENDING',
 ]);
-export const AttendanceMode = z.enum(['ONLINE', 'IN_PERSON']);
+export const AttendanceMode = z.enum(['ONLINE', 'IN_PERSON', 'ABSENT']);
 export const TimeAdjustment = z
   .enum(['ARRIVING_LATE', 'LEAVING_EARLY'])
   .optional();

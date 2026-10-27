@@ -1,6 +1,17 @@
 import { RequestService } from './request.service';
 import { NextResponse } from 'next/server';
 
+const ALLOWED_ATTENDANCE_MODES = ['ONLINE', 'IN_PERSON', 'ABSENT'] as const;
+
+type AttendanceMode = (typeof ALLOWED_ATTENDANCE_MODES)[number];
+
+function isAttendanceMode(mode: any): mode is AttendanceMode {
+  return (
+    typeof mode === 'string' &&
+    ALLOWED_ATTENDANCE_MODES.includes(mode as AttendanceMode)
+  );
+}
+
 export const RequestController = {
   async listRequest() {
     const meeting = await RequestService.getAllRequests();
@@ -21,7 +32,7 @@ export const RequestController = {
       typeof data.reason !== 'string' ||
       !data.reason.trim() ||
       !data.attendanceMode ||
-      (data.attendanceMode !== 'ONLINE' && data.attendanceMode !== 'IN_PERSON')
+      !isAttendanceMode(data.attendanceMode)
     ) {
       throw new Error('Invalid input data for creating request');
     }
@@ -56,11 +67,7 @@ export const RequestController = {
     }
 
     // Validate attendanceMode if provided
-    if (
-      data.attendanceMode &&
-      data.attendanceMode !== 'ONLINE' &&
-      data.attendanceMode !== 'IN_PERSON'
-    ) {
+    if (data.attendanceMode && !isAttendanceMode(data.attendanceMode)) {
       throw new Error('Invalid attendanceMode value');
     }
 
