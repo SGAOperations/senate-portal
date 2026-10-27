@@ -24,11 +24,41 @@ jest.mock('../users.service', () => {
   };
 });
 
-const USERS_SERVICE_TEST_NUIDS = [
+const USERS_TEST_NUIDS = [
   '001234567',
   '001234568',
   '001234570',
   '001234571',
+  '002000001',
+  '002000002',
+  '002000003',
+  '002000004',
+  '002000005',
+  '002000006',
+  '002000007',
+  '002000008',
+  '002000009',
+  '002000010',
+  '002000011',
+  '002000012',
+  '003000001',
+  '004000001',
+  '005000001',
+  '006000001',
+  '006000002',
+];
+
+const USERS_TEST_SUPABASE_IDS = [
+  'test-supabase-auth-id-users-1',
+  'test-supabase-auth-id-users-2',
+  'test-supabase-auth-id-users-3',
+  'test-supabase-auth-id-users-4',
+  'test-supabase-auth-id-users-5',
+  'test-supabase-auth-id-users-validate',
+  'test-supabase-auth-id-users-route',
+  'test-supabase-auth-id-users-eboard',
+  'test-supabase-auth-id-users-signup-1',
+  'test-supabase-auth-id-users-signup-2',
 ];
 
 async function cleanupUsersAndAttendanceByNuids(nuids: string[]) {
@@ -78,7 +108,8 @@ describe('UsersService', () => {
 
   beforeAll(async () => {
     // Clean up any leftover data from previous runs
-    await cleanupUsersAndAttendanceByNuids(USERS_SERVICE_TEST_NUIDS);
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
 
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
@@ -87,8 +118,8 @@ describe('UsersService', () => {
 
     await UsersService.createUser({
       userId: 'test-user-id-1',
-      supabaseAuthId: 'test-supabase-auth-id-1',
-      nuid: '001234567',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[0],
+      nuid: USERS_TEST_NUIDS[0],
       email: 'jdoe@northeastern.edu',
       firstName: 'John',
       lastName: 'Doe',
@@ -98,13 +129,8 @@ describe('UsersService', () => {
   });
 
   afterAll(async () => {
-    await cleanupUsersAndAttendanceByNuids(USERS_SERVICE_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds([
-      'test-supabase-auth-id-1',
-      'test-supabase-auth-id-2',
-      'test-supabase-auth-id-4',
-      'test-supabase-auth-id-5',
-    ]);
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     await UsersService.deleteRole(testRoleId);
   });
 
@@ -117,8 +143,8 @@ describe('UsersService', () => {
   it('should create a new user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-2',
-      supabaseAuthId: 'test-supabase-auth-id-2',
-      nuid: '001234568',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[1],
+      nuid: USERS_TEST_NUIDS[1],
       email: 'jdoe2@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
@@ -127,7 +153,7 @@ describe('UsersService', () => {
 
     expect(newUser).toBeDefined();
     expect(newUser.email).toBe('jdoe2@northeastern.edu');
-    expect(newUser.nuid).toBe('001234568');
+    expect(newUser.nuid).toBe(USERS_TEST_NUIDS[1]);
   });
 
   it('should fetch all users', async () => {
@@ -144,8 +170,8 @@ describe('UsersService', () => {
   it('should update a user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-4',
-      supabaseAuthId: 'test-supabase-auth-id-4',
-      nuid: '001234570',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[2],
+      nuid: USERS_TEST_NUIDS[2],
       email: 'jdoe3@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
@@ -166,8 +192,8 @@ describe('UsersService', () => {
   it('should delete a user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-5',
-      supabaseAuthId: 'test-supabase-auth-id-5',
-      nuid: '001234571',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[3],
+      nuid: USERS_TEST_NUIDS[3],
       email: 'jdoe4@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
@@ -182,18 +208,15 @@ describe('UsersService', () => {
 describe('UsersController.createUser', () => {
   let createUserTestRoleId: string;
 
-  // Every nuid this block creates shares this prefix, so cleanup can match on it.
-  const NUID_PREFIX = '0020000';
   let nuidCounter = 0;
 
   // userId, nuid and email are all unique, so each created user needs its own.
   const freshIdentity = () => {
     nuidCounter += 1;
-    const n = String(nuidCounter).padStart(2, '0');
     return {
-      userId: `create-user-test-id-${n}`,
-      nuid: `${NUID_PREFIX}${n}`,
-      email: `create-user-${n}@northeastern.edu`,
+      userId: `create-user-test-id-${nuidCounter}`,
+      nuid: USERS_TEST_NUIDS[nuidCounter-1],
+      email: `create-user-${nuidCounter}@northeastern.edu`,
     };
   };
 
@@ -214,23 +237,16 @@ describe('UsersController.createUser', () => {
     ...overrides,
   });
 
-  // routed through the shared helper so dependent rows go first
-  const cleanupThisBlock = async () => {
-    const stale = await prisma.user.findMany({
-      where: { nuid: { startsWith: NUID_PREFIX } },
-      select: { nuid: true },
-    });
-    await cleanupUsersAndAttendanceByNuids(stale.map(({ nuid }) => nuid));
-  };
-
   beforeAll(async () => {
-    await cleanupThisBlock();
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
     createUserTestRoleId = role.roleId;
   });
 
   afterAll(async () => {
-    await cleanupThisBlock();
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     await UsersService.deleteRole(createUserTestRoleId);
   });
 
@@ -354,6 +370,8 @@ describe('UsersController.validateNuid', () => {
   let testUserId: string;
 
   beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
     });
@@ -362,8 +380,8 @@ describe('UsersController.validateNuid', () => {
     // Create a test user for validation
     const user = await UsersService.createUser({
       userId: 'test-user-id-validate-1',
-      supabaseAuthId: 'test-supabase-id-1',
-      nuid: '001234567',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[0],
+      nuid: USERS_TEST_NUIDS[0],
       email: 'jdoe@northeastern.edu',
       firstName: 'John',
       lastName: 'Doe',
@@ -374,14 +392,14 @@ describe('UsersController.validateNuid', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.delete({ where: { userId: testUserId } });
-    await cleanupUsersBySupabaseAuthIds(['test-supabase-id-1']);
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     await UsersService.deleteRole(testRoleId);
   });
 
   it('should validate correct NUID and name combination', async () => {
     const response = await UsersController.validateNuid({
-      nuid: '001234567',
+      nuid: USERS_TEST_NUIDS[0],
       firstName: 'John',
       lastName: 'Doe',
     });
@@ -393,7 +411,7 @@ describe('UsersController.validateNuid', () => {
       'NUID format is valid and matches the provided name',
     );
     expect(data.user).toBeDefined();
-    expect(data.user.nuid).toBe('001234567');
+    expect(data.user.nuid).toBe(USERS_TEST_NUIDS[0]);
     expect(data.user.firstName).toBe('John');
     expect(data.user.lastName).toBe('Doe');
     expect(data.user.email).toBe('jdoe@northeastern.edu');
@@ -451,7 +469,7 @@ describe('UsersController.validateNuid', () => {
 
   it('should reject mismatched name', async () => {
     const response = await UsersController.validateNuid({
-      nuid: '001234567',
+      nuid: USERS_TEST_NUIDS[0],
       firstName: 'Jane',
       lastName: 'Smith',
     });
@@ -470,6 +488,8 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
   let eboardRoleId: string | undefined;
 
   beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     // Create a test role
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
@@ -479,8 +499,8 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     // Create a test user with supabaseAuthId
     const user = await prisma.user.create({
       data: {
-        supabaseAuthId: 'test-supabase-id-2',
-        nuid: '001234888',
+        supabaseAuthId: USERS_TEST_SUPABASE_IDS[6],
+        nuid: USERS_TEST_NUIDS[17],
         email: 'routeuser@example.com',
         firstName: 'Route',
         lastName: 'User',
@@ -495,7 +515,7 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
   afterAll(async () => {
     await cleanupUsersBySupabaseAuthIds([
       routeTestSupabaseAuthId,
-      'test-supabase-auth-id-eboard',
+      USERS_TEST_SUPABASE_IDS[7],
     ]);
     if (eboardRoleId) {
       await UsersService.deleteRole(eboardRoleId);
@@ -521,7 +541,7 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     expect(data.email).toBe('routeuser@example.com');
     expect(data.firstName).toBe('Route');
     expect(data.lastName).toBe('User');
-    expect(data.nuid).toBe('001234888');
+    expect(data.nuid).toBe(USERS_TEST_NUIDS[17]);
     expect(data.role).toBeDefined();
     expect(data.role.roleType).toBe('MEMBER');
   });
@@ -552,8 +572,8 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
 
     await prisma.user.create({
       data: {
-        supabaseAuthId: 'test-supabase-auth-id-eboard',
-        nuid: '001234887',
+        supabaseAuthId: USERS_TEST_SUPABASE_IDS[7],
+        nuid: USERS_TEST_NUIDS[18],
         email: 'eboardroute@example.com',
         firstName: 'Eboard',
         lastName: 'Route',
@@ -563,11 +583,11 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     });
 
     const req = new Request(
-      'http://localhost/api/users/by-supabase-id/test-supabase-auth-id-eboard',
+      `http://localhost/api/users/by-supabase-id/${USERS_TEST_SUPABASE_IDS[7]}`,
     );
 
     const params = Promise.resolve({
-      supabaseAuthId: 'test-supabase-auth-id-eboard',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[7],
     });
     const response = await GET(req, { params });
     const data = await response.json();
@@ -584,6 +604,8 @@ describe('POST /api/auth/signup', () => {
   let signupTestRoleId: string;
 
   beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     // Create a test role
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
@@ -598,9 +620,9 @@ describe('POST /api/auth/signup', () => {
 
   afterAll(async () => {
     await cleanupUsersBySupabaseAuthIds([
-      'test-supabase-auth-id-123',
-      'test-supabase-auth-id-456',
+      ...USERS_TEST_SUPABASE_IDS,
     ]);
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
     await UsersService.deleteRole(signupTestRoleId);
   });
 
@@ -615,7 +637,7 @@ describe('POST /api/auth/signup', () => {
         signUp: jest.fn().mockResolvedValue({
           data: {
             user: {
-              id: 'test-supabase-auth-id-123',
+              id: USERS_TEST_SUPABASE_IDS[8],
               email: 'newuser@example.com',
             },
           },
@@ -633,7 +655,7 @@ describe('POST /api/auth/signup', () => {
       password: 'password123',
       firstName: 'New',
       lastName: 'User',
-      nuid: '001234999',
+      nuid: USERS_TEST_NUIDS[19],
     };
 
     const req = new Request('http://localhost/api/auth/signup', {
@@ -649,15 +671,15 @@ describe('POST /api/auth/signup', () => {
     expect(data.message).toBe('User created successfully');
     expect(data.user).toBeDefined();
     expect(data.user.email).toBe('newuser@example.com');
-    expect(data.user.supabaseAuthId).toBe('test-supabase-auth-id-123');
+    expect(data.user.supabaseAuthId).toBe(USERS_TEST_SUPABASE_IDS[8]);
     expect(data.user.firstName).toBe('New');
     expect(data.user.lastName).toBe('User');
-    expect(data.user.nuid).toBe('001234999');
+    expect(data.user.nuid).toBe(USERS_TEST_NUIDS[19]);
     expect(data.user.roleId).toBe(signupTestRoleId);
 
     // Verify user was created in database
     const createdUser = await prisma.user.findUnique({
-      where: { supabaseAuthId: 'test-supabase-auth-id-123' },
+      where: { supabaseAuthId: USERS_TEST_SUPABASE_IDS[8] },
     });
     expect(createdUser).toBeDefined();
     expect(createdUser?.email).toBe('newuser@example.com');
@@ -703,7 +725,7 @@ describe('POST /api/auth/signup', () => {
       password: 'password123',
       firstName: 'Existing',
       lastName: 'User',
-      nuid: '001234998',
+      nuid: USERS_TEST_NUIDS[20],
     };
 
     const req = new Request('http://localhost/api/auth/signup', {
@@ -726,7 +748,7 @@ describe('POST /api/auth/signup', () => {
         signUp: jest.fn().mockResolvedValue({
           data: {
             user: {
-              id: 'test-supabase-auth-id-456',
+              id: USERS_TEST_SUPABASE_IDS[9],
               email: 'member@example.com',
             },
           },
@@ -744,7 +766,7 @@ describe('POST /api/auth/signup', () => {
       password: 'password123',
       firstName: 'Member',
       lastName: 'User',
-      nuid: '001234996',
+      nuid: USERS_TEST_NUIDS[20],
       // roleId not provided
     };
 
