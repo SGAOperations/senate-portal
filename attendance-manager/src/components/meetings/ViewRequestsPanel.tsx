@@ -1,4 +1,5 @@
 import { RequestApiData, User } from '@/types';
+import { Eye, FilePenLine } from 'lucide-react';
 import React from 'react';
 
 interface ViewRequestsProps {
@@ -33,7 +34,7 @@ const ViewRequestsPanel: React.FC<ViewRequestsProps> = ({
             onClick={() => setShowCreateRequestModal(true)}
             className='px-6 py-3 bg-[#C8102E] text-white rounded-xl hover:bg-[#A8102E] transition-colors font-medium shadow-lg hover:shadow-xl'
           >
-            📝 Create Request
+            <FilePenLine /> Create Request
           </button>
           <button
             onClick={async () => {
@@ -57,7 +58,7 @@ const ViewRequestsPanel: React.FC<ViewRequestsProps> = ({
             }}
             className='px-6 py-3 bg-[#A4804A] text-white rounded-xl hover:bg-[#8A6D3F] transition-colors font-medium shadow-lg hover:shadow-xl'
           >
-            📋 View My Requests
+            <Eye /> View My Requests
           </button>
         </div>
       )}

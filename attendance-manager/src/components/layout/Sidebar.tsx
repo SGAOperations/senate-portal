@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, Vote, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Calendar, Vote, ClipboardList, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MeetingApiData, UserApiData, AttendanceApiData } from '@/types';
 import { getMeetingDateRange } from '@/meeting/meetingDateTime';
@@ -189,7 +189,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
                   <div className='flex items-center justify-between'>
                     <span className='text-xs text-gray-500'>Admin Access</span>
                     <span className='text-sm font-semibold text-[#A4804A]'>
-                      ✓
+                      <Check />
                     </span>
                   </div>
                 </>

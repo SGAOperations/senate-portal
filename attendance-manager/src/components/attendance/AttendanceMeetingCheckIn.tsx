@@ -1,6 +1,7 @@
 import { MeetingApiData, AttendanceApiData } from '@/types';
 import React, { useState } from 'react';
 import { formatMeetingDate } from '@/meeting/meetingDateTime';
+import { CalendarCheck } from 'lucide-react';
 
 interface AvailableMember {
   userId: string;
@@ -77,7 +78,7 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
 
       <div className='bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6'>
         <p className='text-sm text-blue-900 font-medium'>
-          📱 Member Check-In Mode
+          <CalendarCheck /> Member Check-In Mode
         </p>
       </div>
 
