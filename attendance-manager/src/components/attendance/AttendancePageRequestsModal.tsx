@@ -236,7 +236,7 @@ const AttendancePageRequestsModal: React.FC<
                                 );
                               }
                             }}
-                            className='flex-1 inline-flex items-center gap-3 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium'
+                            className='flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium'
                           >
                             <Check className='size-7' aria-hidden='true'/> Accept
                           </button>
@@ -280,7 +280,7 @@ const AttendancePageRequestsModal: React.FC<
                                 );
                               }
                             }}
-                            className='flex-1 inline-flex items-center gap-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium'
+                            className='flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium'
                           >
                             <X className='size-7' aria-hidden='true'/> Reject
                           </button>
