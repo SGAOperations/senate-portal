@@ -1,9 +1,14 @@
 import { VotingRecordService } from '../voting-record.service';
 import { VotingRecordController } from '../voting-record.controller';
 import { prisma } from '../../lib/prisma';
+import { semesterIdFor } from '@/utils/test-helpers';
 import { VotingService } from '@/voting/voting.service';
 import { MeetingService } from '@/meeting/meeting.service';
 import { UsersService } from '@/users/users.service';
+import {
+  parseMeetingDate,
+  parseMeetingDateTime,
+} from '@/meeting/meetingDateTime';
 
 jest.setTimeout(20000);
 
@@ -56,9 +61,10 @@ describe('VotingRecordService', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -123,7 +129,7 @@ describe('VotingRecordService', () => {
         votingEventId: testVotingEventId,
         userId: testUserId,
         result: 'YES',
-      })
+      }),
     ).rejects.toThrow('User has already voted for this event');
   });
 
@@ -230,9 +236,10 @@ describe('VotingRecordController', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Controller Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -562,9 +569,10 @@ describe('GET /api/voting-record', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -660,9 +668,10 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -822,9 +831,10 @@ describe('POST /api/voting-record', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'Route Test Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },
@@ -964,9 +974,10 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
     const meeting = await prisma.meeting.create({
       data: {
         name: 'PATCH Route Meeting',
-        date: '2025-08-04',
-        startTime: '10:00',
-        endTime: '11:00',
+        date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
         type: 'REGULAR',
       },

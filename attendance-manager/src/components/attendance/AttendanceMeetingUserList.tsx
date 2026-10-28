@@ -1,6 +1,10 @@
 import { MeetingApiData, UserApiData, AttendanceApiData } from '@/types';
 import { CircleCheck } from 'lucide-react';
 import React from 'react';
+import {
+  formatMeetingDate,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
 
 interface AttendanceMeetingUserListProps {
   selectedMeetingForCheck: MeetingApiData;
@@ -28,8 +32,9 @@ const AttendanceMeetingUserList: React.FC<AttendanceMeetingUserListProps> = ({
           {selectedMeetingForCheck.name}
         </h3>
         <p className='text-sm text-gray-600'>
-          {selectedMeetingForCheck.date} • {selectedMeetingForCheck.startTime} -{' '}
-          {selectedMeetingForCheck.endTime}
+          {formatMeetingDate(selectedMeetingForCheck.date)} •{' '}
+          {formatMeetingTime(selectedMeetingForCheck.startTime)} -{' '}
+          {formatMeetingTime(selectedMeetingForCheck.endTime)}
         </p>
       </div>
 

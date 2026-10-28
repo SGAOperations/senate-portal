@@ -32,28 +32,6 @@ interface EditMeetingModalProps {
   setEditingMeeting: (editing: MeetingApiData | null) => void;
 }
 
-const formatDate = (dateStr: string) => {
-  if (dateStr.includes('/')) {
-    const [month, day, year] = dateStr.split('/');
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  if (dateStr.includes('-')) {
-    const [year, month, day] = dateStr.split('-');
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  throw new Error(`Unsupported date format: ${dateStr}`);
-};
-
-const formatTime = (timeStr: string) => {
-  const [time, period] = timeStr.split(' ');
-  let [hours, minutes] = time.split(':');
-  if (period === 'PM' && hours !== '12') hours = String(Number(hours) + 12);
-  if (period === 'AM' && hours === '12') hours = '00';
-  return `${hours.padStart(2, '0')}:${minutes}`;
-};
-
 const EditMeetingModal: React.FC<EditMeetingModalProps> = ({
   selectedUserIds,
   setSelectedUserIds,
@@ -124,7 +102,7 @@ const EditMeetingModal: React.FC<EditMeetingModalProps> = ({
               </label>
               <input
                 type='date'
-                value={formatDate(editMeeting.date)}
+                value={editMeeting.date}
                 onChange={(e) =>
                   setEditMeeting({ ...editMeeting, date: e.target.value })
                 }
@@ -138,7 +116,7 @@ const EditMeetingModal: React.FC<EditMeetingModalProps> = ({
               </label>
               <input
                 type='time'
-                value={formatTime(editMeeting.startTime)}
+                value={editMeeting.startTime}
                 onChange={(e) =>
                   setEditMeeting({ ...editMeeting, startTime: e.target.value })
                 }
@@ -152,7 +130,7 @@ const EditMeetingModal: React.FC<EditMeetingModalProps> = ({
               </label>
               <input
                 type='time'
-                value={formatTime(editMeeting.endTime)}
+                value={editMeeting.endTime}
                 onChange={(e) =>
                   setEditMeeting({ ...editMeeting, endTime: e.target.value })
                 }

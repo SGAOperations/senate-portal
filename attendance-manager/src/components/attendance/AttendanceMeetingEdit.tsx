@@ -1,6 +1,7 @@
 import { UserApiData, AttendanceApiData, MeetingApiData } from '@/types';
 import React from 'react';
 import { CircleCheck } from 'lucide-react';
+import { formatMeetingDate } from '@/meeting/meetingDateTime';
 
 interface AttendanceMeetingSelectProps {
   attendanceUsers: UserApiData[];
@@ -38,7 +39,7 @@ const AttendanceMeetingEdit: React.FC<AttendanceMeetingSelectProps> = ({
           Edit Attendance
         </h3>
         <p className='text-sm text-gray-600 mb-4'>
-          {selectedMeeting.name} - {selectedMeeting.date}
+          {selectedMeeting.name} - {formatMeetingDate(selectedMeeting.date)}
         </p>
 
         {isLoadingAttendance ? (

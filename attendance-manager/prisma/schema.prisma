@@ -34,15 +34,19 @@ model User {
 model Meeting {
   meetingId  String       @id @default(uuid())
   name       String
-  date       String
-  startTime  String
-  endTime    String
+  date       DateTime     @db.Timestamptz(3)
+  startTime  DateTime     @db.Timestamptz(3)
+  endTime    DateTime     @db.Timestamptz(3)
   notes      String
   type       MeetingType
+  semesterId String
+  semester   Semester     @relation(fields: [semesterId], references: [semesterId])
   attendance Attendance[]
   votingEvents VotingEvent[]
   deletedAt      DateTime?
   updatedAt      DateTime?
+
+  @@index([semesterId])
 }
 
 model Attendance {
@@ -93,6 +97,22 @@ model VotingRecord {
   deletedAt      DateTime?
   updatedBy      String?
   votingEvent    VotingEvent     @relation(fields: [votingEventId], references: [votingEventId])
+}
+
+model Semester {
+  semesterId String    @id @default(uuid())
+  term       Term
+  year       Int
+  startsOn   DateTime  @db.Date
+  endsOn     DateTime  @db.Date
+  meetings   Meeting[]
+
+  @@unique([term, year])
+}
+
+enum Term {
+  FALL
+  SPRING
 }
 
 enum RoleType {

@@ -16,8 +16,17 @@ export interface MeetingApiData {
   endTime: string;
   notes: string;
   type: MeetingType;
+  semesterId: string;
   attendance: AttendanceApiData[];
   eligibleCount?: number;
+}
+
+export interface SemesterApiData {
+  semesterId: string;
+  term: 'FALL' | 'SPRING';
+  year: number;
+  startsOn: string;
+  endsOn: string;
 }
 
 export interface AttendanceRecord {

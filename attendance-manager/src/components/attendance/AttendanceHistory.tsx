@@ -1,5 +1,9 @@
 import { MeetingApiData, AttendanceApiData } from '@/types';
 import React from 'react';
+import {
+  formatMeetingDate,
+  formatMeetingTime,
+} from '@/meeting/meetingDateTime';
 
 interface AttendanceHistoryProps {
   meetingsWithAttendance: MeetingApiData[];
@@ -59,9 +63,12 @@ const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                   className='border-b border-gray-200 hover:bg-gray-50'
                 >
                   <td className='py-3 px-4'>
-                    <div className='text-sm text-gray-900'>{record.date}</div>
+                    <div className='text-sm text-gray-900'>
+                      {formatMeetingDate(record.date)}
+                    </div>
                     <div className='text-xs text-gray-500'>
-                      {record.startTime} - {record.endTime}
+                      {formatMeetingTime(record.startTime)} -{' '}
+                      {formatMeetingTime(record.endTime)}
                     </div>
                   </td>
                   <td className='py-3 px-4'>
@@ -70,7 +77,9 @@ const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                     </div>
                   </td>
                   <td className='py-3 px-4'>
-                    <div className='text-sm text-gray-600 break-words max-w-xs'>{record.notes}</div>
+                    <div className='text-sm text-gray-600 break-words max-w-xs'>
+                      {record.notes}
+                    </div>
                   </td>
                   <td className='py-3 px-4 text-center'>
                     <div className='text-sm font-medium text-gray-900'>

@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { VotingEventWithRelations } from '@/types';
 import { getVoteCounts } from '@/utils/voting_utils';
 import VotingResultsModal from './VotingResultsModal';
+import { formatMeetingDate } from '@/meeting/meetingDateTime';
 
 interface VotingResultsPanelProps {
   events: VotingEventWithRelations[];
   loading: boolean;
   setDeleteEvent: (event: VotingEventWithRelations | null) => void;
+  canDelete: boolean;
 }
 
 const formatResultLabel = (result: string) => {
@@ -26,6 +28,7 @@ const VotingResultsPanel: React.FC<VotingResultsPanelProps> = ({
   events,
   loading,
   setDeleteEvent,
+  canDelete,
 }) => {
   const endedEvents = events
     .filter((e) => !e.deletedAt && !!e.endedAt)
@@ -93,7 +96,7 @@ const VotingResultsPanel: React.FC<VotingResultsPanelProps> = ({
                       </div>
                       <div className='text-xs text-gray-500'>
                         {event.meeting?.date
-                          ? event.meeting.date
+                          ? formatMeetingDate(event.meeting.date)
                           : new Date(event.createdAt).toLocaleDateString()}
                       </div>
                     </td>
@@ -157,17 +160,19 @@ const VotingResultsPanel: React.FC<VotingResultsPanelProps> = ({
                         </div>
                       )}
                       {/* Delete button for past events */}
-                      <div className='ml-1'>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteEvent(event);
-                          }}
-                          className='text-red-400 hover:text-red-600 text-xs font-medium'
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      {canDelete && (
+                        <div className='ml-1'>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteEvent(event);
+                            }}
+                            className='text-red-400 hover:text-red-600 text-xs font-medium'
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
