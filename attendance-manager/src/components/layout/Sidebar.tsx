@@ -1,5 +1,11 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, Vote, ClipboardList, Check } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Calendar,
+  Vote,
+  ClipboardList,
+  Check,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MeetingApiData, UserApiData, AttendanceApiData } from '@/types';
 import { getMeetingDateRange } from '@/meeting/meetingDateTime';

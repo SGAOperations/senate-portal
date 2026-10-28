@@ -78,7 +78,8 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
 
       <div className='bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6'>
         <p className='inline-flex items-center gap-2 text-sm text-blue-900 font-medium'>
-          <CalendarCheck className='size-5' aria-hidden='true'/> Member Check-In Mode
+          <CalendarCheck className='size-5' aria-hidden='true' /> Member
+          Check-In Mode
         </p>
       </div>
 

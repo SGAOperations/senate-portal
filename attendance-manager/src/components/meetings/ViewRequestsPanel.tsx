@@ -34,7 +34,7 @@ const ViewRequestsPanel: React.FC<ViewRequestsProps> = ({
             onClick={() => setShowCreateRequestModal(true)}
             className='px-6 py-3 inline-flex items-center justify-center gap-3 bg-[#C8102E] text-white rounded-xl hover:bg-[#A8102E] transition-colors font-medium shadow-lg hover:shadow-xl'
           >
-            <FilePenLine className='size-7' aria-hidden='true'/> Create Request
+            <FilePenLine className='size-7' aria-hidden='true' /> Create Request
           </button>
           <button
             onClick={async () => {
@@ -58,7 +58,7 @@ const ViewRequestsPanel: React.FC<ViewRequestsProps> = ({
             }}
             className='px-6 py-3 inline-flex items-center justify-center gap-3 bg-[#A4804A] text-white rounded-xl hover:bg-[#8A6D3F] transition-colors font-medium shadow-lg hover:shadow-xl'
           >
-            <Eye className='size-7' aria-hidden='true'/> View My Requests
+            <Eye className='size-7' aria-hidden='true' /> View My Requests
           </button>
         </div>
       )}
