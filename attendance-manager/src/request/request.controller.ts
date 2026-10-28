@@ -1,15 +1,12 @@
 import { RequestService } from './request.service';
 import { NextResponse } from 'next/server';
+import { AttendanceMode } from '../generated/prisma';
 
-const ALLOWED_ATTENDANCE_MODES = ['ONLINE', 'IN_PERSON', 'ABSENT'] as const;
-
-type AttendanceMode = (typeof ALLOWED_ATTENDANCE_MODES)[number];
+// built from the Prisma enum so a new mode is picked up automatically
+const ALLOWED_ATTENDANCE_MODES: string[] = Object.values(AttendanceMode);
 
 function isAttendanceMode(mode: any): mode is AttendanceMode {
-  return (
-    typeof mode === 'string' &&
-    ALLOWED_ATTENDANCE_MODES.includes(mode as AttendanceMode)
-  );
+  return typeof mode === 'string' && ALLOWED_ATTENDANCE_MODES.includes(mode);
 }
 
 const NOT_ATTENDING_WITH_TIME_ADJUSTMENT =
