@@ -9,7 +9,7 @@ const createVotingRecordSchema = z.object({
   votingEventId: z.string().min(1),
   userId: z.string().min(1),
   result: z.string().min(1),
-  updatedBy: z.string().optional(),
+  updatedBy: z.string().nullish(),
 });
 
 const rollCallStyleResults = new Set<string>([
@@ -97,7 +97,7 @@ export const VotingRecordController = {
         { error: 'Invalid JSON body' },
         { status: 400 },
       );
-    }  
+    }
 
     // Validate the parsed body against the schema using Zod
     const parsed = createVotingRecordSchema.safeParse(body);
@@ -119,7 +119,7 @@ export const VotingRecordController = {
         votingEventId,
         userId,
         result,
-        updatedBy,
+        updatedBy: updatedBy ?? undefined,
       });
       return NextResponse.json(newVotingRecord, { status: 201 });
     } catch (error: any) {
