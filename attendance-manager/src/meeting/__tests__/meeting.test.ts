@@ -1,6 +1,7 @@
 import { MeetingService } from '../meeting.service';
 import { MeetingController } from '../meeting.controller';
 import { prisma } from '../../lib/prisma';
+import { semesterIdFor } from '@/utils/test-helpers';
 import { MeetingType } from '../../generated/prisma';
 import { UsersService } from '@/users/users.service';
 import { AttendanceService } from '@/attendance/attendance.service';
@@ -52,6 +53,7 @@ describe('MeetingServices', () => {
       data: {
         name: 'In Progress Meeting',
         date: today,
+        semesterId: await semesterIdFor(today),
         startTime: new Date(Date.now() - hour),
         endTime: new Date(Date.now() + hour),
         notes: 'started an hour ago, ends in an hour',
@@ -62,6 +64,7 @@ describe('MeetingServices', () => {
       data: {
         name: 'Ended Meeting',
         date: today,
+        semesterId: await semesterIdFor(today),
         startTime: new Date(Date.now() - 3 * hour),
         endTime: new Date(Date.now() - 2 * hour),
         notes: 'ended two hours ago',
