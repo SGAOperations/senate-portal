@@ -259,6 +259,99 @@ describe('RequestController', () => {
     ).rejects.toThrow('Invalid input data for creating request');
   });
 
+  it('should reject not attending combined with a time adjustment on create', async () => {
+    for (const timeAdjustment of ['ARRIVING_LATE', 'LEAVING_EARLY']) {
+      await expect(
+        RequestController.createRequest({
+          attendanceId: testAttendanceId,
+          reason: 'Not coming, but also late',
+          attendanceMode: 'ABSENT',
+          timeAdjustment,
+        }),
+      ).rejects.toThrow(
+        'Not attending cannot be combined with arriving late or leaving early',
+      );
+    }
+  });
+
+  it('should reject switching a request with a time adjustment to not attending', async () => {
+    // testRequestId is ONLINE + ARRIVING_LATE, so ABSENT alone leaves the combo
+    await expect(
+      RequestController.updateRequest(testRequestId, {
+        attendanceMode: 'ABSENT',
+      }),
+    ).rejects.toThrow(
+      'Not attending cannot be combined with arriving late or leaving early',
+    );
+
+    // setting both in the same update is the same combo
+    await expect(
+      RequestController.updateRequest(testRequestId, {
+        attendanceMode: 'ABSENT',
+        timeAdjustment: 'LEAVING_EARLY',
+      }),
+    ).rejects.toThrow(
+      'Not attending cannot be combined with arriving late or leaving early',
+    );
+
+    const unchanged = await RequestController.getRequest(testRequestId);
+    expect(unchanged?.attendanceMode).toBe('ONLINE');
+    expect(unchanged?.timeAdjustment).toBe('ARRIVING_LATE');
+  });
+
+  it('should reject adding a time adjustment to a not attending request', async () => {
+    const absentMeeting = await prisma.meeting.create({
+      data: {
+        name: 'Request Meeting Absent Update',
+        date: parseMeetingDate('2025-09-03'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-03')),
+        startTime: parseMeetingDateTime('2025-09-03', '10:00'),
+        endTime: parseMeetingDateTime('2025-09-03', '11:00'),
+        notes: 'Meeting for not attending update test',
+        type: 'REGULAR',
+      },
+    });
+    const absentAttendance = await prisma.attendance.create({
+      data: {
+        userId: testUserId,
+        meetingId: absentMeeting.meetingId,
+        status: 'PENDING',
+      },
+    });
+    const absentRequest = await RequestController.createRequest({
+      attendanceId: absentAttendance.attendanceId,
+      reason: 'I am out of town and cannot attend',
+      attendanceMode: 'ABSENT',
+    });
+
+    try {
+      await expect(
+        RequestController.updateRequest(absentRequest.requestId, {
+          timeAdjustment: 'ARRIVING_LATE',
+        }),
+      ).rejects.toThrow(
+        'Not attending cannot be combined with arriving late or leaving early',
+      );
+      const stillAbsent = await RequestController.getRequest(
+        absentRequest.requestId,
+      );
+      expect(stillAbsent?.attendanceMode).toBe('ABSENT');
+      expect(stillAbsent?.timeAdjustment).toBeNull();
+
+      // changing the mode in the same update is a valid way out of ABSENT
+      const updated = await RequestController.updateRequest(
+        absentRequest.requestId,
+        { attendanceMode: 'IN_PERSON', timeAdjustment: 'ARRIVING_LATE' },
+      );
+      expect(updated.attendanceMode).toBe('IN_PERSON');
+      expect(updated.timeAdjustment).toBe('ARRIVING_LATE');
+    } finally {
+      await RequestService.deleteRequest(absentRequest.requestId);
+      await AttendanceService.deleteAttendance(absentAttendance.attendanceId);
+      await MeetingService.deleteMeeting(absentMeeting.meetingId);
+    }
+  });
+
   it('should mark request as late when created within 24 hours of meeting', async () => {
     const meetingStart = new Date(Date.now() + 6 * 60 * 60 * 1000);
     const soonMeeting = await prisma.meeting.create({

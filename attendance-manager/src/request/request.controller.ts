@@ -12,6 +12,9 @@ function isAttendanceMode(mode: any): mode is AttendanceMode {
   );
 }
 
+const NOT_ATTENDING_WITH_TIME_ADJUSTMENT =
+  'Not attending cannot be combined with arriving late or leaving early';
+
 export const RequestController = {
   async listRequest() {
     const meeting = await RequestService.getAllRequests();
@@ -44,6 +47,11 @@ export const RequestController = {
       data.timeAdjustment !== 'LEAVING_EARLY'
     ) {
       throw new Error('Invalid timeAdjustment value');
+    }
+
+    // Not attending can't be combined with arriving late / leaving early
+    if (data.attendanceMode === 'ABSENT' && data.timeAdjustment) {
+      throw new Error(NOT_ATTENDING_WITH_TIME_ADJUSTMENT);
     }
 
     return RequestService.createRequest({
@@ -79,6 +87,22 @@ export const RequestController = {
       data.timeAdjustment !== null
     ) {
       throw new Error('Invalid timeAdjustment value');
+    }
+
+    // A partial update can create the combo from either side, so check the
+    // result of applying it to the stored request, not just the body
+    if ('attendanceMode' in data || 'timeAdjustment' in data) {
+      const existing = await RequestService.getRequest(requestId);
+      if (existing) {
+        const mode = data.attendanceMode || existing.attendanceMode;
+        const timeAdjustment =
+          'timeAdjustment' in data
+            ? data.timeAdjustment
+            : existing.timeAdjustment;
+        if (mode === 'ABSENT' && timeAdjustment) {
+          throw new Error(NOT_ATTENDING_WITH_TIME_ADJUSTMENT);
+        }
+      }
     }
 
     const updateData: any = {};
