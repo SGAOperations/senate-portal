@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../lib/prisma';
 import { VoteType, yesNoOptions } from '../utils/consts';
 import { VotingRecordService } from './voting-record.service';
+import { z } from 'zod';
+
+// Define the expected structure of the request body using Zod
+const createVotingRecordSchema = z.object({
+  votingEventId: z.string().min(1),
+  userId: z.string().min(1),
+  result: z.string().min(1),
+  updatedBy: z.string().nullish(),
+});
 
 const rollCallStyleResults = new Set<string>([
   ...Object.values(yesNoOptions),
@@ -78,40 +87,39 @@ export const VotingRecordController = {
   },
 
   async createVotingRecord(request: Request) {
-    const body = await request.json();
+    //Parse the request body as JSON and handle any parsing errors
+    let body: unknown;
 
-    // Validate required fields
-    if (!body.votingEventId || !body.userId || !body.result) {
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid JSON body' },
+        { status: 400 },
+      );
+    }
+
+    // Validate the parsed body against the schema using Zod
+    const parsed = createVotingRecordSchema.safeParse(body);
+
+    if (!parsed.success) {
       return NextResponse.json(
         {
-          error:
-            'Missing required fields: votingEventId, userId, and result are required',
+          error: 'Invalid request body',
+          details: z.flattenError(parsed.error).fieldErrors,
         },
         { status: 400 },
       );
     }
 
-    // Validate field types
-    if (
-      typeof body.votingEventId !== 'string' ||
-      typeof body.userId !== 'string' ||
-      typeof body.result !== 'string'
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            'Invalid field types: votingEventId, userId, and result must be strings',
-        },
-        { status: 400 },
-      );
-    }
+    const { votingEventId, userId, result, updatedBy } = parsed.data;
 
     try {
       const newVotingRecord = await VotingRecordService.createVotingRecord({
-        votingEventId: body.votingEventId,
-        userId: body.userId,
-        result: body.result,
-        updatedBy: body.updatedBy,
+        votingEventId,
+        userId,
+        result,
+        updatedBy: updatedBy ?? undefined,
       });
       return NextResponse.json(newVotingRecord, { status: 201 });
     } catch (error: any) {
