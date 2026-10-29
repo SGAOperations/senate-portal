@@ -9,6 +9,7 @@ import {
 } from '../../types';
 import { z } from 'zod';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentSemester } from '../../contexts/SemesterContext';
 import ViewRequestsPanel from './ViewRequestsPanel';
 import ViewRequestsModal from './ViewRequestsModal';
 import AbsencesBanner from './AbsencesBanner';
@@ -26,6 +27,11 @@ import {
 
 const MeetingsPage: React.FC = () => {
   const { user } = useAuth();
+  const {
+    currentSemester,
+    isLoading: isSemesterLoading,
+    error: semesterError,
+  } = useCurrentSemester();
   const [activeTab, setActiveTab] = useState<'past' | 'upcoming'>('past');
   const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false);
   const [showEditMeetingModal, setShowEditMeetingModal] = useState(false);
@@ -63,6 +69,7 @@ const MeetingsPage: React.FC = () => {
       leavingEarly: false,
       comingLate: false,
       goingOnline: false,
+      notAttending: false,
     },
     explanation: '',
   });
@@ -268,25 +275,33 @@ const MeetingsPage: React.FC = () => {
   // Calculate statistics from real meetings
   const today = new Date();
   // Calculate statistics from real data
-  const attendedMeetings = meetings.filter((m) => {
-    const meetingStart = new Date(m.startTime);
-    if (meetingStart > today) return false; // Skip upcoming meetings
-    // Check if current user attended this meeting
-    return m.attendance.some(
-      (a) => a.userId === user?.id && a.status === 'PRESENT',
-    );
-  }).length;
+  const currentSemesterMeetings = currentSemester
+    ? meetings.filter((m) => m.semesterId === currentSemester.semesterId)
+    : null;
+  const attendedMeetings = currentSemesterMeetings
+    ? currentSemesterMeetings.filter((m) => {
+        const meetingStart = new Date(m.startTime);
+        if (meetingStart > today) return false; // Skip upcoming meetings
+        // Check if current user attended this meeting
+        return m.attendance.some(
+          (a) => a.userId === user?.id && a.status === 'PRESENT',
+        );
+      }).length
+    : null;
 
-  const missedMeetings = meetings.filter((m) => {
-    const meetingStart = new Date(m.startTime);
-    if (meetingStart > today) return false; // Skip upcoming meetings
-    // Check if current user was absent
-    return m.attendance.some(
-      (a) =>
-        a.userId === user?.id &&
-        (a.status === 'UNEXCUSED_ABSENCE' || a.status === 'EXCUSED_ABSENCE'),
-    );
-  }).length;
+  const missedMeetings = currentSemesterMeetings
+    ? currentSemesterMeetings.filter((m) => {
+        const meetingStart = new Date(m.startTime);
+        if (meetingStart > today) return false; // Skip upcoming meetings
+        // Check if current user was absent
+        return m.attendance.some(
+          (a) =>
+            a.userId === user?.id &&
+            (a.status === 'UNEXCUSED_ABSENCE' ||
+              a.status === 'EXCUSED_ABSENCE'),
+        );
+      }).length
+    : null;
 
   // Filter meetings based on active tab
   const filteredMeetings = meetings.filter((m) => {
@@ -318,7 +333,8 @@ const MeetingsPage: React.FC = () => {
     if (
       !requestForm.requestTypes.leavingEarly &&
       !requestForm.requestTypes.comingLate &&
-      !requestForm.requestTypes.goingOnline
+      !requestForm.requestTypes.goingOnline &&
+      !requestForm.requestTypes.notAttending
     ) {
       alert('Please select at least one request type');
       return;
@@ -329,11 +345,27 @@ const MeetingsPage: React.FC = () => {
       return;
     }
 
+    // Not attending can't be combined with a request about how you'll attend
+    if (
+      requestForm.requestTypes.notAttending &&
+      (requestForm.requestTypes.leavingEarly ||
+        requestForm.requestTypes.comingLate ||
+        requestForm.requestTypes.goingOnline)
+    ) {
+      alert(
+        'Not Attending cannot be combined with another request type. Please select only Not Attending.',
+      );
+      return;
+    }
+
     // Map frontend form data to backend format
-    // attendanceMode: if goingOnline is checked, use ONLINE, otherwise IN_PERSON
-    const attendanceMode = requestForm.requestTypes.goingOnline
-      ? 'ONLINE'
-      : 'IN_PERSON';
+    // attendanceMode: ABSENT if not attending, otherwise ONLINE when going
+    // online, otherwise IN_PERSON
+    const attendanceMode = requestForm.requestTypes.notAttending
+      ? 'ABSENT'
+      : requestForm.requestTypes.goingOnline
+        ? 'ONLINE'
+        : 'IN_PERSON';
 
     // timeAdjustment: can only have one (leavingEarly or comingLate)
     let timeAdjustment: 'ARRIVING_LATE' | 'LEAVING_EARLY' | undefined =
@@ -433,6 +465,7 @@ const MeetingsPage: React.FC = () => {
           leavingEarly: false,
           comingLate: false,
           goingOnline: false,
+          notAttending: false,
         },
         explanation: '',
       });
@@ -524,6 +557,13 @@ const MeetingsPage: React.FC = () => {
           attendedMeetings={attendedMeetings}
           missedMeetings={missedMeetings}
           upcomingMeetings={upcomingMeetingsList.length}
+          isSemesterLoading={isSemesterLoading}
+          semesterError={semesterError}
+          semesterLabel={
+            currentSemester
+              ? `${currentSemester.term === 'FALL' ? 'Fall' : 'Spring'} ${currentSemester.year}`
+              : null
+          }
           isAdmin={isAdmin}
           setShowCreateMeetingModal={setShowCreateMeetingModal}
         />
