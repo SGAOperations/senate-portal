@@ -23,11 +23,11 @@ jobs:
           node-version: 24
       
       - name: Install dependencies
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm ci
       
       - name: Run Prisma Migrations
-        working-directory: attendance-manager
+        working-directory: senate-portal
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}

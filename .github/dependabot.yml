@@ -1,6 +1,6 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/attendance-manager/attendance-manager"
+    directory: "/senate-portal"
     schedule:
       interval: "weekly"

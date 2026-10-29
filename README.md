@@ -1,4 +1,4 @@
-# SGA Attendance Manager
+# SGA Senate Portal
 
 The purpose of this application is to streamline the attendance system at SGA (Student Government Association).
 
@@ -38,9 +38,9 @@ Prerequisites: make sure everything is installed
 First, clone the repo and `cd` into the directory
 
 ```bash
-git clone https://github.com/SGAOperations/attendance-manager.git
-cd attendance-manager
-cd attendance-manager
+git clone https://github.com/SGAOperations/senate-portal.git
+cd senate-portal
+cd senate-portal
 ```
 
 Then, install the dependencies

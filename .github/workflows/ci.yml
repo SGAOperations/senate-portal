@@ -38,53 +38,53 @@ jobs:
           node-version: 20
       
       - name: Install dependencies
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm ci
       
       - name: Generate Prisma Client
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npx prisma generate
 
       - name: Apply database migrations
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npx prisma migrate deploy
 
       - name: Lint
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run lint
       
       - name: Test Middleware
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/middleware/__tests__/middleware.test.ts
       
       - name: Test API Auth Utilities
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/utils/__tests__/api-auth.test.ts
       
       - name: Test Users
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/users/__tests__/users.test.ts
       
       - name: Test Meetings
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/meeting/__tests__/meeting.test.ts
       
       - name: Test Attendance
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/attendance/__tests__/attendance.test.ts
       
       - name: Test Requests
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/request/__tests__/request.test.ts
       
       - name: Test Auth Flow
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/auth/__tests__/auth-flow.test.ts
 
       - name: Test Voting
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/voting/__tests__/voting.test.ts
         
       - name: Test Voting Record
-        working-directory: attendance-manager
+        working-directory: senate-portal
         run: npm run test -- src/voting-record/__tests__/voting-record.test.ts
