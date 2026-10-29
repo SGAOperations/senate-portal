@@ -11,6 +11,7 @@ import {
   RequestApiData,
 } from '@/types';
 import AttendanceMeetingEdit from './AttendanceMeetingEdit';
+import AttendanceMeetingView from './AttendanceMeetingView';
 import AttendanceMeetingUserList from './AttendanceMeetingUserList';
 import AttendanceMeetingCheckIn from './AttendanceMeetingCheckIn';
 import AttendanceHistory from './AttendanceHistory';
@@ -50,6 +51,9 @@ const AttendancePage: React.FC = () => {
   const [attendanceRecord, setAttendanceRecord] = useState<
     Record<string, AttendanceApiData[]>
   >({});
+  // Meeting shown in the read-only View Attendance modal
+  const [viewAttendanceMeeting, setViewAttendanceMeeting] =
+    useState<MeetingApiData | null>(null);
 
   // Sets loading
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -464,6 +468,7 @@ const AttendancePage: React.FC = () => {
           attendanceRecord={attendanceRecord}
           isAdmin={isAdmin}
           openEditAttendanceModal={openEditAttendanceModal}
+          openViewAttendanceModal={setViewAttendanceMeeting}
           loading={isLoadingHistory}
         />
       )}
@@ -585,6 +590,15 @@ const AttendancePage: React.FC = () => {
           isLoadingAttendance={isLoadingAttendance}
           setShowEditAttendanceModal={setShowEditAttendanceModal}
           setSelectedMeeting={setSelectedMeeting}
+        />
+      )}
+
+      {/* View Attendance Modal - Read-only list, uses the same records as the history table */}
+      {viewAttendanceMeeting && (
+        <AttendanceMeetingView
+          meeting={viewAttendanceMeeting}
+          attendance={attendanceRecord[viewAttendanceMeeting.meetingId] ?? []}
+          onClose={() => setViewAttendanceMeeting(null)}
         />
       )}
 
