@@ -341,7 +341,7 @@ describe('VotingController', () => {
       const createData = {
         meetingId: testMeetingId,
         name: 'POST Test Event',
-        voteType: 'YES_NO',
+        voteType: VoteType.rollCall,
         updatedBy: 'test-user',
       };
 
@@ -354,7 +354,7 @@ describe('VotingController', () => {
       expect(response.status).toBe(201);
       const responseData = await response.json();
       expect(responseData.name).toBe('POST Test Event');
-      expect(responseData.voteType).toBe('YES_NO');
+      expect(responseData.voteType).toBe(VoteType.rollCall);
       expect(responseData.meetingId).toBe(testMeetingId);
       expect(responseData.votingEventId).toBeDefined();
 
@@ -376,14 +376,15 @@ describe('VotingController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('Missing required fields');
+      expect(responseData.error).toContain('meetingId');
+      expect(responseData.error).toContain('voteType');
     });
 
     it('should reject invalid field types', async () => {
       const createData = {
         meetingId: 123, // Should be string
         name: 'Invalid Types Event',
-        voteType: 'YES_NO',
+        voteType: VoteType.rollCall,
       };
 
       const mockRequest = {
@@ -394,14 +395,32 @@ describe('VotingController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('Invalid field types');
+      expect(responseData.error).toContain('meetingId');
+    });
+
+    it('should reject an unknown voteType', async () => {
+      const createData = {
+        meetingId: testMeetingId,
+        name: 'Unknown Vote Type Event',
+        voteType: 'BANANA',
+      };
+
+      const mockRequest = {
+        json: async () => createData,
+      } as Request;
+
+      const response = await VotingController.createVotingEvent(mockRequest);
+
+      expect(response.status).toBe(400);
+      const responseData = await response.json();
+      expect(responseData.error).toContain('voteType');
     });
 
     it('should handle optional updatedBy field', async () => {
       const createData = {
         meetingId: testMeetingId,
         name: 'Optional UpdatedBy Event',
-        voteType: 'APPROVAL',
+        voteType: VoteType.rollCall,
         // updatedBy is optional
       };
 
@@ -429,7 +448,7 @@ describe('VotingController', () => {
 
       const updateData = {
         name: 'Updated PUT Test Event',
-        voteType: 'APPROVAL',
+        voteType: VoteType.placard,
         updatedBy: 'test-updater',
       };
 
@@ -444,7 +463,7 @@ describe('VotingController', () => {
       expect(response).toBeDefined();
       const responseData = await response.json();
       expect(responseData.name).toBe('Updated PUT Test Event');
-      expect(responseData.voteType).toBe('APPROVAL');
+      expect(responseData.voteType).toBe(VoteType.placard);
       expect(responseData.updatedBy).toBe('test-updater');
       expect(responseData.updatedAt).toBeDefined(); // Should be set after update
       await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
@@ -527,7 +546,7 @@ describe('VotingController', () => {
 
       const updateData = {
         name: 123, // Should be string
-        voteType: 'APPROVAL',
+        voteType: VoteType.placard,
       };
 
       const mockRequest = {
@@ -540,7 +559,57 @@ describe('VotingController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('must be a string');
+      expect(responseData.error).toContain('name');
+      await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
+    });
+
+    it('should reject an unknown voteType in update', async () => {
+      const testVotingEvent = await VotingService.createVotingEvent({
+        meetingId: testMeetingId,
+        name: 'Unknown Vote Type Update Test',
+        voteType: VoteType.rollCall,
+      });
+
+      const updateData = {
+        voteType: 'BANANA',
+      };
+
+      const mockRequest = {
+        json: async () => updateData,
+      } as Request;
+
+      const response = await VotingController.updateVotingEvent(mockRequest, {
+        votingEventId: testVotingEvent.votingEventId,
+      });
+
+      expect(response.status).toBe(400);
+      const responseData = await response.json();
+      expect(responseData.error).toContain('voteType');
+      await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
+    });
+
+    it('should reject an empty name in update', async () => {
+      const testVotingEvent = await VotingService.createVotingEvent({
+        meetingId: testMeetingId,
+        name: 'Empty Name Update Test',
+        voteType: VoteType.rollCall,
+      });
+
+      const updateData = {
+        name: '',
+      };
+
+      const mockRequest = {
+        json: async () => updateData,
+      } as Request;
+
+      const response = await VotingController.updateVotingEvent(mockRequest, {
+        votingEventId: testVotingEvent.votingEventId,
+      });
+
+      expect(response.status).toBe(400);
+      const responseData = await response.json();
+      expect(responseData.error).toContain('name');
       await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
     });
 
@@ -1212,7 +1281,7 @@ describe('POST /api/voting-event', () => {
     const requestBody = {
       meetingId: routeTestMeetingId,
       name: 'POST Route Test Event',
-      voteType: 'YES_NO',
+      voteType: VoteType.rollCall,
       updatedBy: 'test-user',
     };
 
@@ -1228,7 +1297,7 @@ describe('POST /api/voting-event', () => {
     expect(response.status).toBe(201);
     expect(data).toBeDefined();
     expect(data.name).toBe('POST Route Test Event');
-    expect(data.voteType).toBe('YES_NO');
+    expect(data.voteType).toBe(VoteType.rollCall);
     expect(data.meetingId).toBe(routeTestMeetingId);
     expect(data.votingEventId).toBeDefined();
     expect(data.updatedBy).toBe('test-user');
@@ -1240,7 +1309,7 @@ describe('POST /api/voting-event', () => {
     const requestBody = {
       meetingId: routeTestMeetingId,
       name: 'POST Route Test Event With Notes',
-      voteType: 'YES_NO',
+      voteType: VoteType.rollCall,
       notes: 'Create notes test',
       updatedBy: 'test-user',
     };
@@ -1310,7 +1379,7 @@ describe('POST /api/voting-event', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain('options must be an array of strings');
+    expect(data.error).toContain('options');
   });
 
   it('should return 400 when required fields are missing', async () => {
@@ -1330,7 +1399,8 @@ describe('POST /api/voting-event', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain('Missing required fields');
+    expect(data.error).toContain('meetingId');
+    expect(data.error).toContain('voteType');
   });
 });
 
@@ -1377,7 +1447,7 @@ describe('PUT /api/voting-event/[id]', () => {
     const { PUT } = await import('../../app/api/voting-event/[id]/route');
     const requestBody = {
       name: 'Updated PUT Route Test Event',
-      voteType: 'APPROVAL',
+      voteType: VoteType.placard,
       updatedBy: 'test-updater',
     };
 
@@ -1397,7 +1467,7 @@ describe('PUT /api/voting-event/[id]', () => {
     expect(response.status).toBe(200);
     expect(data).toBeDefined();
     expect(data.name).toBe('Updated PUT Route Test Event');
-    expect(data.voteType).toBe('APPROVAL');
+    expect(data.voteType).toBe(VoteType.placard);
     expect(data.updatedBy).toBe('test-updater');
     expect(data.votingEventId).toBe(routeTestVotingEventId);
     expect(data.updatedAt).toBeDefined();
