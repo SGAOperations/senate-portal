@@ -109,7 +109,7 @@ export interface RequestApiData {
   requestId: string;
   attendanceId: string;
   reason: string;
-  attendanceMode: 'ONLINE' | 'IN_PERSON';
+  attendanceMode: 'ONLINE' | 'IN_PERSON' | 'ABSENT';
   timeAdjustment: 'ARRIVING_LATE' | 'LEAVING_EARLY';
   attendance: AttendanceApiData;
   isLate: boolean;
@@ -134,6 +134,7 @@ export interface RequestForm {
     leavingEarly: boolean;
     comingLate: boolean;
     goingOnline: boolean;
+    notAttending: boolean;
   };
   explanation: string;
 }
@@ -188,7 +189,7 @@ export const AttendanceStatus = z.enum([
   'EXCUSED_ABSENCE',
   'PENDING',
 ]);
-export const AttendanceMode = z.enum(['ONLINE', 'IN_PERSON']);
+export const AttendanceMode = z.enum(['ONLINE', 'IN_PERSON', 'ABSENT']);
 export const TimeAdjustment = z
   .enum(['ARRIVING_LATE', 'LEAVING_EARLY'])
   .optional();
@@ -226,7 +227,7 @@ export const RequestSchema: z.ZodType<any> = z.lazy(
       requestId: z.string().describe('Request ID'),
       reason: z.string().describe('Reason for request'),
       attendanceMode: AttendanceMode.describe(
-        'Attendance mode: online or in-person',
+        'Attendance mode: online, in-person, or absent',
       ),
       isLate: z.boolean().describe('Whether the user was late'),
       timeAdjustment: TimeAdjustment.describe(
@@ -283,7 +284,7 @@ export const CreateAttendanceRequestParams = z.object({
   attendanceId: z.string().describe('Attendance Id'),
   reason: z.string().describe('Reason for the request'),
   attendanceMode: AttendanceMode.describe(
-    'Attendance Mode, online or in-person',
+    'Attendance Mode, online, in-person, or absent',
   ),
   timeAdjustment: TimeAdjustment.describe(
     'Time Adjustment, arriving late or leaving early',
@@ -295,7 +296,7 @@ export const CreateAttendanceRequestResponse = z.object({
   requestId: z.string().describe('Request Id'),
   reason: z.string().describe('Reason for the request'),
   attendanceMode: AttendanceMode.describe(
-    'Attendance Mode, online or in-person',
+    'Attendance Mode, online, in-person, or absent',
   ),
   timeAdjustment: TimeAdjustment.describe(
     'Time Adjustment, arriving late or leaving early',
@@ -339,7 +340,7 @@ export const GetUserRequestsResponse = z
       requestId: z.string().describe('Request ID'),
       reason: z.string().describe('Reason for request'),
       attendanceMode: AttendanceMode.describe(
-        'Attendance mode: online or in-person',
+        'Attendance mode: online, in-person, or absent',
       ),
       isLate: z.boolean().describe('Whether the user was late'),
       timeAdjustment: TimeAdjustment.describe(
