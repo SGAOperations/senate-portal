@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../lib/prisma';
 import { VoteType, yesNoOptions } from '../utils/consts';
 import { VotingRecordService } from './voting-record.service';
-import { z } from 'zod'; // installed and imported zod
+import { z } from 'zod';
 
 // Define the expected structure of the request body using Zod
 const createVotingRecordSchema = z.object({
