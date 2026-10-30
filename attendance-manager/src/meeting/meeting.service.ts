@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { MeetingType } from '../generated/prisma';
+import type { CreateMeetingInput } from '../types';
 import { SemesterService } from '../semester/semester.service';
 import {
   formatMeetingDateInput,
@@ -104,14 +105,7 @@ export const MeetingService = {
   },
 
   async createMeeting(
-    meetingData: {
-      name: string;
-      startTime: string;
-      date: string;
-      endTime: string;
-      notes: string;
-      type: MeetingType;
-    },
+    meetingData: Omit<CreateMeetingInput, 'attendeeIds'>,
     attendeeIds: string[],
   ) {
     const date = parseMeetingDate(meetingData.date);

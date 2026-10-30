@@ -405,6 +405,101 @@ describe('MeetingController', () => {
 
     await MeetingService.deleteMeeting(testMeeting.meetingId);
   });
+
+  it('should create a meeting via controller', async () => {
+    const mockRequest = {
+      json: async () => ({
+        name: 'Controller Create Test',
+        startTime: '10:00',
+        date: '2025-12-01',
+        endTime: '11:00',
+        notes: 'Test notes',
+        type: MeetingType.REGULAR,
+      }),
+    } as Request;
+
+    const response = await MeetingController.createMeeting(mockRequest);
+
+    expect(response.status).toBe(201);
+    const responseData = await response.json();
+    expect(responseData.name).toBe('Controller Create Test');
+    expect(responseData.notes).toBe('Test notes');
+    expect(responseData.type).toBe(MeetingType.REGULAR);
+
+    await MeetingService.deleteMeeting(responseData.meetingId);
+  });
+
+  it('should default notes to an empty string when omitted', async () => {
+    const mockRequest = {
+      json: async () => ({
+        name: 'No Notes Test',
+        startTime: '10:00',
+        date: '2025-12-01',
+        endTime: '11:00',
+        type: MeetingType.FULL_BODY,
+      }),
+    } as Request;
+
+    const response = await MeetingController.createMeeting(mockRequest);
+
+    expect(response.status).toBe(201);
+    const responseData = await response.json();
+    expect(responseData.notes).toBe('');
+
+    await MeetingService.deleteMeeting(responseData.meetingId);
+  });
+
+  it('should reject a create request with missing required fields', async () => {
+    const mockRequest = {
+      json: async () => ({ name: 'Missing Fields', type: MeetingType.REGULAR }),
+    } as Request;
+
+    const response = await MeetingController.createMeeting(mockRequest);
+
+    expect(response.status).toBe(400);
+    const responseData = await response.json();
+    expect(Object.keys(responseData.fieldErrors)).toEqual(
+      expect.arrayContaining(['date', 'startTime', 'endTime']),
+    );
+  });
+
+  it('should reject a create request with an invalid meeting type', async () => {
+    const mockRequest = {
+      json: async () => ({
+        name: 'Bad Type',
+        startTime: '10:00',
+        date: '2025-12-01',
+        endTime: '11:00',
+        type: 'INVALID_TYPE',
+      }),
+    } as Request;
+
+    const response = await MeetingController.createMeeting(mockRequest);
+
+    expect(response.status).toBe(400);
+    const responseData = await response.json();
+    expect(responseData.fieldErrors.type).toBeDefined();
+  });
+
+  it('should reject a create request with non-array attendeeIds', async () => {
+    const mockRequest = {
+      json: async () => ({
+        name: 'Bad Attendees',
+        startTime: '10:00',
+        date: '2025-12-01',
+        endTime: '11:00',
+        type: MeetingType.REGULAR,
+        attendeeIds: 'not-an-array',
+      }),
+    } as Request;
+
+    const response = await MeetingController.createMeeting(mockRequest);
+
+    expect(response.status).toBe(400);
+    const responseData = await response.json();
+    expect(responseData.fieldErrors.attendeeIds).toBeDefined();
+  });
+
   it('should return users associated with a meeting and exclude users not associated', async () => {
     const newMeeting = await MeetingService.createMeeting(
       {
