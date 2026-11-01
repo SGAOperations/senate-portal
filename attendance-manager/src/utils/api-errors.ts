@@ -21,6 +21,6 @@ export function toErrorResponse(error: unknown, fallbackMessage: string) {
     );
   }
 
-  globalThis.console?.error(error);
+  console.error(error);
   return NextResponse.json({ error: fallbackMessage }, { status: 500 });
 }
