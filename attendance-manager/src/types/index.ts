@@ -273,6 +273,18 @@ export const CreateMeetingSchema = z.object({
 
 export type CreateMeetingInput = z.infer<typeof CreateMeetingSchema>;
 
+// Request body for PUT /api/meeting/:id. Every field is optional, and notes
+// has no default so an update that leaves it out doesn't wipe the existing notes.
+export const UpdateMeetingSchema = CreateMeetingSchema.omit({
+  attendeeIds: true,
+})
+  .partial()
+  .extend({
+    notes: z.string().optional().describe('Meeting Notes'),
+  });
+
+export type UpdateMeetingInput = z.infer<typeof UpdateMeetingSchema>;
+
 export const AttendanceParams = z.object({
   attendanceId: z.string().describe('Attendance Id'),
 });

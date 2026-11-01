@@ -229,7 +229,69 @@ describe('MeetingController', () => {
 
     expect(response.status).toBe(400);
     const responseData = await response.json();
-    expect(responseData.error).toContain('Invalid meeting type');
+    expect(responseData.fieldErrors.type).toBeDefined();
+
+    await MeetingService.deleteMeeting(testMeeting.meetingId);
+  });
+
+  it('should reject an update with a wrongly typed field', async () => {
+    const testMeeting = await MeetingService.createMeeting(
+      {
+        name: 'Wrong Type Update Test',
+        startTime: '10:00',
+        date: '2025-12-01',
+        endTime: '11:00',
+        notes: 'Test notes',
+        type: MeetingType.REGULAR,
+      },
+      [],
+    );
+
+    const mockRequest = {
+      json: async () => ({ name: 123 }),
+    } as Request;
+
+    const response = await MeetingController.updateMeeting(mockRequest, {
+      meetingId: testMeeting.meetingId,
+    });
+
+    expect(response.status).toBe(400);
+    const responseData = await response.json();
+    expect(responseData.fieldErrors.name).toBeDefined();
+
+    // nothing was saved
+    const unchanged = await MeetingService.getMeetingById(
+      testMeeting.meetingId,
+    );
+    expect(unchanged?.name).toBe('Wrong Type Update Test');
+
+    await MeetingService.deleteMeeting(testMeeting.meetingId);
+  });
+
+  it('should keep existing notes when an update leaves them out', async () => {
+    const testMeeting = await MeetingService.createMeeting(
+      {
+        name: 'Keep Notes Test',
+        startTime: '10:00',
+        date: '2025-12-01',
+        endTime: '11:00',
+        notes: 'Notes that must survive',
+        type: MeetingType.REGULAR,
+      },
+      [],
+    );
+
+    const mockRequest = {
+      json: async () => ({ type: MeetingType.FULL_BODY }),
+    } as Request;
+
+    const response = await MeetingController.updateMeeting(mockRequest, {
+      meetingId: testMeeting.meetingId,
+    });
+
+    const responseData = await response.json();
+    expect(responseData.type).toBe(MeetingType.FULL_BODY);
+    expect(responseData.notes).toBe('Notes that must survive');
 
     await MeetingService.deleteMeeting(testMeeting.meetingId);
   });

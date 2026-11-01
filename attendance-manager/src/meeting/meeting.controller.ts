@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MeetingService } from './meeting.service';
 import { z } from 'zod';
-import { MeetingType } from '../generated/prisma';
-import { CreateMeetingSchema } from '../types';
+import { CreateMeetingSchema, UpdateMeetingSchema } from '../types';
 import { MeetingDateTimeInputError } from './meetingDateTime';
 
 export const MeetingController = {
@@ -67,12 +66,15 @@ export const MeetingController = {
   },
 
   async updateMeeting(request: Request, params: { meetingId: string }) {
-    const updates = await request.json();
+    const body = await request.json();
 
-    // Validate type enum if provided
-    if (updates.type && !Object.values(MeetingType).includes(updates.type)) {
+    const parsed = UpdateMeetingSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid meeting type. Must be FULL_BODY or REGULAR' },
+        {
+          error: 'Invalid meeting data',
+          fieldErrors: z.flattenError(parsed.error).fieldErrors,
+        },
         { status: 400 },
       );
     }
@@ -80,7 +82,7 @@ export const MeetingController = {
     try {
       const updatedMeeting = await MeetingService.updateMeeting(
         params.meetingId,
-        updates,
+        parsed.data,
       );
       return NextResponse.json(updatedMeeting);
     } catch (error) {
