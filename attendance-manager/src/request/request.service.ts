@@ -3,6 +3,17 @@ import { AttendanceMode, Prisma, TimeAdjustment } from '../generated/prisma';
 import { isMeetingRequestLate } from '../utils/meeting-time';
 import { UserFacingError } from '../utils/api-errors';
 
+// Prisma throws P2025 when updating or deleting a row that doesn't exist.
+// A missing request is the caller's mistake, not a server error, so send a 404.
+function throwIfRequestNotFound(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2025'
+  ) {
+    throw new UserFacingError('Request not found', 404);
+  }
+}
+
 export const RequestService = {
   // Create a new request
   async createRequest(data: {
@@ -99,16 +110,26 @@ export const RequestService = {
       timeAdjustment?: TimeAdjustment | null;
     },
   ) {
-    return prisma.request.update({
-      where: { requestId },
-      data,
-    });
+    try {
+      return await prisma.request.update({
+        where: { requestId },
+        data,
+      });
+    } catch (error) {
+      throwIfRequestNotFound(error);
+      throw error;
+    }
   },
 
   // Delete request
   async deleteRequest(requestId: string) {
-    return prisma.request.delete({
-      where: { requestId },
-    });
+    try {
+      return await prisma.request.delete({
+        where: { requestId },
+      });
+    } catch (error) {
+      throwIfRequestNotFound(error);
+      throw error;
+    }
   },
 };

@@ -23,7 +23,11 @@ export const RequestController = {
     if (!requestId || typeof requestId !== 'string') {
       throw new UserFacingError('Invalid or missing requestId', 400);
     }
-    return RequestService.getRequest(requestId);
+    const request = await RequestService.getRequest(requestId);
+    if (!request) {
+      throw new UserFacingError('Request not found', 404);
+    }
+    return request;
   },
 
   async createRequest(data: any) {

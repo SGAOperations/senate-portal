@@ -920,3 +920,43 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     }
   });
 });
+
+describe('/api/requests/[id] with a request that does not exist', () => {
+  const missingId = '00000000-0000-0000-0000-000000000000';
+  const params = () => ({ params: Promise.resolve({ id: missingId }) });
+  const url = `http://localhost/api/requests/${missingId}`;
+
+  it('GET returns 404', async () => {
+    const { GET } = await import('../../app/api/requests/[id]/route');
+    const response = await GET(new Request(url), params());
+
+    expect(response.status).toBe(404);
+    expect((await response.json()).error).toBe('Request not found');
+  });
+
+  it('PUT returns 404', async () => {
+    const { PUT } = await import('../../app/api/requests/[id]/route');
+    const response = await PUT(
+      new Request(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Updated reason' }),
+      }),
+      params(),
+    );
+
+    expect(response.status).toBe(404);
+    expect((await response.json()).error).toBe('Request not found');
+  });
+
+  it('DELETE returns 404', async () => {
+    const { DELETE } = await import('../../app/api/requests/[id]/route');
+    const response = await DELETE(
+      new Request(url, { method: 'DELETE' }),
+      params(),
+    );
+
+    expect(response.status).toBe(404);
+    expect((await response.json()).error).toBe('Request not found');
+  });
+});
