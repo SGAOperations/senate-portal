@@ -69,6 +69,7 @@ const MeetingsPage: React.FC = () => {
       leavingEarly: false,
       comingLate: false,
       goingOnline: false,
+      notAttending: false,
     },
     explanation: '',
   });
@@ -332,7 +333,8 @@ const MeetingsPage: React.FC = () => {
     if (
       !requestForm.requestTypes.leavingEarly &&
       !requestForm.requestTypes.comingLate &&
-      !requestForm.requestTypes.goingOnline
+      !requestForm.requestTypes.goingOnline &&
+      !requestForm.requestTypes.notAttending
     ) {
       alert('Please select at least one request type');
       return;
@@ -343,11 +345,27 @@ const MeetingsPage: React.FC = () => {
       return;
     }
 
+    // Not attending can't be combined with a request about how you'll attend
+    if (
+      requestForm.requestTypes.notAttending &&
+      (requestForm.requestTypes.leavingEarly ||
+        requestForm.requestTypes.comingLate ||
+        requestForm.requestTypes.goingOnline)
+    ) {
+      alert(
+        'Not Attending cannot be combined with another request type. Please select only Not Attending.',
+      );
+      return;
+    }
+
     // Map frontend form data to backend format
-    // attendanceMode: if goingOnline is checked, use ONLINE, otherwise IN_PERSON
-    const attendanceMode = requestForm.requestTypes.goingOnline
-      ? 'ONLINE'
-      : 'IN_PERSON';
+    // attendanceMode: ABSENT if not attending, otherwise ONLINE when going
+    // online, otherwise IN_PERSON
+    const attendanceMode = requestForm.requestTypes.notAttending
+      ? 'ABSENT'
+      : requestForm.requestTypes.goingOnline
+        ? 'ONLINE'
+        : 'IN_PERSON';
 
     // timeAdjustment: can only have one (leavingEarly or comingLate)
     let timeAdjustment: 'ARRIVING_LATE' | 'LEAVING_EARLY' | undefined =
@@ -447,6 +465,7 @@ const MeetingsPage: React.FC = () => {
           leavingEarly: false,
           comingLate: false,
           goingOnline: false,
+          notAttending: false,
         },
         explanation: '',
       });

@@ -4,8 +4,34 @@ import { VotingService, formatVotingEventForApi } from './voting.service';
 import { VoteType } from '@/utils/consts';
 import { requireAuth } from '@/utils/api-auth';
 
-const optionsSchema = z.array(z.string());
+const createVotingEventSchema = z.object({
+  meetingId: z.string().min(1),
+  name: z.string().min(1),
+  voteType: z.enum(VoteType),
+  notes: z.string().nullish(),
+  options: z.array(z.string()).optional(),
+  updatedBy: z.string().optional(),
+});
+const updateVotingEventSchema = createVotingEventSchema
+  .partial()
+  .extend({
+    deletedAt: z.coerce.date().nullish(),
+    end: z.boolean().optional(),
+  })
+  .refine((updates) => Object.keys(updates).length > 0, {
+    error: 'No valid fields to update',
+  });
 const REQUIRED_SECRET_BALLOT_OPTIONS = ['No Confidence', 'Abstain'] as const;
+
+function formatZodError(error: z.ZodError): string {
+  return error.issues
+    .map((issue) =>
+      issue.path.length > 0
+        ? `${issue.path.join('.')}: ${issue.message}`
+        : issue.message,
+    )
+    .join('; ');
+}
 
 function normalizeCreateOptionsForSecretBallot(
   voteType: string,
@@ -56,84 +82,24 @@ export const VotingController = {
   },
 
   async createVotingEvent(request: Request) {
-    const body = await request.json();
-
-    // Validate required fields
-    if (!body.meetingId || !body.name || !body.voteType) {
+    const parsed = createVotingEventSchema.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        {
-          error:
-            'Missing required fields: meetingId, name, and voteType are required',
-        },
+        { error: formatZodError(parsed.error) },
         { status: 400 },
       );
     }
-
-    // Validate field types
-    if (
-      typeof body.meetingId !== 'string' ||
-      typeof body.name !== 'string' ||
-      typeof body.voteType !== 'string'
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            'Invalid field types: meetingId, name, and voteType must be strings',
-        },
-        { status: 400 },
-      );
-    }
-    if (
-      body.notes !== undefined &&
-      body.notes !== null &&
-      typeof body.notes !== 'string'
-    ) {
-      return NextResponse.json(
-        { error: 'notes must be a string when provided' },
-        { status: 400 },
-      );
-    }
-    if (
-      body.options !== undefined &&
-      (!Array.isArray(body.options) ||
-        body.options.some((option: unknown) => typeof option !== 'string'))
-    ) {
-      return NextResponse.json(
-        { error: 'options must be an array of strings when provided' },
-        { status: 400 },
-      );
-    }
-    if (
-      body.notes !== undefined &&
-      body.notes !== null &&
-      typeof body.notes !== 'string'
-    ) {
-      return NextResponse.json(
-        { error: 'notes must be a string when provided' },
-        { status: 400 },
-      );
-    }
-    let parsedOptions: string[] | undefined;
-    if (body.options !== undefined) {
-      const parsed = optionsSchema.safeParse(body.options);
-      if (!parsed.success) {
-        return NextResponse.json(
-          { error: 'options must be an array of strings when provided' },
-          { status: 400 },
-        );
-      }
-      parsedOptions = parsed.data;
-    }
+    const body = parsed.data;
 
     try {
       const newVotingEvent = await VotingService.createVotingEvent({
         meetingId: body.meetingId,
         name: body.name,
         voteType: body.voteType,
-        notes: body.notes,
+        notes: body.notes ?? undefined,
         options: normalizeCreateOptionsForSecretBallot(
           body.voteType,
-          parsedOptions,
+          body.options,
         ),
         updatedBy: body.updatedBy,
       });
@@ -149,100 +115,20 @@ export const VotingController = {
   },
 
   async updateVotingEvent(request: Request, params: { votingEventId: string }) {
-    const updates = await request.json();
-
-    // Validate that at least one field is being updated
-    const allowedFields = [
-      'meetingId',
-      'name',
-      'voteType',
-      'notes',
-      'options',
-      'updatedBy',
-      'deletedAt',
-      'end',
-    ];
-    const updateKeys = Object.keys(updates);
-    const hasValidUpdate = updateKeys.some((key) =>
-      allowedFields.includes(key),
+    const parsed = updateVotingEventSchema.safeParse(
+    await request.json().catch(() => null),
     );
-
-    if (!hasValidUpdate) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'No valid fields to update' },
+        { error: formatZodError(parsed.error) },
         { status: 400 },
       );
     }
-
-    // Validate field types if provided
-    if (updates.meetingId && typeof updates.meetingId !== 'string') {
-      return NextResponse.json(
-        { error: 'meetingId must be a string' },
-        { status: 400 },
-      );
-    }
-    if (updates.name && typeof updates.name !== 'string') {
-      return NextResponse.json(
-        { error: 'name must be a string' },
-        { status: 400 },
-      );
-    }
-    if (updates.voteType && typeof updates.voteType !== 'string') {
-      return NextResponse.json(
-        { error: 'voteType must be a string' },
-        { status: 400 },
-      );
-    }
-    if (
-      updates.notes !== undefined &&
-      updates.notes !== null &&
-      typeof updates.notes !== 'string'
-    ) {
-      return NextResponse.json(
-        { error: 'notes must be a string or null' },
-        { status: 400 },
-      );
-    }
-    if (
-      updates.options !== undefined &&
-      (!Array.isArray(updates.options) ||
-        updates.options.some((option: unknown) => typeof option !== 'string'))
-    ) {
-      return NextResponse.json(
-        { error: 'options must be an array of strings' },
-        { status: 400 },
-      );
-    }
-    if (
-      updates.notes !== undefined &&
-      updates.notes !== null &&
-      typeof updates.notes !== 'string'
-    ) {
-      return NextResponse.json(
-        { error: 'notes must be a string or null' },
-        { status: 400 },
-      );
-    }
-    if (updates.options !== undefined) {
-      const parsed = optionsSchema.safeParse(updates.options);
-      if (!parsed.success) {
-        return NextResponse.json(
-          { error: 'options must be an array of strings' },
-          { status: 400 },
-        );
-      }
-      updates.options = parsed.data;
-    }
-    if (updates.updatedBy && typeof updates.updatedBy !== 'string') {
-      return NextResponse.json(
-        { error: 'updatedBy must be a string' },
-        { status: 400 },
-      );
-    }
+    const { end, ...updates } = parsed.data;
 
     // End voting event
     try {
-      if (updates.end === true) {
+      if (end === true) {
         const ended = await VotingService.endVotingEvent(
           params.votingEventId,
           updates.updatedBy,

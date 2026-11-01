@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { UsersService } from './users.service';
 import { RoleType } from '../generated/prisma';
 import { AttendanceService } from '../attendance/attendance.service';
+import { z } from 'zod';
+
+const CreateUserSchema = z.object({
+  userId: z.string().min(1),
+  nuid: z.string().regex(/^\d{9}$/),
+  password: z.string().nullish(),
+  email: z.email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+});
 
 export const UsersController = {
   async listUsers() {
@@ -77,22 +87,29 @@ export const UsersController = {
 
   async createUser(request: Request) {
     const body = await request.json();
-    if (
-      !body.userId ||
-      !body.nuid || // Added validation
-      !body.email ||
-      !body.firstName ||
-      !body.lastName
-    ) {
+
+    // zod parse
+    const result = CreateUserSchema.safeParse(body);
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        {
+          error: 'Invalid request body',
+          details: z.flattenError(result.error).fieldErrors,
+        },
         { status: 400 },
       );
     }
     const roleId = await UsersService.getRoleIdByRoleType(RoleType.MEMBER);
-    body.roleId = roleId;
-    body.password = body.password ?? null;
-    const newUser = await UsersService.createUser(body);
+    if (!roleId) {
+      return NextResponse.json(
+        { error: 'Member role does not exist' },
+        { status: 500 },
+      );
+    }
+    const newUser = await UsersService.createUser({
+      ...result.data,
+      roleId,
+    });
     return NextResponse.json(newUser, { status: 201 });
   },
 

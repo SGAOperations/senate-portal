@@ -135,6 +135,7 @@ enum MeetingType {
 enum AttendanceMode {
   ONLINE
   IN_PERSON
+  ABSENT
 }
 
 enum TimeAdjustment {

@@ -1,5 +1,16 @@
 import { RequestService } from './request.service';
 import { NextResponse } from 'next/server';
+import { AttendanceMode } from '../generated/prisma';
+
+// built from the Prisma enum so a new mode is picked up automatically
+const ALLOWED_ATTENDANCE_MODES: string[] = Object.values(AttendanceMode);
+
+function isAttendanceMode(mode: any): mode is AttendanceMode {
+  return typeof mode === 'string' && ALLOWED_ATTENDANCE_MODES.includes(mode);
+}
+
+const NOT_ATTENDING_WITH_TIME_ADJUSTMENT =
+  'Not attending cannot be combined with arriving late or leaving early';
 
 export const RequestController = {
   async listRequest() {
@@ -21,7 +32,7 @@ export const RequestController = {
       typeof data.reason !== 'string' ||
       !data.reason.trim() ||
       !data.attendanceMode ||
-      (data.attendanceMode !== 'ONLINE' && data.attendanceMode !== 'IN_PERSON')
+      !isAttendanceMode(data.attendanceMode)
     ) {
       throw new Error('Invalid input data for creating request');
     }
@@ -33,6 +44,11 @@ export const RequestController = {
       data.timeAdjustment !== 'LEAVING_EARLY'
     ) {
       throw new Error('Invalid timeAdjustment value');
+    }
+
+    // Not attending can't be combined with arriving late / leaving early
+    if (data.attendanceMode === 'ABSENT' && data.timeAdjustment) {
+      throw new Error(NOT_ATTENDING_WITH_TIME_ADJUSTMENT);
     }
 
     return RequestService.createRequest({
@@ -56,11 +72,7 @@ export const RequestController = {
     }
 
     // Validate attendanceMode if provided
-    if (
-      data.attendanceMode &&
-      data.attendanceMode !== 'ONLINE' &&
-      data.attendanceMode !== 'IN_PERSON'
-    ) {
+    if (data.attendanceMode && !isAttendanceMode(data.attendanceMode)) {
       throw new Error('Invalid attendanceMode value');
     }
 
@@ -72,6 +84,22 @@ export const RequestController = {
       data.timeAdjustment !== null
     ) {
       throw new Error('Invalid timeAdjustment value');
+    }
+
+    // A partial update can create the combo from either side, so check the
+    // result of applying it to the stored request, not just the body
+    if ('attendanceMode' in data || 'timeAdjustment' in data) {
+      const existing = await RequestService.getRequest(requestId);
+      if (existing) {
+        const mode = data.attendanceMode || existing.attendanceMode;
+        const timeAdjustment =
+          'timeAdjustment' in data
+            ? data.timeAdjustment
+            : existing.timeAdjustment;
+        if (mode === 'ABSENT' && timeAdjustment) {
+          throw new Error(NOT_ATTENDING_WITH_TIME_ADJUSTMENT);
+        }
+      }
     }
 
     const updateData: any = {};

@@ -24,10 +24,93 @@ jest.mock('../users.service', () => {
   };
 });
 
+const USERS_TEST_NUIDS = [
+  '001234567',
+  '001234568',
+  '001234570',
+  '001234571',
+  '002000001',
+  '002000002',
+  '002000003',
+  '002000004',
+  '002000005',
+  '002000006',
+  '002000007',
+  '002000008',
+  '002000009',
+  '002000010',
+  '002000011',
+  '002000012',
+  '003000001',
+  '004000001',
+  '005000001',
+  '006000001',
+  '006000002',
+];
+
+const USERS_TEST_SUPABASE_IDS = [
+  'test-supabase-auth-id-users-1',
+  'test-supabase-auth-id-users-2',
+  'test-supabase-auth-id-users-3',
+  'test-supabase-auth-id-users-4',
+  'test-supabase-auth-id-users-5',
+  'test-supabase-auth-id-users-validate',
+  'test-supabase-auth-id-users-route',
+  'test-supabase-auth-id-users-eboard',
+  'test-supabase-auth-id-users-signup-1',
+  'test-supabase-auth-id-users-signup-2',
+];
+
+async function cleanupUsersAndAttendanceByNuids(nuids: string[]) {
+  const users = await prisma.user.findMany({
+    where: { nuid: { in: nuids } },
+    select: { userId: true },
+  });
+
+  if (users.length === 0) return;
+
+  const userIds = users.map(({ userId }) => userId);
+
+  await prisma.request.deleteMany({
+    where: {
+      attendance: {
+        userId: { in: userIds },
+      },
+    },
+  });
+
+  await prisma.attendance.deleteMany({
+    where: {
+      userId: { in: userIds },
+    },
+  });
+
+  await prisma.user.deleteMany({
+    where: {
+      userId: { in: userIds },
+    },
+  });
+}
+
+async function cleanupUsersBySupabaseAuthIds(supabaseAuthIds: string[]) {
+  const users = await prisma.user.findMany({
+    where: { supabaseAuthId: { in: supabaseAuthIds } },
+    select: { nuid: true },
+  });
+
+  await cleanupUsersAndAttendanceByNuids(
+    users.map(({ nuid }) => nuid),
+  );
+}
+
 describe('UsersService', () => {
   let testRoleId: string;
 
   beforeAll(async () => {
+    // Clean up any leftover data from previous runs
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
+
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
     });
@@ -35,8 +118,8 @@ describe('UsersService', () => {
 
     await UsersService.createUser({
       userId: 'test-user-id-1',
-      supabaseAuthId: 'test-supabase-auth-id-1',
-      nuid: '001234567',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[0],
+      nuid: USERS_TEST_NUIDS[0],
       email: 'jdoe@northeastern.edu',
       firstName: 'John',
       lastName: 'Doe',
@@ -46,11 +129,8 @@ describe('UsersService', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({
-      where: {
-        nuid: { in: ['001234567', '001234568', '001234570', '001234571'] },
-      },
-    });
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     await UsersService.deleteRole(testRoleId);
   });
 
@@ -63,8 +143,8 @@ describe('UsersService', () => {
   it('should create a new user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-2',
-      supabaseAuthId: 'test-supabase-auth-id-2',
-      nuid: '001234568',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[1],
+      nuid: USERS_TEST_NUIDS[1],
       email: 'jdoe2@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
@@ -73,7 +153,7 @@ describe('UsersService', () => {
 
     expect(newUser).toBeDefined();
     expect(newUser.email).toBe('jdoe2@northeastern.edu');
-    expect(newUser.nuid).toBe('001234568');
+    expect(newUser.nuid).toBe(USERS_TEST_NUIDS[1]);
   });
 
   it('should fetch all users', async () => {
@@ -90,8 +170,8 @@ describe('UsersService', () => {
   it('should update a user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-4',
-      supabaseAuthId: 'test-supabase-auth-id-4',
-      nuid: '001234570',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[2],
+      nuid: USERS_TEST_NUIDS[2],
       email: 'jdoe3@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
@@ -112,8 +192,8 @@ describe('UsersService', () => {
   it('should delete a user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-5',
-      supabaseAuthId: 'test-supabase-auth-id-5',
-      nuid: '001234571',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[3],
+      nuid: USERS_TEST_NUIDS[3],
       email: 'jdoe4@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
@@ -125,11 +205,178 @@ describe('UsersService', () => {
   });
 });
 
+describe('UsersController.createUser', () => {
+  let createUserTestRoleId: string;
+
+  let nuidCounter = 0;
+
+  // userId, nuid and email are all unique, so each created user needs its own.
+  const newNuid = () => {
+    nuidCounter += 1;
+    if (nuidCounter > USERS_TEST_NUIDS.length) {
+      throw new Error(
+        `Exhausted USERS_TEST_NUIDS after ${USERS_TEST_NUIDS.length} generated values`,
+      );
+    }
+    return {
+      userId: `create-user-test-id-${nuidCounter}`,
+      nuid: USERS_TEST_NUIDS[nuidCounter-1],
+      email: `create-user-${nuidCounter}@northeastern.edu`,
+    };
+  };
+
+  const postCreateUser = (body: unknown) =>
+    UsersController.createUser(
+      new Request('http://localhost/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  // A complete, valid body. Spread and override per test.
+  const validBody = (overrides: Record<string, unknown> = {}) => ({
+    ...newNuid(),
+    firstName: 'Valid',
+    lastName: 'Body',
+    ...overrides,
+  });
+
+  beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
+    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    createUserTestRoleId = role.roleId;
+  });
+
+  afterAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
+    await UsersService.deleteRole(createUserTestRoleId);
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (UsersService.getRoleIdByRoleType as jest.Mock).mockResolvedValue(
+      createUserTestRoleId,
+    );
+  });
+
+  // --- rejected bodies ---------------------------------------------------
+
+  it('rejects a body with no userId', async () => {
+    const { userId: _userId, ...body } = validBody();
+    const response = await postCreateUser(body);
+
+    expect(response.status).toBe(400);
+    // nothing was written. email is namespaced to this block, so unlike nuid
+    // below it cannot collide with unrelated rows in the shared test database.
+    expect(
+      await prisma.user.findFirst({ where: { email: body.email } }),
+    ).toBeNull();
+  });
+
+  it.each([
+    ['too short', '00123456'],
+    ['too long', '0012345678'],
+    ['non-digits', '00123456a'],
+    ['right length, all letters', 'abcdefghi'],
+    ['empty', ''],
+  ])('rejects a nuid that is %s', async (_label, nuid) => {
+    const body = validBody({ nuid });
+    const response = await postCreateUser(body);
+
+    expect(response.status).toBe(400);
+    // These nuids are deliberately outside this block's namespace, and the
+    // shared test database already contains unrelated rows with values like
+    // ''. Assert on the userId we generated, which is unique to this request.
+    expect(
+      await prisma.user.findUnique({ where: { userId: body.userId } }),
+    ).toBeNull();
+  });
+
+  it('accepts a nuid with a leading zero as a string', async () => {
+    // guards against the regex being swapped for a numeric check
+    const body = validBody();
+    const response = await postCreateUser(body);
+
+    expect(response.status).toBe(201);
+    expect(body.nuid.startsWith('0')).toBe(true);
+    expect((await response.json()).nuid).toBe(body.nuid);
+  });
+
+  it('rejects a body missing firstName', async () => {
+    const { firstName: _firstName, ...body } = validBody();
+    expect((await postCreateUser(body)).status).toBe(400);
+  });
+
+  it('rejects a body missing lastName', async () => {
+    const { lastName: _lastName, ...body } = validBody();
+    expect((await postCreateUser(body)).status).toBe(400);
+  });
+
+  it('rejects an empty firstName or lastName', async () => {
+    expect((await postCreateUser(validBody({ firstName: '' }))).status).toBe(400);
+    expect((await postCreateUser(validBody({ lastName: '' }))).status).toBe(400);
+  });
+
+  // --- password ----------------------------------------------------------
+
+  it('preserves a password when one is supplied', async () => {
+    const response = await postCreateUser(
+      validBody({ password: 'a-supplied-password' }),
+    );
+
+    expect(response.status).toBe(201);
+    const data = await response.json();
+    expect(data.password).toBe('a-supplied-password');
+
+    const stored = await prisma.user.findUnique({
+      where: { userId: data.userId },
+    });
+    expect(stored?.password).toBe('a-supplied-password');
+  });
+
+  it.each([
+    ['omitted', {}],
+    ['explicitly null', { password: null }],
+  ])('stores a null password when it is %s', async (_label, passwordField) => {
+    const response = await postCreateUser(
+      validBody({ ...passwordField }),
+    );
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).password).toBeNull();
+  });
+
+  // --- happy path --------------------------------------------------------
+
+  it('returns 201 and preserves every caller-owned field', async () => {
+    const body = validBody();
+    const response = await postCreateUser(body);
+
+    expect(response.status).toBe(201);
+    const data = await response.json();
+
+    expect(data.userId).toBe(body.userId);
+    expect(data.nuid).toBe(body.nuid);
+    expect(data.email).toBe(body.email);
+    expect(data.firstName).toBe(body.firstName);
+    expect(data.lastName).toBe(body.lastName);
+
+    // server-decided fields are present on the response
+    expect(data.roleId).toBe(createUserTestRoleId);
+    expect(data.createdAt).toBeDefined();
+  });
+});
+
 describe('UsersController.validateNuid', () => {
   let testRoleId: string;
   let testUserId: string;
 
   beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
     });
@@ -138,8 +385,8 @@ describe('UsersController.validateNuid', () => {
     // Create a test user for validation
     const user = await UsersService.createUser({
       userId: 'test-user-id-validate-1',
-      supabaseAuthId: 'test-supabase-auth-id-validate-1',
-      nuid: '001234567',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[0],
+      nuid: USERS_TEST_NUIDS[0],
       email: 'jdoe@northeastern.edu',
       firstName: 'John',
       lastName: 'Doe',
@@ -150,13 +397,14 @@ describe('UsersController.validateNuid', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.delete({ where: { userId: testUserId } });
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     await UsersService.deleteRole(testRoleId);
   });
 
   it('should validate correct NUID and name combination', async () => {
     const response = await UsersController.validateNuid({
-      nuid: '001234567',
+      nuid: USERS_TEST_NUIDS[0],
       firstName: 'John',
       lastName: 'Doe',
     });
@@ -168,7 +416,7 @@ describe('UsersController.validateNuid', () => {
       'NUID format is valid and matches the provided name',
     );
     expect(data.user).toBeDefined();
-    expect(data.user.nuid).toBe('001234567');
+    expect(data.user.nuid).toBe(USERS_TEST_NUIDS[0]);
     expect(data.user.firstName).toBe('John');
     expect(data.user.lastName).toBe('Doe');
     expect(data.user.email).toBe('jdoe@northeastern.edu');
@@ -226,7 +474,7 @@ describe('UsersController.validateNuid', () => {
 
   it('should reject mismatched name', async () => {
     const response = await UsersController.validateNuid({
-      nuid: '001234567',
+      nuid: USERS_TEST_NUIDS[0],
       firstName: 'Jane',
       lastName: 'Smith',
     });
@@ -242,8 +490,11 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
   let routeTestRoleId: string;
   let routeTestUserId: string;
   let routeTestSupabaseAuthId: string;
+  let eboardRoleId: string | undefined;
 
   beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     // Create a test role
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
@@ -253,8 +504,8 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     // Create a test user with supabaseAuthId
     const user = await prisma.user.create({
       data: {
-        supabaseAuthId: 'test-supabase-auth-id-route-1',
-        nuid: '001234888',
+        supabaseAuthId: USERS_TEST_SUPABASE_IDS[6],
+        nuid: USERS_TEST_NUIDS[17],
         email: 'routeuser@example.com',
         firstName: 'Route',
         lastName: 'User',
@@ -267,7 +518,13 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.delete({ where: { userId: routeTestUserId } });
+    await cleanupUsersBySupabaseAuthIds([
+      routeTestSupabaseAuthId,
+      USERS_TEST_SUPABASE_IDS[7],
+    ]);
+    if (eboardRoleId) {
+      await UsersService.deleteRole(eboardRoleId);
+    }
     await UsersService.deleteRole(routeTestRoleId);
   });
 
@@ -289,7 +546,7 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     expect(data.email).toBe('routeuser@example.com');
     expect(data.firstName).toBe('Route');
     expect(data.lastName).toBe('User');
-    expect(data.nuid).toBe('001234888');
+    expect(data.nuid).toBe(USERS_TEST_NUIDS[17]);
     expect(data.role).toBeDefined();
     expect(data.role.roleType).toBe('MEMBER');
   });
@@ -316,11 +573,12 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     const eboardRole = await prisma.role.create({
       data: { roleType: 'EBOARD' },
     });
+    eboardRoleId = eboardRole.roleId;
 
-    const eboardUser = await prisma.user.create({
+    await prisma.user.create({
       data: {
-        supabaseAuthId: 'test-supabase-auth-id-eboard',
-        nuid: '001234887',
+        supabaseAuthId: USERS_TEST_SUPABASE_IDS[7],
+        nuid: USERS_TEST_NUIDS[18],
         email: 'eboardroute@example.com',
         firstName: 'Eboard',
         lastName: 'Route',
@@ -330,11 +588,11 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     });
 
     const req = new Request(
-      'http://localhost/api/users/by-supabase-id/test-supabase-auth-id-eboard',
+      `http://localhost/api/users/by-supabase-id/${USERS_TEST_SUPABASE_IDS[7]}`,
     );
 
     const params = Promise.resolve({
-      supabaseAuthId: 'test-supabase-auth-id-eboard',
+      supabaseAuthId: USERS_TEST_SUPABASE_IDS[7],
     });
     const response = await GET(req, { params });
     const data = await response.json();
@@ -344,8 +602,6 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     expect(data.role.roleId).toBe(eboardRole.roleId);
     expect(data.role.roleType).toBe('EBOARD');
 
-    await prisma.user.delete({ where: { userId: eboardUser.userId } });
-    await prisma.role.delete({ where: { roleId: eboardRole.roleId } });
   });
 });
 
@@ -353,6 +609,8 @@ describe('POST /api/auth/signup', () => {
   let signupTestRoleId: string;
 
   beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
     // Create a test role
     const role = await prisma.role.create({
       data: { roleType: 'MEMBER' },
@@ -366,13 +624,10 @@ describe('POST /api/auth/signup', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({
-      where: {
-        supabaseAuthId: {
-          in: ['test-supabase-auth-id-123', 'test-supabase-auth-id-456'],
-        },
-      },
-    });
+    await cleanupUsersBySupabaseAuthIds([
+      ...USERS_TEST_SUPABASE_IDS,
+    ]);
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
     await UsersService.deleteRole(signupTestRoleId);
   });
 
@@ -387,7 +642,7 @@ describe('POST /api/auth/signup', () => {
         signUp: jest.fn().mockResolvedValue({
           data: {
             user: {
-              id: 'test-supabase-auth-id-123',
+              id: USERS_TEST_SUPABASE_IDS[8],
               email: 'newuser@example.com',
             },
           },
@@ -405,7 +660,7 @@ describe('POST /api/auth/signup', () => {
       password: 'password123',
       firstName: 'New',
       lastName: 'User',
-      nuid: '001234999',
+      nuid: USERS_TEST_NUIDS[19],
     };
 
     const req = new Request('http://localhost/api/auth/signup', {
@@ -421,15 +676,15 @@ describe('POST /api/auth/signup', () => {
     expect(data.message).toBe('User created successfully');
     expect(data.user).toBeDefined();
     expect(data.user.email).toBe('newuser@example.com');
-    expect(data.user.supabaseAuthId).toBe('test-supabase-auth-id-123');
+    expect(data.user.supabaseAuthId).toBe(USERS_TEST_SUPABASE_IDS[8]);
     expect(data.user.firstName).toBe('New');
     expect(data.user.lastName).toBe('User');
-    expect(data.user.nuid).toBe('001234999');
+    expect(data.user.nuid).toBe(USERS_TEST_NUIDS[19]);
     expect(data.user.roleId).toBe(signupTestRoleId);
 
     // Verify user was created in database
     const createdUser = await prisma.user.findUnique({
-      where: { supabaseAuthId: 'test-supabase-auth-id-123' },
+      where: { supabaseAuthId: USERS_TEST_SUPABASE_IDS[8] },
     });
     expect(createdUser).toBeDefined();
     expect(createdUser?.email).toBe('newuser@example.com');
@@ -475,7 +730,7 @@ describe('POST /api/auth/signup', () => {
       password: 'password123',
       firstName: 'Existing',
       lastName: 'User',
-      nuid: '001234998',
+      nuid: USERS_TEST_NUIDS[20],
     };
 
     const req = new Request('http://localhost/api/auth/signup', {
@@ -498,7 +753,7 @@ describe('POST /api/auth/signup', () => {
         signUp: jest.fn().mockResolvedValue({
           data: {
             user: {
-              id: 'test-supabase-auth-id-456',
+              id: USERS_TEST_SUPABASE_IDS[9],
               email: 'member@example.com',
             },
           },
@@ -516,7 +771,7 @@ describe('POST /api/auth/signup', () => {
       password: 'password123',
       firstName: 'Member',
       lastName: 'User',
-      nuid: '001234996',
+      nuid: USERS_TEST_NUIDS[20],
       // roleId not provided
     };
 
