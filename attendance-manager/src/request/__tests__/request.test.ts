@@ -827,6 +827,65 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     }
   });
 
+  it('should return 409 when the same request is submitted twice at once', async () => {
+    const meeting = await prisma.meeting.create({
+      data: {
+        name: 'Double Submit Meeting',
+        date: parseMeetingDate('2025-09-12'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-12')),
+        startTime: parseMeetingDateTime('2025-09-12', '14:00'),
+        endTime: parseMeetingDateTime('2025-09-12', '15:00'),
+        notes: 'Meeting for double submit test',
+        type: 'REGULAR',
+      },
+    });
+    const attendance = await prisma.attendance.create({
+      data: {
+        userId: routeTestUserId,
+        meetingId: meeting.meetingId,
+        status: 'PENDING',
+      },
+    });
+
+    const send = () =>
+      POST(
+        new Request(
+          `http://localhost/api/attendance/${attendance.attendanceId}/requests`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reason: 'Out of town',
+              attendanceMode: 'ABSENT',
+            }),
+          },
+        ),
+        { params: Promise.resolve({ attendanceId: attendance.attendanceId }) },
+      );
+
+    try {
+      // like a double-click: both requests are in flight at the same time
+      const responses = await Promise.all([send(), send()]);
+      const statuses = responses.map((r) => r.status).sort();
+      expect(statuses).toEqual([201, 409]);
+
+      const rejected = responses.find((r) => r.status === 409)!;
+      const data = await rejected.json();
+      expect(data.error).toBe('You already have a request for this meeting.');
+
+      const saved = await prisma.request.count({
+        where: { attendanceId: attendance.attendanceId },
+      });
+      expect(saved).toBe(1);
+    } finally {
+      await prisma.request.deleteMany({
+        where: { attendanceId: attendance.attendanceId },
+      });
+      await AttendanceService.deleteAttendance(attendance.attendanceId);
+      await MeetingService.deleteMeeting(meeting.meetingId);
+    }
+  });
+
   it('should hide internal error details behind a generic message', async () => {
     const createSpy = jest
       .spyOn(RequestController, 'createRequest')

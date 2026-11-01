@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { AttendanceMode, TimeAdjustment } from '../generated/prisma';
+import { AttendanceMode, Prisma, TimeAdjustment } from '../generated/prisma';
 import { isMeetingRequestLate } from '../utils/meeting-time';
 import { UserFacingError } from '../utils/api-errors';
 
@@ -20,17 +20,6 @@ export const RequestService = {
       throw new UserFacingError('Attendance record not found', 404);
     }
 
-    // Each attendance record can only have one request
-    const existing = await prisma.request.findUnique({
-      where: { attendanceId: data.attendanceId },
-    });
-    if (existing) {
-      throw new UserFacingError(
-        'You already have a request for this meeting.',
-        409,
-      );
-    }
-
     const meeting = attendance.meeting;
     if (!meeting?.startTime) {
       throw new Error('Meeting date or time missing');
@@ -38,15 +27,31 @@ export const RequestService = {
 
     const isLate = isMeetingRequestLate(meeting.startTime);
 
-    return prisma.request.create({
-      data: {
-        attendanceId: data.attendanceId,
-        reason: data.reason.trim(),
-        attendanceMode: data.attendanceMode,
-        timeAdjustment: data.timeAdjustment || undefined,
-        isLate,
-      },
-    });
+    try {
+      return await prisma.request.create({
+        data: {
+          attendanceId: data.attendanceId,
+          reason: data.reason.trim(),
+          attendanceMode: data.attendanceMode,
+          timeAdjustment: data.timeAdjustment || undefined,
+          isLate,
+        },
+      });
+    } catch (error) {
+      // attendanceId is @unique, so the database rejects a second request for
+      // the same attendance record. Catching it here (instead of checking
+      // first) also covers two submits racing each other, e.g. a double-click.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new UserFacingError(
+          'You already have a request for this meeting.',
+          409,
+        );
+      }
+      throw error;
+    }
   },
 
   // Get a single request by ID
