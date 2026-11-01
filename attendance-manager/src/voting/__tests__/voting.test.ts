@@ -1553,3 +1553,82 @@ describe('PUT /api/voting-event/[id]', () => {
     expect(data.error).toBe('Voting event not found');
   });
 });
+
+describe('Votes on soft-deleted meetings', () => {
+  let deletedMeetingId: string;
+  let keptMeetingId: string;
+  let deletedMeetingVoteId: string;
+  let keptMeetingVoteId: string;
+
+  const createMeetingWithOpenVote = async (name: string, date: string) => {
+    const meeting = await prisma.meeting.create({
+      data: {
+        name,
+        date: parseMeetingDate(date),
+        semesterId: await semesterIdFor(parseMeetingDate(date)),
+        startTime: parseMeetingDateTime(date, '10:00'),
+        endTime: parseMeetingDateTime(date, '11:00'),
+        notes: '',
+        type: 'REGULAR',
+      },
+    });
+    const vote = await VotingService.createVotingEvent({
+      meetingId: meeting.meetingId,
+      name: `${name} vote`,
+      voteType: VoteType.rollCall,
+    });
+    return { meetingId: meeting.meetingId, voteId: vote.votingEventId };
+  };
+
+  beforeAll(async () => {
+    const deleted = await createMeetingWithOpenVote(
+      'Voting meeting that gets deleted',
+      '2025-10-08',
+    );
+    deletedMeetingId = deleted.meetingId;
+    deletedMeetingVoteId = deleted.voteId;
+
+    const kept = await createMeetingWithOpenVote(
+      'Voting meeting that stays',
+      '2025-10-09',
+    );
+    keptMeetingId = kept.meetingId;
+    keptMeetingVoteId = kept.voteId;
+
+    await MeetingService.softDeleteMeeting(deletedMeetingId);
+  });
+
+  afterAll(async () => {
+    await prisma.votingEvent.deleteMany({
+      where: {
+        votingEventId: { in: [deletedMeetingVoteId, keptMeetingVoteId] },
+      },
+    });
+    await prisma.meeting.deleteMany({
+      where: { meetingId: { in: [deletedMeetingId, keptMeetingId] } },
+    });
+  });
+
+  const ids = (events: { votingEventId: string }[]) =>
+    events.map((e) => e.votingEventId);
+
+  it('should not show an open vote on a deleted meeting as active', async () => {
+    const active = ids(await VotingService.getActiveVotingEvents());
+    expect(active).not.toContain(deletedMeetingVoteId);
+    expect(active).toContain(keptMeetingVoteId);
+  });
+
+  it('should leave votes on a deleted meeting out of getAllVotingEvents', async () => {
+    const all = ids(await VotingService.getAllVotingEvents({ isEboard: true }));
+    expect(all).not.toContain(deletedMeetingVoteId);
+    expect(all).toContain(keptMeetingVoteId);
+  });
+
+  it('should leave votes on a deleted meeting out of getVotingEventsByVoteType', async () => {
+    const byType = ids(
+      await VotingService.getVotingEventsByVoteType(VoteType.rollCall),
+    );
+    expect(byType).not.toContain(deletedMeetingVoteId);
+    expect(byType).toContain(keptMeetingVoteId);
+  });
+});

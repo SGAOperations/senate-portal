@@ -358,7 +358,9 @@ describe('RequestController', () => {
       data: {
         name: 'Soon Meeting',
         date: parseMeetingDate(formatMeetingDateInput(meetingStart)),
-        semesterId: await semesterIdFor(parseMeetingDate(formatMeetingDateInput(meetingStart))),
+        semesterId: await semesterIdFor(
+          parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        ),
         startTime: meetingStart,
         endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Soon meeting',
@@ -393,7 +395,9 @@ describe('RequestController', () => {
       data: {
         name: 'Far Future Meeting',
         date: parseMeetingDate(formatMeetingDateInput(meetingStart)),
-        semesterId: await semesterIdFor(parseMeetingDate(formatMeetingDateInput(meetingStart))),
+        semesterId: await semesterIdFor(
+          parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        ),
         startTime: meetingStart,
         endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Far future meeting',
@@ -767,5 +771,89 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     expect(response.status).toBe(500);
     const data = await response.json();
     expect(data.error).toBe('Invalid input data for creating request');
+  });
+});
+
+describe('Requests for soft-deleted meetings', () => {
+  const userId = 'test-request-user-deleted-meeting';
+  let roleId: string;
+  let deletedMeetingId: string;
+  let keptMeetingId: string;
+  let deletedMeetingRequestId: string;
+  let keptMeetingRequestId: string;
+
+  const createMeetingWithRequest = async (name: string, date: string) => {
+    const meeting = await prisma.meeting.create({
+      data: {
+        name,
+        date: parseMeetingDate(date),
+        semesterId: await semesterIdFor(parseMeetingDate(date)),
+        startTime: parseMeetingDateTime(date, '10:00'),
+        endTime: parseMeetingDateTime(date, '11:00'),
+        notes: '',
+        type: 'REGULAR',
+      },
+    });
+    const attendance = await prisma.attendance.create({
+      data: { userId, meetingId: meeting.meetingId, status: 'PENDING' },
+    });
+    const request = await RequestService.createRequest({
+      attendanceId: attendance.attendanceId,
+      reason: 'Out of town',
+      attendanceMode: 'ABSENT',
+    });
+    return { meetingId: meeting.meetingId, requestId: request.requestId };
+  };
+
+  beforeAll(async () => {
+    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    roleId = role.roleId;
+    await prisma.user.create({
+      data: {
+        userId,
+        supabaseAuthId: userId,
+        nuid: '006600001',
+        email: 'deletedmeetingrequests@example.com',
+        firstName: 'Deleted',
+        lastName: 'Meeting',
+        roleId,
+        password: null,
+      },
+    });
+
+    const deleted = await createMeetingWithRequest(
+      'Meeting that gets deleted',
+      '2025-10-06',
+    );
+    deletedMeetingId = deleted.meetingId;
+    deletedMeetingRequestId = deleted.requestId;
+
+    const kept = await createMeetingWithRequest(
+      'Meeting that stays',
+      '2025-10-07',
+    );
+    keptMeetingId = kept.meetingId;
+    keptMeetingRequestId = kept.requestId;
+
+    await MeetingService.softDeleteMeeting(deletedMeetingId);
+  });
+
+  afterAll(async () => {
+    await prisma.request.deleteMany({ where: { attendance: { userId } } });
+    await prisma.attendance.deleteMany({ where: { userId } });
+    await prisma.meeting.deleteMany({
+      where: { meetingId: { in: [deletedMeetingId, keptMeetingId] } },
+    });
+    await prisma.user.deleteMany({ where: { userId } });
+    await prisma.role.delete({ where: { roleId } });
+  });
+
+  it('should leave requests for a deleted meeting out of getAllRequests', async () => {
+    const requestIds = (await RequestService.getAllRequests()).map(
+      (r) => r.requestId,
+    );
+
+    expect(requestIds).not.toContain(deletedMeetingRequestId);
+    expect(requestIds).toContain(keptMeetingRequestId);
   });
 });
