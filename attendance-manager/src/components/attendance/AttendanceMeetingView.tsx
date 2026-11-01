@@ -42,8 +42,8 @@ const AttendanceMeetingView: React.FC<AttendanceMeetingViewProps> = ({
 
   // sorted by last name so it's easy to match against a spreadsheet
   const sortedAttendance = [...attendance].sort((a, b) =>
-    `${a.user?.lastName} ${a.user?.firstName}`.localeCompare(
-      `${b.user?.lastName} ${b.user?.firstName}`,
+    `${a.user.lastName} ${a.user.firstName}`.localeCompare(
+      `${b.user.lastName} ${b.user.firstName}`,
     ),
   );
 
@@ -78,18 +78,18 @@ const AttendanceMeetingView: React.FC<AttendanceMeetingViewProps> = ({
                   >
                     <div className='w-10 h-10 bg-[#C8102E] rounded-full flex items-center justify-center flex-shrink-0'>
                       <span className='text-white text-sm font-semibold'>
-                        {record.user?.firstName.charAt(0)}
+                        {record.user.firstName.charAt(0)}
                       </span>
                     </div>
                     <div className='flex-1 min-w-0'>
                       <p className='text-sm font-medium text-gray-900'>
-                        {record.user?.firstName} {record.user?.lastName}
+                        {record.user.firstName} {record.user.lastName}
                       </p>
                       <p className='text-xs text-gray-500 truncate'>
-                        {record.user?.email}
+                        {record.user.email}
                       </p>
                       <p className='text-xs text-gray-400'>
-                        NUID: {record.user?.nuid}
+                        NUID: {record.user.nuid}
                       </p>
                     </div>
                     <span
