@@ -1,6 +1,7 @@
 import { RequestService } from './request.service';
 import { NextResponse } from 'next/server';
 import { AttendanceMode } from '../generated/prisma';
+import { UserFacingError } from '../utils/api-errors';
 
 // built from the Prisma enum so a new mode is picked up automatically
 const ALLOWED_ATTENDANCE_MODES: string[] = Object.values(AttendanceMode);
@@ -20,7 +21,7 @@ export const RequestController = {
 
   async getRequest(requestId: string) {
     if (!requestId || typeof requestId !== 'string') {
-      throw new Error('Invalid or missing requestId');
+      throw new UserFacingError('Invalid or missing requestId', 400);
     }
     return RequestService.getRequest(requestId);
   },
@@ -34,7 +35,7 @@ export const RequestController = {
       !data.attendanceMode ||
       !isAttendanceMode(data.attendanceMode)
     ) {
-      throw new Error('Invalid input data for creating request');
+      throw new UserFacingError('Invalid input data for creating request', 400);
     }
 
     // Validate timeAdjustment if provided
@@ -43,12 +44,12 @@ export const RequestController = {
       data.timeAdjustment !== 'ARRIVING_LATE' &&
       data.timeAdjustment !== 'LEAVING_EARLY'
     ) {
-      throw new Error('Invalid timeAdjustment value');
+      throw new UserFacingError('Invalid timeAdjustment value', 400);
     }
 
     // Not attending can't be combined with arriving late / leaving early
     if (data.attendanceMode === 'ABSENT' && data.timeAdjustment) {
-      throw new Error(NOT_ATTENDING_WITH_TIME_ADJUSTMENT);
+      throw new UserFacingError(NOT_ATTENDING_WITH_TIME_ADJUSTMENT, 400);
     }
 
     return RequestService.createRequest({
@@ -61,19 +62,19 @@ export const RequestController = {
 
   async updateRequest(requestId: string, data: any) {
     if (!requestId || typeof requestId !== 'string') {
-      throw new Error('Invalid or missing requestId');
+      throw new UserFacingError('Invalid or missing requestId', 400);
     }
 
     if (
       data.reason &&
       (typeof data.reason !== 'string' || !data.reason.trim())
     ) {
-      throw new Error('Invalid request reason');
+      throw new UserFacingError('Invalid request reason', 400);
     }
 
     // Validate attendanceMode if provided
     if (data.attendanceMode && !isAttendanceMode(data.attendanceMode)) {
-      throw new Error('Invalid attendanceMode value');
+      throw new UserFacingError('Invalid attendanceMode value', 400);
     }
 
     // Validate timeAdjustment if provided
@@ -83,7 +84,7 @@ export const RequestController = {
       data.timeAdjustment !== 'LEAVING_EARLY' &&
       data.timeAdjustment !== null
     ) {
-      throw new Error('Invalid timeAdjustment value');
+      throw new UserFacingError('Invalid timeAdjustment value', 400);
     }
 
     // A partial update can create the combo from either side, so check the
@@ -97,7 +98,7 @@ export const RequestController = {
             ? data.timeAdjustment
             : existing.timeAdjustment;
         if (mode === 'ABSENT' && timeAdjustment) {
-          throw new Error(NOT_ATTENDING_WITH_TIME_ADJUSTMENT);
+          throw new UserFacingError(NOT_ATTENDING_WITH_TIME_ADJUSTMENT, 400);
         }
       }
     }
@@ -118,7 +119,7 @@ export const RequestController = {
 
   async deleteRequest(requestId: string) {
     if (!requestId || typeof requestId !== 'string') {
-      throw new Error('Invalid or missing requestId');
+      throw new UserFacingError('Invalid or missing requestId', 400);
     }
     return RequestService.deleteRequest(requestId);
   },

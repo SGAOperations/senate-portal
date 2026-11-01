@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { AttendanceMode, TimeAdjustment } from '../generated/prisma';
 import { isMeetingRequestLate } from '../utils/meeting-time';
+import { UserFacingError } from '../utils/api-errors';
 
 export const RequestService = {
   // Create a new request
@@ -16,7 +17,18 @@ export const RequestService = {
     });
 
     if (!attendance) {
-      throw new Error('Attendance record not found');
+      throw new UserFacingError('Attendance record not found', 404);
+    }
+
+    // Each attendance record can only have one request
+    const existing = await prisma.request.findUnique({
+      where: { attendanceId: data.attendanceId },
+    });
+    if (existing) {
+      throw new UserFacingError(
+        'You already have a request for this meeting.',
+        409,
+      );
     }
 
     const meeting = attendance.meeting;

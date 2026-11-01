@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { RequestController } from '@/request/request.controller';
 import { RequestService } from '@/request/request.service';
+import { toErrorResponse } from '@/utils/api-errors';
 
 // GET all requests (for admins)
 export async function GET() {
@@ -8,9 +9,7 @@ export async function GET() {
     const requests = await RequestService.getAllRequests();
     return NextResponse.json(requests, { status: 200 });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to fetch requests';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return toErrorResponse(error, 'Failed to fetch requests');
   }
 }
 
@@ -38,8 +37,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(newRequest, { status: 201 });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to create request';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return toErrorResponse(error, 'Failed to create request');
   }
 }
