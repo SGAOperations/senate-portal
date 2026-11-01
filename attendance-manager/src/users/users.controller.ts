@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { UsersService } from './users.service';
 import { RoleType } from '../generated/prisma';
 import { AttendanceService } from '../attendance/attendance.service';
+import { IneligibleAttendeeError } from '../attendance/attendeeEligibility';
 import { z } from 'zod';
 
 const CreateUserSchema = z.object({
@@ -235,11 +236,18 @@ export const UsersController = {
       );
     }
 
-    await AttendanceService.upsertAttendance(
-      body.userId,
-      body.meetingId,
-      body.status,
-    );
+    try {
+      await AttendanceService.upsertAttendance(
+        body.userId,
+        body.meetingId,
+        body.status,
+      );
+    } catch (err) {
+      if (err instanceof IneligibleAttendeeError) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
     return NextResponse.json({
       success: true,
       message: 'Attendance updated successfully',

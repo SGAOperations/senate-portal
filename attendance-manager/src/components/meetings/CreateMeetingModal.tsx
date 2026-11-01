@@ -51,19 +51,28 @@ const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
 }) => {
   const [searchMemberQuery, setSearchMemberQuery] = useState('');
 
+  // E-board members are only tracked on full-body meetings
+  const eligibleMembers = useMemo(
+    () =>
+      newMeeting.type === 'REGULAR'
+        ? members.filter((member) => member.role.roleType !== 'EBOARD')
+        : members,
+    [members, newMeeting.type],
+  );
+
   const filteredMembers = useMemo(() => {
     const query = searchMemberQuery?.trim() ?? '';
-    if (!query) return members;
+    if (!query) return eligibleMembers;
     const lowerQuery = query.toLowerCase();
 
-    return members.filter(
+    return eligibleMembers.filter(
       (member) =>
         `${member.firstName} ${member.lastName}`
           .toLowerCase()
           .includes(lowerQuery) ||
         member.email.toLowerCase().includes(lowerQuery),
     );
-  }, [members, searchMemberQuery]);
+  }, [eligibleMembers, searchMemberQuery]);
 
   return (
     <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
@@ -158,12 +167,24 @@ const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             </label>
             <select
               value={newMeeting.type || 'REGULAR'}
-              onChange={(e) =>
+              onChange={(e) => {
+                const type = e.target.value as 'FULL_BODY' | 'REGULAR';
+                const eboardIds = new Set(
+                  members
+                    .filter((member) => member.role.roleType === 'EBOARD')
+                    .map((member) => member.userId),
+                );
                 setNewMeeting({
                   ...newMeeting,
-                  type: e.target.value as 'FULL_BODY' | 'REGULAR',
-                })
-              }
+                  type,
+                  selectedAttendees:
+                    type === 'REGULAR'
+                      ? newMeeting.selectedAttendees.filter(
+                          (id) => !eboardIds.has(id),
+                        )
+                      : newMeeting.selectedAttendees,
+                });
+              }}
               className='w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-[#C8102E]'
             >
               <option value='REGULAR'>Regular Meeting</option>
@@ -193,16 +214,23 @@ const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               >
                 Select All Members (Non-Eboard)
               </button>
-              <button
-                type='button'
-                onClick={toggleAllMembersSelection}
-                className={bulkSelectButtonClasses(
-                  bulkSelectionActive.allMembers,
-                )}
-              >
-                Select Everyone (Eboard + Members)
-              </button>
+              {newMeeting.type === 'FULL_BODY' && (
+                <button
+                  type='button'
+                  onClick={toggleAllMembersSelection}
+                  className={bulkSelectButtonClasses(
+                    bulkSelectionActive.allMembers,
+                  )}
+                >
+                  Select Everyone (Eboard + Members)
+                </button>
+              )}
             </div>
+            {newMeeting.type === 'REGULAR' && (
+              <p className='text-xs text-gray-500 mb-2'>
+                E-board members are only tracked for full-body meetings.
+              </p>
+            )}
             <div className='max-h-48 overflow-y-auto border border-gray-300 rounded-xl p-4 space-y-3'>
               {filteredMembers.length === 0 && (
                 <p className='text-sm text-gray-500'>No members found.</p>

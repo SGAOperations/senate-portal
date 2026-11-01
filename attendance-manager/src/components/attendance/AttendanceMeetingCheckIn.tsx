@@ -1,7 +1,7 @@
 import { MeetingApiData, AttendanceApiData } from '@/types';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { formatMeetingDate } from '@/meeting/meetingDateTime';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, Check, Search } from 'lucide-react';
 
 interface AvailableMember {
   userId: string;
@@ -39,6 +39,30 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
   const [showAddMember, setShowAddMember] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [isAddingMember, setIsAddingMember] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const isRegularMeeting = selectedMeetingForCheck.type === 'REGULAR';
+
+  const filteredMembers = useMemo(() => {
+    const query = memberSearch.trim().toLowerCase();
+    const sorted = [...availableMembers].sort((a, b) =>
+      `${a.lastName} ${a.firstName}`.localeCompare(
+        `${b.lastName} ${b.firstName}`,
+      ),
+    );
+    if (!query) return sorted;
+    return sorted.filter(
+      (member) =>
+        `${member.firstName} ${member.lastName}`
+          .toLowerCase()
+          .includes(query) || member.nuid.includes(query),
+    );
+  }, [availableMembers, memberSearch]);
+
+  const closeAddMember = () => {
+    setShowAddMember(false);
+    setSelectedMemberId('');
+    setMemberSearch('');
+  };
   const meetingAttendance =
     attendanceRecord[selectedMeetingForCheck.meetingId] ?? [];
   const presentCount = meetingAttendance.filter(
@@ -50,8 +74,7 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
     setIsAddingMember(true);
     try {
       if (await handleAddMember(selectedMemberId)) {
-        setSelectedMemberId('');
-        setShowAddMember(false);
+        closeAddMember();
       }
     } finally {
       setIsAddingMember(false);
@@ -105,38 +128,83 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
       <div className='mb-6'>
         <button
           type='button'
-          onClick={() => setShowAddMember((isShown) => !isShown)}
+          onClick={() =>
+            showAddMember ? closeAddMember() : setShowAddMember(true)
+          }
           className='text-sm font-medium text-[#C8102E] hover:text-[#A8102E]'
         >
-          {showAddMember ? 'Cancel adding member' : 'Add member'}
+          {showAddMember ? 'Cancel adding member' : 'Add member to meeting'}
         </button>
         {showAddMember && (
-          <div className='mt-3 flex flex-col gap-3 sm:flex-row'>
-            <select
-              value={selectedMemberId}
-              onChange={(event) => setSelectedMemberId(event.target.value)}
-              className='min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2'
-            >
-              <option value=''>Select an active member</option>
-              {availableMembers.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.firstName} {member.lastName} ({member.nuid})
-                </option>
-              ))}
-            </select>
-            <button
-              type='button'
-              disabled={!selectedMemberId || isAddingMember}
-              onClick={addMember}
-              className='rounded-lg bg-gray-900 px-4 py-2 text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50'
-            >
-              {isAddingMember ? 'Adding...' : 'Add to meeting'}
-            </button>
-            {availableMembers.length === 0 && (
-              <p className='text-sm text-gray-500 sm:self-center'>
-                All active members are already on this meeting.
+          <div className='mt-3 rounded-lg border border-gray-300 overflow-hidden'>
+            <div className='flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-gray-50'>
+              <Search
+                className='w-4 h-4 text-gray-400 flex-shrink-0'
+                aria-hidden='true'
+              />
+              <input
+                type='text'
+                value={memberSearch}
+                onChange={(event) => setMemberSearch(event.target.value)}
+                placeholder='Search by name or NUID...'
+                aria-label='Search members to add'
+                className='w-full text-sm bg-transparent focus:outline-none'
+              />
+            </div>
+            <div className='max-h-48 overflow-y-auto divide-y divide-gray-100'>
+              {filteredMembers.length === 0 ? (
+                <p className='px-3 py-4 text-sm text-gray-500 text-center'>
+                  {availableMembers.length === 0
+                    ? 'Everyone eligible is already on this meeting.'
+                    : 'No members match your search.'}
+                </p>
+              ) : (
+                filteredMembers.map((member) => {
+                  const isSelected = member.userId === selectedMemberId;
+                  return (
+                    <button
+                      type='button'
+                      key={member.userId}
+                      onClick={() =>
+                        setSelectedMemberId(isSelected ? '' : member.userId)
+                      }
+                      aria-pressed={isSelected}
+                      className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
+                        isSelected
+                          ? 'bg-red-50 text-gray-900'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>
+                        {member.firstName} {member.lastName}{' '}
+                        <span className='text-gray-400'>({member.nuid})</span>
+                      </span>
+                      {isSelected && (
+                        <Check
+                          className='w-4 h-4 text-[#C8102E]'
+                          aria-hidden='true'
+                        />
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            <div className='flex items-center justify-between gap-3 px-3 py-2 border-t border-gray-200 bg-gray-50'>
+              <p className='text-xs text-gray-500'>
+                {isRegularMeeting
+                  ? 'E-board members are not tracked for regular meetings.'
+                  : 'Showing everyone not yet on this meeting.'}
               </p>
-            )}
+              <button
+                type='button'
+                disabled={!selectedMemberId || isAddingMember}
+                onClick={addMember}
+                className='rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                {isAddingMember ? 'Adding...' : 'Add to meeting'}
+              </button>
+            </div>
           </div>
         )}
       </div>

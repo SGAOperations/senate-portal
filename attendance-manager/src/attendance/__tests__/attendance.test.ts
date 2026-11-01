@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { UsersService } from '@/users/users.service';
 import { MeetingService } from '@/meeting/meeting.service';
 import { AttendanceService } from '../attendance.service';
+import { IneligibleAttendeeError } from '../attendeeEligibility';
 import { RequestService } from '@/request/request.service';
 import {
   parseMeetingDate,
@@ -333,6 +334,75 @@ describe('AttendanceController', () => {
       expect(await statuses()).toEqual(before);
     } finally {
       await prisma.attendance.deleteMany({ where: { meetingId: testMeeting3Id } });
+    }
+  });
+
+  it('keeps e-board members off regular meetings', async () => {
+    const eboardRole = await prisma.role.create({
+      data: { roleType: 'EBOARD' },
+    });
+    const eboardUser = await prisma.user.create({
+      data: {
+        userId: `test-attendance-eboard-${randomUUID()}`,
+        nuid: '001234599',
+        email: `eboard-${randomUUID()}@example.com`,
+        firstName: 'Eboard',
+        lastName: 'User',
+        roleId: eboardRole.roleId,
+      },
+    });
+    try {
+      // Rejected on a REGULAR meeting
+      await expect(
+        AttendanceController.addMeetingAttendee(
+          testMeetingId,
+          eboardUser.userId,
+        ),
+      ).rejects.toBeInstanceOf(IneligibleAttendeeError);
+      await expect(
+        AttendanceService.upsertAttendance(
+          eboardUser.userId,
+          testMeetingId,
+          'PRESENT',
+        ),
+      ).rejects.toBeInstanceOf(IneligibleAttendeeError);
+
+      // Silently dropped from a REGULAR roster save
+      await AttendanceController.updateMeetingAttendees(testMeetingId, [
+        testUserId,
+        eboardUser.userId,
+      ]);
+
+      // Legacy rows are hidden from REGULAR meeting reads
+      await prisma.attendance.create({
+        data: {
+          userId: eboardUser.userId,
+          meetingId: testMeetingId,
+          status: 'PENDING',
+        },
+      });
+      const regularRows =
+        await AttendanceController.getMeetingAttendance(testMeetingId);
+      expect(regularRows.map((r) => r.userId)).toEqual([testUserId]);
+      const regularUsers = await MeetingService.getUsersByMeetingId(
+        testMeetingId,
+      );
+      expect(regularUsers.map((u) => u.userId)).toEqual([testUserId]);
+
+      // Still allowed on a FULL_BODY meeting
+      await AttendanceController.addMeetingAttendee(
+        testMeeting2Id,
+        eboardUser.userId,
+      );
+      const fullBodyRows =
+        await AttendanceController.getMeetingAttendance(testMeeting2Id);
+      expect(fullBodyRows.map((r) => r.userId)).toContain(eboardUser.userId);
+    } finally {
+      await prisma.attendance.deleteMany({
+        where: { userId: eboardUser.userId },
+      });
+      await prisma.user.delete({ where: { userId: eboardUser.userId } });
+      await prisma.role.delete({ where: { roleId: eboardRole.roleId } });
     }
   });
 

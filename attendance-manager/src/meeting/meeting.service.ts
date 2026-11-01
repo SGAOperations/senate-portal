@@ -7,6 +7,10 @@ import {
   parseMeetingDate,
   parseMeetingDateTime,
 } from './meetingDateTime';
+import {
+  excludeEboardOnRegularMeetings,
+  filterEligibleAttendeeIds,
+} from '../attendance/attendeeEligibility';
 
 function groupBy<T, K extends string | number | symbol>(
   items: T[],
@@ -96,7 +100,7 @@ export const MeetingService = {
       },
       where: {
         attendance: {
-          some: { meetingId },
+          some: { meetingId, ...excludeEboardOnRegularMeetings },
         },
       },
     });
@@ -133,6 +137,10 @@ export const MeetingService = {
     });
 
     // Create attendance records for all selected attendees
+    attendeeIds = await filterEligibleAttendeeIds(
+      meetingData.type,
+      attendeeIds,
+    );
     if (attendeeIds.length > 0) {
       await prisma.attendance.createMany({
         data: attendeeIds.map((userId) => ({

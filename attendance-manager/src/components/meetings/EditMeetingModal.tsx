@@ -52,7 +52,27 @@ const EditMeetingModal: React.FC<EditMeetingModalProps> = ({
     );
   };
 
-  const filteredUsers = users.filter((user) =>
+  const isEboard = (user: any) => user.role?.roleType === 'EBOARD';
+
+  // E-board members are only tracked on full-body meetings
+  const eligibleUsers =
+    editMeeting.type === 'REGULAR'
+      ? users.filter((user) => !isEboard(user))
+      : users;
+
+  useEffect(() => {
+    if (editMeeting.type !== 'REGULAR' || users.length === 0) return;
+    const eboardIds = new Set(
+      users.filter(isEboard).map((user) => user.userId),
+    );
+    setSelectedUserIds((prev) =>
+      prev.some((id) => eboardIds.has(id))
+        ? prev.filter((id) => !eboardIds.has(id))
+        : prev,
+    );
+  }, [editMeeting.type, users, selectedUserIds, setSelectedUserIds]);
+
+  const filteredUsers = eligibleUsers.filter((user) =>
     `${user.firstName} ${user.lastName}`
       .toLowerCase()
       .includes(search.toLowerCase()),

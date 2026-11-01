@@ -235,16 +235,13 @@ const AttendancePage: React.FC = () => {
           status: 'PRESENT',
         }),
       });
-      const updatedUsers = attendanceUsers.map((u) => {
-        if (u.nuid === nuidInput.trim()) {
-          return { ...u, status: 'PRESENT' }; // update just this user
-        }
-        return u; // keep others unchanged
-      });
-
-      setAttendanceUsers(updatedUsers);
-
       if (!response.ok) {
+        const { error } = await response.json().catch(() => ({}));
+        if (response.status === 400 && error) {
+          alert(`${userToMark.firstName} ${userToMark.lastName}: ${error}.`);
+          setNuidInput('');
+          return;
+        }
         throw new Error('Failed to update attendance');
       }
 
@@ -275,6 +272,11 @@ const AttendancePage: React.FC = () => {
         },
       );
       if (!response.ok) {
+        const { error } = await response.json().catch(() => ({}));
+        if (response.status === 400 && error) {
+          alert(error);
+          return false;
+        }
         throw new Error('Failed to add member to meeting');
       }
 
@@ -552,6 +554,9 @@ const AttendancePage: React.FC = () => {
                 availableMembers={users
                   .filter(
                     (member) =>
+                      // E-board members are only tracked on full-body meetings
+                      (selectedMeetingForCheck.type !== 'REGULAR' ||
+                        member.role.roleType !== 'EBOARD') &&
                       !attendanceUsers.some(
                         (attendee) => attendee.userId === member.userId,
                       ),

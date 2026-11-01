@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { MeetingController } from '@/meeting/meeting.controller';
 import { AttendanceController } from '@/attendance/attendance.controller';
 import { requireAuth } from '@/utils/api-auth';
+import { IneligibleAttendeeError } from '@/attendance/attendeeEligibility';
 /**
  * @swagger
  * /api/users:
@@ -51,6 +52,16 @@ export async function POST(
 
   const { id } = await params;
   const body = await request.json();
-  const result = await AttendanceController.addMeetingAttendee(id, body.userId);
-  return NextResponse.json(result, { status: 201 });
+  try {
+    const result = await AttendanceController.addMeetingAttendee(
+      id,
+      body.userId,
+    );
+    return NextResponse.json(result, { status: 201 });
+  } catch (err) {
+    if (err instanceof IneligibleAttendeeError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
+  }
 }

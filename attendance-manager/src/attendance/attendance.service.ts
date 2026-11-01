@@ -1,6 +1,11 @@
 import { prisma } from '../lib/prisma';
 import { AttendanceStatus, MeetingType } from '../generated/prisma';
 import { SemesterService } from '../semester/semester.service';
+import {
+  assertEligibleAttendee,
+  excludeEboardOnRegularMeetings,
+  filterEligibleAttendeeIds,
+} from './attendeeEligibility';
 
 function convertToAttendanceStatus(status: string): AttendanceStatus {
   switch (status) {
@@ -25,7 +30,11 @@ export const AttendanceService = {
   // Get all attendance records for a user
   async getUserAttendance(userId: string) {
     return prisma.attendance.findMany({
-      where: { userId, meeting: { deletedAt: null } },
+      where: {
+        userId,
+        meeting: { deletedAt: null },
+        ...excludeEboardOnRegularMeetings,
+      },
       include: {
         meeting: true,
         request: true,
@@ -36,7 +45,7 @@ export const AttendanceService = {
   // Get all attendance records for a meeting
   async getMeetingAttendance(meetingId: string) {
     return prisma.attendance.findMany({
-      where: { meetingId },
+      where: { meetingId, ...excludeEboardOnRegularMeetings },
       include: {
         user: true,
         request: true,
@@ -47,6 +56,16 @@ export const AttendanceService = {
   // Update attendees for meeting
   async updateMeetingAttendees(meetingId: string, userIds: string[]) {
     return prisma.$transaction(async (transaction) => {
+      const meeting = await transaction.meeting.findUniqueOrThrow({
+        where: { meetingId },
+        select: { type: true },
+      });
+      userIds = await filterEligibleAttendeeIds(
+        meeting.type,
+        userIds,
+        transaction,
+      );
+
       await transaction.attendance.deleteMany({
         where: userIds.length
           ? { meetingId, userId: { notIn: userIds } }
@@ -67,6 +86,7 @@ export const AttendanceService = {
   },
 
   async addMeetingAttendee(meetingId: string, userId: string) {
+    await assertEligibleAttendee(meetingId, userId);
     return prisma.attendance.createMany({
       data: [
         {
@@ -106,6 +126,7 @@ export const AttendanceService = {
     meetingId: string,
     status: AttendanceStatus,
   ) {
+    await assertEligibleAttendee(meetingId, userId);
     return prisma.attendance.upsert({
       where: {
         // eslint-disable-next-line
@@ -141,6 +162,7 @@ export const AttendanceService = {
               semesterId: currentSemester.semesterId,
               deletedAt: null,
             },
+            ...excludeEboardOnRegularMeetings,
           },
           include: {
             meeting: true,
