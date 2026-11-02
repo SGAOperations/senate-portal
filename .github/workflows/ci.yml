@@ -11,22 +11,25 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    # Throwaway Postgres for this job only. Credentials come from repository
+    # secrets (TEST_DB_USER, TEST_DB_PASSWORD, TEST_DB_NAME).
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
+          POSTGRES_USER: ${{ secrets.TEST_DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.TEST_DB_NAME }}
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres"
+          --health-cmd pg_isready
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL: postgresql://${{ secrets.TEST_DB_USER }}:${{ secrets.TEST_DB_PASSWORD }}@localhost:5432/${{ secrets.TEST_DB_NAME }}
+      DIRECT_URL: postgresql://${{ secrets.TEST_DB_USER }}:${{ secrets.TEST_DB_PASSWORD }}@localhost:5432/${{ secrets.TEST_DB_NAME }}
       NODE_ENV: test
     steps:
       - name: Checkout repository
