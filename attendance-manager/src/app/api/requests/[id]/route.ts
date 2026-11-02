@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { RequestController } from '@/request/request.controller';
+import { toErrorResponse } from '@/utils/api-errors';
 
 export async function GET(
   _req: Request,
@@ -9,11 +10,8 @@ export async function GET(
     const { id } = await params;
     const request = await RequestController.getRequest(id);
     return NextResponse.json(request);
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch request' },
-      { status: 400 },
-    );
+  } catch (error) {
+    return toErrorResponse(error, 'Failed to fetch request');
   }
 }
 
@@ -26,11 +24,8 @@ export async function PUT(
     const data = await req.json();
     const updated = await RequestController.updateRequest(id, data);
     return NextResponse.json(updated);
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to update request' },
-      { status: 400 },
-    );
+  } catch (error) {
+    return toErrorResponse(error, 'Failed to update request');
   }
 }
 
@@ -42,10 +37,7 @@ export async function DELETE(
     const { id } = await params;
     await RequestController.deleteRequest(id);
     return NextResponse.json({ message: 'Request deleted' });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete request' },
-      { status: 400 },
-    );
+  } catch (error) {
+    return toErrorResponse(error, 'Failed to delete request');
   }
 }

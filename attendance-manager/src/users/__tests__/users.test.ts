@@ -98,9 +98,7 @@ async function cleanupUsersBySupabaseAuthIds(supabaseAuthIds: string[]) {
     select: { nuid: true },
   });
 
-  await cleanupUsersAndAttendanceByNuids(
-    users.map(({ nuid }) => nuid),
-  );
+  await cleanupUsersAndAttendanceByNuids(users.map(({ nuid }) => nuid));
 }
 
 describe('UsersService', () => {
@@ -220,7 +218,7 @@ describe('UsersController.createUser', () => {
     }
     return {
       userId: `create-user-test-id-${nuidCounter}`,
-      nuid: USERS_TEST_NUIDS[nuidCounter-1],
+      nuid: USERS_TEST_NUIDS[nuidCounter - 1],
       email: `create-user-${nuidCounter}@northeastern.edu`,
     };
   };
@@ -316,8 +314,12 @@ describe('UsersController.createUser', () => {
   });
 
   it('rejects an empty firstName or lastName', async () => {
-    expect((await postCreateUser(validBody({ firstName: '' }))).status).toBe(400);
-    expect((await postCreateUser(validBody({ lastName: '' }))).status).toBe(400);
+    expect((await postCreateUser(validBody({ firstName: '' }))).status).toBe(
+      400,
+    );
+    expect((await postCreateUser(validBody({ lastName: '' }))).status).toBe(
+      400,
+    );
   });
 
   // --- password ----------------------------------------------------------
@@ -341,9 +343,7 @@ describe('UsersController.createUser', () => {
     ['omitted', {}],
     ['explicitly null', { password: null }],
   ])('stores a null password when it is %s', async (_label, passwordField) => {
-    const response = await postCreateUser(
-      validBody({ ...passwordField }),
-    );
+    const response = await postCreateUser(validBody({ ...passwordField }));
 
     expect(response.status).toBe(201);
     expect((await response.json()).password).toBeNull();
@@ -601,7 +601,6 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     expect(data.role).toBeDefined();
     expect(data.role.roleId).toBe(eboardRole.roleId);
     expect(data.role.roleType).toBe('EBOARD');
-
   });
 });
 
@@ -624,9 +623,7 @@ describe('POST /api/auth/signup', () => {
   });
 
   afterAll(async () => {
-    await cleanupUsersBySupabaseAuthIds([
-      ...USERS_TEST_SUPABASE_IDS,
-    ]);
+    await cleanupUsersBySupabaseAuthIds([...USERS_TEST_SUPABASE_IDS]);
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
     await UsersService.deleteRole(signupTestRoleId);
   });
@@ -744,6 +741,56 @@ describe('POST /api/auth/signup', () => {
 
     expect(response.status).toBe(400);
     expect(data.error).toBe('Email already registered');
+  });
+
+  it('should hide internal database errors behind a generic message', async () => {
+    const { POST } = await import('../../app/api/auth/signup/route');
+    const mockSupabaseClient = {
+      auth: {
+        signUp: jest.fn().mockResolvedValue({
+          data: {
+            user: {
+              id: USERS_TEST_SUPABASE_IDS[9],
+              email: 'dbfailure@example.com',
+            },
+          },
+          error: null,
+        }),
+      },
+    };
+    (createServerSupabaseClient as jest.Mock).mockResolvedValue(
+      mockSupabaseClient,
+    );
+    const createSpy = jest
+      .spyOn(prisma.user, 'create')
+      .mockRejectedValue(new Error('internal details'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      const req = new Request('http://localhost/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'dbfailure@example.com',
+          password: 'password123',
+          firstName: 'Db',
+          lastName: 'Failure',
+          nuid: USERS_TEST_NUIDS[20],
+        }),
+      });
+
+      const response = await POST(req);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to create account. Please try again.');
+      expect(JSON.stringify(data)).not.toContain('internal details');
+      // the real error is still logged on the server
+      expect(errorSpy).toHaveBeenCalled();
+    } finally {
+      createSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
   });
 
   it('should default to MEMBER role when roleId is not provided', async () => {

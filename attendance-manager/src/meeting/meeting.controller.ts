@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MeetingService } from './meeting.service';
-import { MeetingType } from '../generated/prisma';
+import { z } from 'zod';
+import { CreateMeetingSchema, UpdateMeetingSchema } from '../types';
 import { MeetingDateTimeInputError } from './meetingDateTime';
 
 export const MeetingController = {
@@ -38,46 +39,22 @@ export const MeetingController = {
   async createMeeting(request: Request) {
     const body = await request.json();
 
-    // Validate required fields
-    if (
-      !body.name ||
-      !body.startTime ||
-      !body.date ||
-      !body.endTime ||
-      body === undefined ||
-      !body.type
-    ) {
-      const requiredFields = ['name', 'startTime', 'date', 'endTime', 'type'];
-      const missingFields = requiredFields.filter((field) => {
-        const value = body[field];
-        return value === undefined || value === null || value === '';
-      });
+    const parsed = CreateMeetingSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Missing required fields', missingFields },
+        {
+          error: 'Invalid meeting data',
+          fieldErrors: z.flattenError(parsed.error).fieldErrors,
+        },
         { status: 400 },
       );
     }
 
-    // Validate type enum
-    if (body.type !== 'FULL_BODY' && body.type !== 'REGULAR') {
-      return NextResponse.json(
-        { error: 'Invalid meeting type. Must be FULL_BODY or REGULAR' },
-        { status: 400 },
-      );
-    }
-
-    // Validate attendeeIds if provided
-    if (body.attendeeIds && !Array.isArray(body.attendeeIds)) {
-      return NextResponse.json(
-        { error: 'attendeeIds must be an array' },
-        { status: 400 },
-      );
-    }
-
+    const { attendeeIds, ...meetingData } = parsed.data;
     try {
       const newMeeting = await MeetingService.createMeeting(
-        body,
-        body.attendeeIds || [],
+        meetingData,
+        attendeeIds,
       );
       return NextResponse.json(newMeeting, { status: 201 });
     } catch (error) {
@@ -89,12 +66,15 @@ export const MeetingController = {
   },
 
   async updateMeeting(request: Request, params: { meetingId: string }) {
-    const updates = await request.json();
+    const body = await request.json();
 
-    // Validate type enum if provided
-    if (updates.type && !Object.values(MeetingType).includes(updates.type)) {
+    const parsed = UpdateMeetingSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid meeting type. Must be FULL_BODY or REGULAR' },
+        {
+          error: 'Invalid meeting data',
+          fieldErrors: z.flattenError(parsed.error).fieldErrors,
+        },
         { status: 400 },
       );
     }
@@ -102,7 +82,7 @@ export const MeetingController = {
     try {
       const updatedMeeting = await MeetingService.updateMeeting(
         params.meetingId,
-        updates,
+        parsed.data,
       );
       return NextResponse.json(updatedMeeting);
     } catch (error) {

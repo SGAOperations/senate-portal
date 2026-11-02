@@ -35,6 +35,7 @@ export default [
         alert: 'readonly',
         navigator: 'readonly',
         fetch: 'readonly',
+        console: 'readonly',
       },
     },
     plugins: {

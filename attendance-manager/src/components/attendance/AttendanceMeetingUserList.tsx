@@ -28,7 +28,7 @@ const AttendanceMeetingUserList: React.FC<AttendanceMeetingUserListProps> = ({
   return (
     <>
       <div className='mb-6'>
-        <h3 className='text-xl font-semibold text-gray-900 mb-1'>
+        <h3 className='text-xl font-semibold text-gray-900 mb-1 pr-8'>
           {selectedMeetingForCheck.name}
         </h3>
         <p className='text-sm text-gray-600'>
