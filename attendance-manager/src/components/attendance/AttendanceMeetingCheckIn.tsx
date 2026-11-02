@@ -19,7 +19,6 @@ interface AttendanceMeetingCheckInProps {
   handleMarkAttendance: () => void;
   handleAddMember: (userId: string) => Promise<boolean>;
   attendanceRecord: Record<string, AttendanceApiData[]>;
-  closeAttendanceCheck: () => void;
   setAttendanceCheckStep: (
     step: 'select-meeting' | 'user-list' | 'check-in',
   ) => void;
@@ -33,7 +32,6 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
   handleMarkAttendance,
   handleAddMember,
   attendanceRecord,
-  closeAttendanceCheck,
   setAttendanceCheckStep,
 }) => {
   const [showAddMember, setShowAddMember] = useState(false);
@@ -61,15 +59,7 @@ const AttendanceMeetingCheckIn: React.FC<AttendanceMeetingCheckInProps> = ({
   return (
     <>
       <div className='mb-6'>
-        <h3 className='text-xl font-semibold text-gray-900 mb-1 flex justify-between items-center'>
-          <div>Check-In</div>
-          <button
-            className='cursor-pointer text-gray-500 hover:text-gray-900'
-            onClick={closeAttendanceCheck}
-          >
-            X
-          </button>
-        </h3>
+        <h3 className='text-xl font-semibold text-gray-900 mb-1'>Check-In</h3>
         <p className='text-sm text-gray-600'>
           {selectedMeetingForCheck.name} •{' '}
           {formatMeetingDate(selectedMeetingForCheck.date)}
