@@ -83,6 +83,8 @@ export const RequestService = {
   // Get all requests with meeting and user info
   async getAllRequests() {
     return prisma.request.findMany({
+      // skip requests for soft-deleted meetings
+      where: { attendance: { meeting: { deletedAt: null } } },
       include: {
         attendance: {
           include: {
