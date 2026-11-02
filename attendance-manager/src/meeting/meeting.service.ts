@@ -233,9 +233,19 @@ export const MeetingService = {
   },
 
   async softDeleteMeeting(meetingId: string) {
-    return prisma.meeting.update({
-      where: { meetingId },
-      data: { deletedAt: new Date() },
-    });
+    const now = new Date();
+    // End the meeting's open votes in the same transaction, so a vote on a
+    // deleted meeting isn't left "active" with no way to end it from the UI.
+    const [, meeting] = await prisma.$transaction([
+      prisma.votingEvent.updateMany({
+        where: { meetingId, endedAt: null, deletedAt: null },
+        data: { endedAt: now },
+      }),
+      prisma.meeting.update({
+        where: { meetingId },
+        data: { deletedAt: now },
+      }),
+    ]);
+    return meeting;
   },
 };

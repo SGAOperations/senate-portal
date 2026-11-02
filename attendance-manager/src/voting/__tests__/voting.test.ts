@@ -1559,6 +1559,8 @@ describe('Votes on soft-deleted meetings', () => {
   let keptMeetingId: string;
   let deletedMeetingVoteId: string;
   let keptMeetingVoteId: string;
+  let alreadyEndedVoteId: string;
+  const alreadyEndedAt = new Date('2025-10-08T15:30:00.000Z');
 
   const createMeetingWithOpenVote = async (name: string, date: string) => {
     const meeting = await prisma.meeting.create({
@@ -1595,13 +1597,27 @@ describe('Votes on soft-deleted meetings', () => {
     keptMeetingId = kept.meetingId;
     keptMeetingVoteId = kept.voteId;
 
+    // a vote on the same meeting that had already ended before the delete
+    const ended = await VotingService.createVotingEvent({
+      meetingId: deletedMeetingId,
+      name: 'Vote that already ended',
+      voteType: VoteType.rollCall,
+    });
+    alreadyEndedVoteId = ended.votingEventId;
+    await prisma.votingEvent.update({
+      where: { votingEventId: alreadyEndedVoteId },
+      data: { endedAt: alreadyEndedAt },
+    });
+
     await MeetingService.softDeleteMeeting(deletedMeetingId);
   });
 
   afterAll(async () => {
     await prisma.votingEvent.deleteMany({
       where: {
-        votingEventId: { in: [deletedMeetingVoteId, keptMeetingVoteId] },
+        votingEventId: {
+          in: [deletedMeetingVoteId, keptMeetingVoteId, alreadyEndedVoteId],
+        },
       },
     });
     await prisma.meeting.deleteMany({
@@ -1611,6 +1627,21 @@ describe('Votes on soft-deleted meetings', () => {
 
   const ids = (events: { votingEventId: string }[]) =>
     events.map((e) => e.votingEventId);
+
+  it('should end open votes when their meeting is deleted', async () => {
+    const endedAtFor = async (votingEventId: string) =>
+      (await prisma.votingEvent.findUnique({ where: { votingEventId } }))
+        ?.endedAt;
+
+    // the open vote on the deleted meeting is now ended in the db
+    expect(await endedAtFor(deletedMeetingVoteId)).not.toBeNull();
+    // a vote that had already ended keeps its original end time
+    expect((await endedAtFor(alreadyEndedVoteId))?.toISOString()).toBe(
+      alreadyEndedAt.toISOString(),
+    );
+    // votes on other meetings are untouched
+    expect(await endedAtFor(keptMeetingVoteId)).toBeNull();
+  });
 
   it('should not show an open vote on a deleted meeting as active', async () => {
     const active = ids(await VotingService.getActiveVotingEvents());
