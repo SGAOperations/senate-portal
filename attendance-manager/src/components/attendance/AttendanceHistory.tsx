@@ -11,6 +11,7 @@ interface AttendanceHistoryProps {
   isAdmin: boolean;
 
   openEditAttendanceModal: (meeting: MeetingApiData) => void;
+  openViewAttendanceModal: (meeting: MeetingApiData) => void;
   loading?: boolean;
 }
 
@@ -19,6 +20,7 @@ const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
   attendanceRecord,
   isAdmin,
   openEditAttendanceModal,
+  openViewAttendanceModal,
   loading = false,
 }) => {
   // Loading screen
@@ -113,7 +115,10 @@ const AttendanceHistory: React.FC<AttendanceHistoryProps> = ({
                           Edit
                         </button>
                       )}
-                      <button className='px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition-colors'>
+                      <button
+                        onClick={() => openViewAttendanceModal(record)}
+                        className='px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition-colors'
+                      >
                         View
                       </button>
                     </div>
