@@ -258,6 +258,34 @@ export const MeetingSchema = z.object({
   attendance: z.array(AttendanceSchema).describe('Attendances'),
 });
 
+// Request body for POST /api/meeting
+export const CreateMeetingSchema = z.object({
+  name: z.string().min(1).describe('Meeting Name'),
+  date: z.string().min(1).describe('Meeting Date'),
+  startTime: z.string().min(1).describe('Meeting Start Time'),
+  endTime: z.string().min(1).describe('Meeting End Time'),
+  notes: z.string().default('').describe('Meeting Notes'),
+  type: MeetingTypeEnum.describe('Meeting Type'),
+  attendeeIds: z
+    .array(z.string())
+    .default([])
+    .describe('User IDs to create attendance records for'),
+});
+
+export type CreateMeetingInput = z.infer<typeof CreateMeetingSchema>;
+
+// Request body for PUT /api/meeting/:id. Every field is optional, and notes
+// has no default so an update that leaves it out doesn't wipe the existing notes.
+export const UpdateMeetingSchema = CreateMeetingSchema.omit({
+  attendeeIds: true,
+})
+  .partial()
+  .extend({
+    notes: z.string().optional().describe('Meeting Notes'),
+  });
+
+export type UpdateMeetingInput = z.infer<typeof UpdateMeetingSchema>;
+
 export const AttendanceParams = z.object({
   attendanceId: z.string().describe('Attendance Id'),
 });
