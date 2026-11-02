@@ -1,5 +1,6 @@
 import { RequestController } from '../request.controller';
 import { prisma } from '../../lib/prisma';
+import { semesterIdFor } from '@/utils/test-helpers';
 import { POST } from '../../app/api/attendance/[attendanceId]/requests/route';
 import { UsersService } from '@/users/users.service';
 import { MeetingService } from '@/meeting/meeting.service';
@@ -24,7 +25,7 @@ interface AttendanceRequest {
   requestId: string;
   attendanceId: string;
   reason: string;
-  attendanceMode: 'ONLINE' | 'IN_PERSON';
+  attendanceMode: 'ONLINE' | 'IN_PERSON' | 'ABSENT';
   timeAdjustment: 'ARRIVING_LATE' | 'LEAVING_EARLY';
   isLate: boolean;
   attendance: Attendance;
@@ -80,6 +81,7 @@ describe('RequestController', () => {
       data: {
         name: 'Request Meeting',
         date: parseMeetingDate('2025-08-15'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-15')),
         startTime: parseMeetingDateTime('2025-08-15', '13:00'),
         endTime: parseMeetingDateTime('2025-08-15', '14:00'),
         notes: 'Meeting for request tests',
@@ -173,6 +175,7 @@ describe('RequestController', () => {
       data: {
         name: 'Request Meeting 2',
         date: parseMeetingDate('2025-09-01'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-01')),
         startTime: parseMeetingDateTime('2025-09-01', '10:00'),
         endTime: parseMeetingDateTime('2025-09-01', '11:00'),
         notes: 'Additional meeting for requests',
@@ -207,12 +210,157 @@ describe('RequestController', () => {
     await MeetingService.deleteMeeting(newMeeting.meetingId);
   });
 
+  it('should create a request for a member who will not attend', async () => {
+    const absentMeeting = await prisma.meeting.create({
+      data: {
+        name: 'Request Meeting Absent',
+        date: parseMeetingDate('2025-09-02'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-02')),
+        startTime: parseMeetingDateTime('2025-09-02', '10:00'),
+        endTime: parseMeetingDateTime('2025-09-02', '11:00'),
+        notes: 'Meeting the member cannot attend',
+        type: 'REGULAR',
+      },
+    });
+    const absentAttendance = await prisma.attendance.create({
+      data: {
+        userId: testUserId,
+        meetingId: absentMeeting.meetingId,
+        status: 'PENDING',
+      },
+    });
+
+    const newRequest = await RequestController.createRequest({
+      attendanceId: absentAttendance.attendanceId,
+      reason: 'I am out of town and cannot attend',
+      attendanceMode: 'ABSENT',
+    });
+
+    expect(newRequest).toBeDefined();
+    expect(newRequest.attendanceMode).toBe('ABSENT');
+    // not attending means there is no arriving-late / leaving-early adjustment
+    expect(newRequest.timeAdjustment).toBeFalsy();
+
+    const stored = await RequestController.getRequest(newRequest.requestId);
+    expect(stored?.attendanceMode).toBe('ABSENT');
+
+    await RequestService.deleteRequest(newRequest.requestId);
+    await AttendanceService.deleteAttendance(absentAttendance.attendanceId);
+    await MeetingService.deleteMeeting(absentMeeting.meetingId);
+  });
+
+  it('should reject an unrecognized attendance mode', async () => {
+    await expect(
+      RequestController.createRequest({
+        attendanceId: testAttendanceId,
+        reason: 'Mode that does not exist',
+        attendanceMode: 'MAYBE',
+      }),
+    ).rejects.toThrow('Invalid input data for creating request');
+  });
+
+  it('should reject not attending combined with a time adjustment on create', async () => {
+    for (const timeAdjustment of ['ARRIVING_LATE', 'LEAVING_EARLY']) {
+      await expect(
+        RequestController.createRequest({
+          attendanceId: testAttendanceId,
+          reason: 'Not coming, but also late',
+          attendanceMode: 'ABSENT',
+          timeAdjustment,
+        }),
+      ).rejects.toThrow(
+        'Not attending cannot be combined with arriving late or leaving early',
+      );
+    }
+  });
+
+  it('should reject switching a request with a time adjustment to not attending', async () => {
+    // testRequestId is ONLINE + ARRIVING_LATE, so ABSENT alone leaves the combo
+    await expect(
+      RequestController.updateRequest(testRequestId, {
+        attendanceMode: 'ABSENT',
+      }),
+    ).rejects.toThrow(
+      'Not attending cannot be combined with arriving late or leaving early',
+    );
+
+    // setting both in the same update is the same combo
+    await expect(
+      RequestController.updateRequest(testRequestId, {
+        attendanceMode: 'ABSENT',
+        timeAdjustment: 'LEAVING_EARLY',
+      }),
+    ).rejects.toThrow(
+      'Not attending cannot be combined with arriving late or leaving early',
+    );
+
+    const unchanged = await RequestController.getRequest(testRequestId);
+    expect(unchanged?.attendanceMode).toBe('ONLINE');
+    expect(unchanged?.timeAdjustment).toBe('ARRIVING_LATE');
+  });
+
+  it('should reject adding a time adjustment to a not attending request', async () => {
+    const absentMeeting = await prisma.meeting.create({
+      data: {
+        name: 'Request Meeting Absent Update',
+        date: parseMeetingDate('2025-09-03'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-03')),
+        startTime: parseMeetingDateTime('2025-09-03', '10:00'),
+        endTime: parseMeetingDateTime('2025-09-03', '11:00'),
+        notes: 'Meeting for not attending update test',
+        type: 'REGULAR',
+      },
+    });
+    const absentAttendance = await prisma.attendance.create({
+      data: {
+        userId: testUserId,
+        meetingId: absentMeeting.meetingId,
+        status: 'PENDING',
+      },
+    });
+    const absentRequest = await RequestController.createRequest({
+      attendanceId: absentAttendance.attendanceId,
+      reason: 'I am out of town and cannot attend',
+      attendanceMode: 'ABSENT',
+    });
+
+    try {
+      await expect(
+        RequestController.updateRequest(absentRequest.requestId, {
+          timeAdjustment: 'ARRIVING_LATE',
+        }),
+      ).rejects.toThrow(
+        'Not attending cannot be combined with arriving late or leaving early',
+      );
+      const stillAbsent = await RequestController.getRequest(
+        absentRequest.requestId,
+      );
+      expect(stillAbsent?.attendanceMode).toBe('ABSENT');
+      expect(stillAbsent?.timeAdjustment).toBeNull();
+
+      // changing the mode in the same update is a valid way out of ABSENT
+      const updated = await RequestController.updateRequest(
+        absentRequest.requestId,
+        { attendanceMode: 'IN_PERSON', timeAdjustment: 'ARRIVING_LATE' },
+      );
+      expect(updated.attendanceMode).toBe('IN_PERSON');
+      expect(updated.timeAdjustment).toBe('ARRIVING_LATE');
+    } finally {
+      await RequestService.deleteRequest(absentRequest.requestId);
+      await AttendanceService.deleteAttendance(absentAttendance.attendanceId);
+      await MeetingService.deleteMeeting(absentMeeting.meetingId);
+    }
+  });
+
   it('should mark request as late when created within 24 hours of meeting', async () => {
     const meetingStart = new Date(Date.now() + 6 * 60 * 60 * 1000);
     const soonMeeting = await prisma.meeting.create({
       data: {
         name: 'Soon Meeting',
         date: parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        semesterId: await semesterIdFor(
+          parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        ),
         startTime: meetingStart,
         endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Soon meeting',
@@ -247,6 +395,9 @@ describe('RequestController', () => {
       data: {
         name: 'Far Future Meeting',
         date: parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        semesterId: await semesterIdFor(
+          parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        ),
         startTime: meetingStart,
         endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Far future meeting',
@@ -316,6 +467,7 @@ describe('RequestController', () => {
       data: {
         name: 'Request Meeting 3',
         date: parseMeetingDate('2025-09-02'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-02')),
         startTime: parseMeetingDateTime('2025-09-02', '10:00'),
         endTime: parseMeetingDateTime('2025-09-02', '11:00'),
         notes: 'Additional meeting for requests',
@@ -381,6 +533,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-09-10'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-10')),
         startTime: parseMeetingDateTime('2025-09-10', '14:00'),
         endTime: parseMeetingDateTime('2025-09-10', '15:00'),
         notes: 'Meeting for route endpoint tests',
@@ -442,6 +595,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
       data: {
         name: 'Route Test Meeting 2',
         date: parseMeetingDate('2025-09-11'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-11')),
         startTime: parseMeetingDateTime('2025-09-11', '15:00'),
         endTime: parseMeetingDateTime('2025-09-11', '16:00'),
         notes: 'Second meeting for route tests',
@@ -555,6 +709,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
       data: {
         name: 'Route Test Meeting 3',
         date: parseMeetingDate('2025-09-12'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-12')),
         startTime: parseMeetingDateTime('2025-09-12', '16:00'),
         endTime: parseMeetingDateTime('2025-09-12', '17:00'),
         notes: 'Third meeting for route tests',
@@ -595,7 +750,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     await MeetingService.deleteMeeting(meeting3.meetingId);
   });
 
-  it('should return 500 when controller throws an error', async () => {
+  it('should return 400 for an invalid attendance mode', async () => {
     const requestBody = {
       reason: 'Test reason',
       attendanceMode: 'INVALID_MODE',
@@ -613,8 +768,279 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     const params = Promise.resolve({ attendanceId: routeTestAttendanceId });
     const response = await POST(req, { params });
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(400);
     const data = await response.json();
     expect(data.error).toBe('Invalid input data for creating request');
+  });
+
+  it('should return 409 with a friendly message for a duplicate request', async () => {
+    const meeting = await prisma.meeting.create({
+      data: {
+        name: 'Duplicate Request Meeting',
+        date: parseMeetingDate('2025-09-11'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-11')),
+        startTime: parseMeetingDateTime('2025-09-11', '14:00'),
+        endTime: parseMeetingDateTime('2025-09-11', '15:00'),
+        notes: 'Meeting for duplicate request test',
+        type: 'REGULAR',
+      },
+    });
+    const attendance = await prisma.attendance.create({
+      data: {
+        userId: routeTestUserId,
+        meetingId: meeting.meetingId,
+        status: 'PENDING',
+      },
+    });
+
+    const send = () =>
+      POST(
+        new Request(
+          `http://localhost/api/attendance/${attendance.attendanceId}/requests`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reason: 'Out of town',
+              attendanceMode: 'ABSENT',
+            }),
+          },
+        ),
+        { params: Promise.resolve({ attendanceId: attendance.attendanceId }) },
+      );
+
+    try {
+      const first = await send();
+      expect(first.status).toBe(201);
+
+      const duplicate = await send();
+      expect(duplicate.status).toBe(409);
+      const data = await duplicate.json();
+      expect(data.error).toBe('You already have a request for this meeting.');
+      expect(JSON.stringify(data)).not.toContain('prisma');
+    } finally {
+      await prisma.request.deleteMany({
+        where: { attendanceId: attendance.attendanceId },
+      });
+      await AttendanceService.deleteAttendance(attendance.attendanceId);
+      await MeetingService.deleteMeeting(meeting.meetingId);
+    }
+  });
+
+  it('should return 409 when the same request is submitted twice at once', async () => {
+    const meeting = await prisma.meeting.create({
+      data: {
+        name: 'Double Submit Meeting',
+        date: parseMeetingDate('2025-09-12'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-12')),
+        startTime: parseMeetingDateTime('2025-09-12', '14:00'),
+        endTime: parseMeetingDateTime('2025-09-12', '15:00'),
+        notes: 'Meeting for double submit test',
+        type: 'REGULAR',
+      },
+    });
+    const attendance = await prisma.attendance.create({
+      data: {
+        userId: routeTestUserId,
+        meetingId: meeting.meetingId,
+        status: 'PENDING',
+      },
+    });
+
+    const send = () =>
+      POST(
+        new Request(
+          `http://localhost/api/attendance/${attendance.attendanceId}/requests`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reason: 'Out of town',
+              attendanceMode: 'ABSENT',
+            }),
+          },
+        ),
+        { params: Promise.resolve({ attendanceId: attendance.attendanceId }) },
+      );
+
+    try {
+      // like a double-click: both requests are in flight at the same time
+      const responses = await Promise.all([send(), send()]);
+      const statuses = responses.map((r) => r.status).sort();
+      expect(statuses).toEqual([201, 409]);
+
+      const rejected = responses.find((r) => r.status === 409)!;
+      const data = await rejected.json();
+      expect(data.error).toBe('You already have a request for this meeting.');
+
+      const saved = await prisma.request.count({
+        where: { attendanceId: attendance.attendanceId },
+      });
+      expect(saved).toBe(1);
+    } finally {
+      await prisma.request.deleteMany({
+        where: { attendanceId: attendance.attendanceId },
+      });
+      await AttendanceService.deleteAttendance(attendance.attendanceId);
+      await MeetingService.deleteMeeting(meeting.meetingId);
+    }
+  });
+
+  it('should hide internal error details behind a generic message', async () => {
+    const createSpy = jest
+      .spyOn(RequestController, 'createRequest')
+      .mockRejectedValue(new Error('internal details'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      const req = new Request(
+        `http://localhost/api/attendance/${routeTestAttendanceId}/requests`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reason: 'Test reason',
+            attendanceMode: 'ONLINE',
+          }),
+        },
+      );
+      const response = await POST(req, {
+        params: Promise.resolve({ attendanceId: routeTestAttendanceId }),
+      });
+
+      expect(response.status).toBe(500);
+      const data = await response.json();
+      expect(data.error).toBe('Failed to create request');
+      expect(JSON.stringify(data)).not.toContain('internal details');
+      // the real error is still logged on the server
+      expect(errorSpy).toHaveBeenCalled();
+    } finally {
+      createSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+});
+
+describe('/api/requests/[id] with a request that does not exist', () => {
+  const missingId = '00000000-0000-0000-0000-000000000000';
+  const params = () => ({ params: Promise.resolve({ id: missingId }) });
+  const url = `http://localhost/api/requests/${missingId}`;
+
+  it('GET returns 404', async () => {
+    const { GET } = await import('../../app/api/requests/[id]/route');
+    const response = await GET(new Request(url), params());
+
+    expect(response.status).toBe(404);
+    expect((await response.json()).error).toBe('Request not found');
+  });
+
+  it('PUT returns 404', async () => {
+    const { PUT } = await import('../../app/api/requests/[id]/route');
+    const response = await PUT(
+      new Request(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Updated reason' }),
+      }),
+      params(),
+    );
+
+    expect(response.status).toBe(404);
+    expect((await response.json()).error).toBe('Request not found');
+  });
+
+  it('DELETE returns 404', async () => {
+    const { DELETE } = await import('../../app/api/requests/[id]/route');
+    const response = await DELETE(
+      new Request(url, { method: 'DELETE' }),
+      params(),
+    );
+
+    expect(response.status).toBe(404);
+    expect((await response.json()).error).toBe('Request not found');
+  });
+});
+
+describe('Requests for soft-deleted meetings', () => {
+  const userId = 'test-request-user-deleted-meeting';
+  let roleId: string;
+  let deletedMeetingId: string;
+  let keptMeetingId: string;
+  let deletedMeetingRequestId: string;
+  let keptMeetingRequestId: string;
+
+  const createMeetingWithRequest = async (name: string, date: string) => {
+    const meeting = await prisma.meeting.create({
+      data: {
+        name,
+        date: parseMeetingDate(date),
+        semesterId: await semesterIdFor(parseMeetingDate(date)),
+        startTime: parseMeetingDateTime(date, '10:00'),
+        endTime: parseMeetingDateTime(date, '11:00'),
+        notes: '',
+        type: 'REGULAR',
+      },
+    });
+    const attendance = await prisma.attendance.create({
+      data: { userId, meetingId: meeting.meetingId, status: 'PENDING' },
+    });
+    const request = await RequestService.createRequest({
+      attendanceId: attendance.attendanceId,
+      reason: 'Out of town',
+      attendanceMode: 'ABSENT',
+    });
+    return { meetingId: meeting.meetingId, requestId: request.requestId };
+  };
+
+  beforeAll(async () => {
+    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    roleId = role.roleId;
+    await prisma.user.create({
+      data: {
+        userId,
+        supabaseAuthId: userId,
+        nuid: '006600001',
+        email: 'deletedmeetingrequests@example.com',
+        firstName: 'Deleted',
+        lastName: 'Meeting',
+        roleId,
+        password: null,
+      },
+    });
+
+    const deleted = await createMeetingWithRequest(
+      'Meeting that gets deleted',
+      '2025-10-06',
+    );
+    deletedMeetingId = deleted.meetingId;
+    deletedMeetingRequestId = deleted.requestId;
+
+    const kept = await createMeetingWithRequest(
+      'Meeting that stays',
+      '2025-10-07',
+    );
+    keptMeetingId = kept.meetingId;
+    keptMeetingRequestId = kept.requestId;
+
+    await MeetingService.softDeleteMeeting(deletedMeetingId);
+  });
+
+  afterAll(async () => {
+    await prisma.request.deleteMany({ where: { attendance: { userId } } });
+    await prisma.attendance.deleteMany({ where: { userId } });
+    await prisma.meeting.deleteMany({
+      where: { meetingId: { in: [deletedMeetingId, keptMeetingId] } },
+    });
+    await prisma.user.deleteMany({ where: { userId } });
+    await prisma.role.delete({ where: { roleId } });
+  });
+
+  it('should leave requests for a deleted meeting out of getAllRequests', async () => {
+    const requestIds = (await RequestService.getAllRequests()).map(
+      (r) => r.requestId,
+    );
+
+    expect(requestIds).not.toContain(deletedMeetingRequestId);
+    expect(requestIds).toContain(keptMeetingRequestId);
   });
 });

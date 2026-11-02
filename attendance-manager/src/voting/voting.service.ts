@@ -181,7 +181,12 @@ async function attachVoterNamesToVotingEvent<
 export const VotingService = {
   async getActiveVotingEvents() {
     const events = await prisma.votingEvent.findMany({
-      where: { deletedAt: null, endedAt: null },
+      where: {
+        deletedAt: null,
+        endedAt: null,
+        // no popup for votes on a soft-deleted meeting
+        meeting: { deletedAt: null },
+      },
       include: { meeting: true, votingRecords: true },
     });
     return events.map((e) => formatVotingEventForApi(e)!);
@@ -190,7 +195,11 @@ export const VotingService = {
   async getAllVotingEvents({ isEboard }: { isEboard: boolean }) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const events = await prisma.votingEvent.findMany({
-      where: isEboard ? undefined : { endedAt: { lte: oneHourAgo } },
+      where: {
+        // skip votes on soft-deleted meetings
+        meeting: { deletedAt: null },
+        ...(isEboard ? {} : { endedAt: { lte: oneHourAgo } }),
+      },
       include: {
         meeting: true,
         votingRecords: true,
@@ -222,7 +231,7 @@ export const VotingService = {
 
   async getVotingEventsByVoteType(voteType: string) {
     const events = await prisma.votingEvent.findMany({
-      where: { voteType },
+      where: { voteType, meeting: { deletedAt: null } },
       include: { meeting: true, votingRecords: true },
     });
 

@@ -128,10 +128,17 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             Request Type
           </label>
           <div className='space-y-3'>
-            <label className='flex items-center space-x-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer'>
+            <label
+              className={`flex items-center space-x-3 p-3 border border-gray-300 rounded-lg ${
+                requestForm.requestTypes.notAttending
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:bg-gray-50 cursor-pointer'
+              }`}
+            >
               <input
                 type='checkbox'
                 checked={requestForm.requestTypes.leavingEarly}
+                disabled={requestForm.requestTypes.notAttending}
                 onChange={(e) =>
                   setRequestForm({
                     ...requestForm,
@@ -153,10 +160,17 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
             </label>
 
-            <label className='flex items-center space-x-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer'>
+            <label
+              className={`flex items-center space-x-3 p-3 border border-gray-300 rounded-lg ${
+                requestForm.requestTypes.notAttending
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:bg-gray-50 cursor-pointer'
+              }`}
+            >
               <input
                 type='checkbox'
                 checked={requestForm.requestTypes.comingLate}
+                disabled={requestForm.requestTypes.notAttending}
                 onChange={(e) =>
                   setRequestForm({
                     ...requestForm,
@@ -176,10 +190,17 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
             </label>
 
-            <label className='flex items-center space-x-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer'>
+            <label
+              className={`flex items-center space-x-3 p-3 border border-gray-300 rounded-lg ${
+                requestForm.requestTypes.notAttending
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:bg-gray-50 cursor-pointer'
+              }`}
+            >
               <input
                 type='checkbox'
                 checked={requestForm.requestTypes.goingOnline}
+                disabled={requestForm.requestTypes.notAttending}
                 onChange={(e) =>
                   setRequestForm({
                     ...requestForm,
@@ -197,6 +218,39 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </p>
                 <p className='text-xs text-gray-500'>
                   I will attend the meeting online instead of in person
+                </p>
+              </div>
+            </label>
+
+            <label className='flex items-center space-x-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer'>
+              <input
+                type='checkbox'
+                checked={requestForm.requestTypes.notAttending}
+                onChange={(e) =>
+                  setRequestForm({
+                    ...requestForm,
+                    requestTypes: e.target.checked
+                      ? {
+                          // not attending replaces the other options
+                          leavingEarly: false,
+                          comingLate: false,
+                          goingOnline: false,
+                          notAttending: true,
+                        }
+                      : {
+                          ...requestForm.requestTypes,
+                          notAttending: false,
+                        },
+                  })
+                }
+                className='w-4 h-4 text-[#C8102E] border-gray-300 rounded focus:ring-[#C8102E]'
+              />
+              <div className='flex-1'>
+                <p className='text-sm font-medium text-gray-900'>
+                  Not Attending
+                </p>
+                <p className='text-xs text-gray-500'>
+                  I will not be able to attend this meeting
                 </p>
               </div>
             </label>
@@ -235,6 +289,7 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   leavingEarly: false,
                   comingLate: false,
                   goingOnline: false,
+                  notAttending: false,
                 },
                 explanation: '',
               });

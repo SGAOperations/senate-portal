@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { MeetingApiData, VotingEventWithRelations } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 import VotingAdminPanel from '@/components/voting/VotingAdminPanel';
 import VotingResultsPanel from '@/components/voting/VotingResultsPanel';
 import DeleteVotingModal from '@/components/voting/DeleteVotingModal';
@@ -11,6 +12,8 @@ const VotingPage: React.FC = () => {
   const [deleteEvent, setDeleteEvent] =
     useState<VotingEventWithRelations | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const { user } = useAuth();
+  const isEboard = user?.role === 'EBOARD';
 
   const loadMeetingsAndEvents = useCallback(async () => {
     setEventsLoading(true);
@@ -82,9 +85,10 @@ const VotingPage: React.FC = () => {
         events={events}
         loading={eventsLoading}
         setDeleteEvent={setDeleteEvent}
+        canDelete={isEboard}
       />
 
-      {deleteEvent && (
+      {deleteEvent && isEboard && (
         <DeleteVotingModal
           deleteEvent={deleteEvent}
           onDeleteEvent={handleDeleteVotingEvent}

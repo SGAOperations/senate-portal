@@ -16,8 +16,17 @@ export interface MeetingApiData {
   endTime: string;
   notes: string;
   type: MeetingType;
+  semesterId: string;
   attendance: AttendanceApiData[];
   eligibleCount?: number;
+}
+
+export interface SemesterApiData {
+  semesterId: string;
+  term: 'FALL' | 'SPRING';
+  year: number;
+  startsOn: string;
+  endsOn: string;
 }
 
 export interface AttendanceRecord {
@@ -100,7 +109,7 @@ export interface RequestApiData {
   requestId: string;
   attendanceId: string;
   reason: string;
-  attendanceMode: 'ONLINE' | 'IN_PERSON';
+  attendanceMode: 'ONLINE' | 'IN_PERSON' | 'ABSENT';
   timeAdjustment: 'ARRIVING_LATE' | 'LEAVING_EARLY';
   attendance: AttendanceApiData;
   isLate: boolean;
@@ -125,6 +134,7 @@ export interface RequestForm {
     leavingEarly: boolean;
     comingLate: boolean;
     goingOnline: boolean;
+    notAttending: boolean;
   };
   explanation: string;
 }
@@ -179,7 +189,7 @@ export const AttendanceStatus = z.enum([
   'EXCUSED_ABSENCE',
   'PENDING',
 ]);
-export const AttendanceMode = z.enum(['ONLINE', 'IN_PERSON']);
+export const AttendanceMode = z.enum(['ONLINE', 'IN_PERSON', 'ABSENT']);
 export const TimeAdjustment = z
   .enum(['ARRIVING_LATE', 'LEAVING_EARLY'])
   .optional();
@@ -217,7 +227,7 @@ export const RequestSchema: z.ZodType<any> = z.lazy(
       requestId: z.string().describe('Request ID'),
       reason: z.string().describe('Reason for request'),
       attendanceMode: AttendanceMode.describe(
-        'Attendance mode: online or in-person',
+        'Attendance mode: online, in-person, or absent',
       ),
       isLate: z.boolean().describe('Whether the user was late'),
       timeAdjustment: TimeAdjustment.describe(
@@ -248,6 +258,34 @@ export const MeetingSchema = z.object({
   attendance: z.array(AttendanceSchema).describe('Attendances'),
 });
 
+// Request body for POST /api/meeting
+export const CreateMeetingSchema = z.object({
+  name: z.string().min(1).describe('Meeting Name'),
+  date: z.string().min(1).describe('Meeting Date'),
+  startTime: z.string().min(1).describe('Meeting Start Time'),
+  endTime: z.string().min(1).describe('Meeting End Time'),
+  notes: z.string().default('').describe('Meeting Notes'),
+  type: MeetingTypeEnum.describe('Meeting Type'),
+  attendeeIds: z
+    .array(z.string())
+    .default([])
+    .describe('User IDs to create attendance records for'),
+});
+
+export type CreateMeetingInput = z.infer<typeof CreateMeetingSchema>;
+
+// Request body for PUT /api/meeting/:id. Every field is optional, and notes
+// has no default so an update that leaves it out doesn't wipe the existing notes.
+export const UpdateMeetingSchema = CreateMeetingSchema.omit({
+  attendeeIds: true,
+})
+  .partial()
+  .extend({
+    notes: z.string().optional().describe('Meeting Notes'),
+  });
+
+export type UpdateMeetingInput = z.infer<typeof UpdateMeetingSchema>;
+
 export const AttendanceParams = z.object({
   attendanceId: z.string().describe('Attendance Id'),
 });
@@ -274,7 +312,7 @@ export const CreateAttendanceRequestParams = z.object({
   attendanceId: z.string().describe('Attendance Id'),
   reason: z.string().describe('Reason for the request'),
   attendanceMode: AttendanceMode.describe(
-    'Attendance Mode, online or in-person',
+    'Attendance Mode, online, in-person, or absent',
   ),
   timeAdjustment: TimeAdjustment.describe(
     'Time Adjustment, arriving late or leaving early',
@@ -286,7 +324,7 @@ export const CreateAttendanceRequestResponse = z.object({
   requestId: z.string().describe('Request Id'),
   reason: z.string().describe('Reason for the request'),
   attendanceMode: AttendanceMode.describe(
-    'Attendance Mode, online or in-person',
+    'Attendance Mode, online, in-person, or absent',
   ),
   timeAdjustment: TimeAdjustment.describe(
     'Time Adjustment, arriving late or leaving early',
@@ -330,7 +368,7 @@ export const GetUserRequestsResponse = z
       requestId: z.string().describe('Request ID'),
       reason: z.string().describe('Reason for request'),
       attendanceMode: AttendanceMode.describe(
-        'Attendance mode: online or in-person',
+        'Attendance mode: online, in-person, or absent',
       ),
       isLate: z.boolean().describe('Whether the user was late'),
       timeAdjustment: TimeAdjustment.describe(

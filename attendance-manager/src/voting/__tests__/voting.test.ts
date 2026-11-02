@@ -5,6 +5,7 @@ import {
 } from '../voting.service';
 import { VotingController } from '../voting.controller';
 import { prisma } from '../../lib/prisma';
+import { semesterIdFor } from '@/utils/test-helpers';
 import { MeetingService } from '@/meeting/meeting.service';
 import { VoteType } from '@/utils/consts';
 import * as apiAuth from '@/utils/api-auth';
@@ -75,6 +76,7 @@ describe('VotingService', () => {
       data: {
         name: 'Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -87,6 +89,7 @@ describe('VotingService', () => {
       data: {
         name: 'Test Meeting 2',
         date: parseMeetingDate('2025-10-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-10-04')),
         startTime: parseMeetingDateTime('2025-10-04', '09:00'),
         endTime: parseMeetingDateTime('2025-10-04', '10:00'),
         notes: 'Test notes 2',
@@ -208,6 +211,7 @@ describe('VotingController', () => {
       data: {
         name: 'Controller Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -220,6 +224,7 @@ describe('VotingController', () => {
       data: {
         name: 'Controller Test Meeting 2',
         date: parseMeetingDate('2025-10-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-10-04')),
         startTime: parseMeetingDateTime('2025-10-04', '09:00'),
         endTime: parseMeetingDateTime('2025-10-04', '10:00'),
         notes: 'Test notes 2',
@@ -336,7 +341,7 @@ describe('VotingController', () => {
       const createData = {
         meetingId: testMeetingId,
         name: 'POST Test Event',
-        voteType: 'YES_NO',
+        voteType: VoteType.rollCall,
         updatedBy: 'test-user',
       };
 
@@ -349,7 +354,7 @@ describe('VotingController', () => {
       expect(response.status).toBe(201);
       const responseData = await response.json();
       expect(responseData.name).toBe('POST Test Event');
-      expect(responseData.voteType).toBe('YES_NO');
+      expect(responseData.voteType).toBe(VoteType.rollCall);
       expect(responseData.meetingId).toBe(testMeetingId);
       expect(responseData.votingEventId).toBeDefined();
 
@@ -371,14 +376,15 @@ describe('VotingController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('Missing required fields');
+      expect(responseData.error).toContain('meetingId');
+      expect(responseData.error).toContain('voteType');
     });
 
     it('should reject invalid field types', async () => {
       const createData = {
         meetingId: 123, // Should be string
         name: 'Invalid Types Event',
-        voteType: 'YES_NO',
+        voteType: VoteType.rollCall,
       };
 
       const mockRequest = {
@@ -389,14 +395,32 @@ describe('VotingController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('Invalid field types');
+      expect(responseData.error).toContain('meetingId');
+    });
+
+    it('should reject an unknown voteType', async () => {
+      const createData = {
+        meetingId: testMeetingId,
+        name: 'Unknown Vote Type Event',
+        voteType: 'BANANA',
+      };
+
+      const mockRequest = {
+        json: async () => createData,
+      } as Request;
+
+      const response = await VotingController.createVotingEvent(mockRequest);
+
+      expect(response.status).toBe(400);
+      const responseData = await response.json();
+      expect(responseData.error).toContain('voteType');
     });
 
     it('should handle optional updatedBy field', async () => {
       const createData = {
         meetingId: testMeetingId,
         name: 'Optional UpdatedBy Event',
-        voteType: 'APPROVAL',
+        voteType: VoteType.rollCall,
         // updatedBy is optional
       };
 
@@ -424,7 +448,7 @@ describe('VotingController', () => {
 
       const updateData = {
         name: 'Updated PUT Test Event',
-        voteType: 'APPROVAL',
+        voteType: VoteType.placard,
         updatedBy: 'test-updater',
       };
 
@@ -439,7 +463,7 @@ describe('VotingController', () => {
       expect(response).toBeDefined();
       const responseData = await response.json();
       expect(responseData.name).toBe('Updated PUT Test Event');
-      expect(responseData.voteType).toBe('APPROVAL');
+      expect(responseData.voteType).toBe(VoteType.placard);
       expect(responseData.updatedBy).toBe('test-updater');
       expect(responseData.updatedAt).toBeDefined(); // Should be set after update
       await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
@@ -522,7 +546,7 @@ describe('VotingController', () => {
 
       const updateData = {
         name: 123, // Should be string
-        voteType: 'APPROVAL',
+        voteType: VoteType.placard,
       };
 
       const mockRequest = {
@@ -535,7 +559,57 @@ describe('VotingController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('must be a string');
+      expect(responseData.error).toContain('name');
+      await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
+    });
+
+    it('should reject an unknown voteType in update', async () => {
+      const testVotingEvent = await VotingService.createVotingEvent({
+        meetingId: testMeetingId,
+        name: 'Unknown Vote Type Update Test',
+        voteType: VoteType.rollCall,
+      });
+
+      const updateData = {
+        voteType: 'BANANA',
+      };
+
+      const mockRequest = {
+        json: async () => updateData,
+      } as Request;
+
+      const response = await VotingController.updateVotingEvent(mockRequest, {
+        votingEventId: testVotingEvent.votingEventId,
+      });
+
+      expect(response.status).toBe(400);
+      const responseData = await response.json();
+      expect(responseData.error).toContain('voteType');
+      await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
+    });
+
+    it('should reject an empty name in update', async () => {
+      const testVotingEvent = await VotingService.createVotingEvent({
+        meetingId: testMeetingId,
+        name: 'Empty Name Update Test',
+        voteType: VoteType.rollCall,
+      });
+
+      const updateData = {
+        name: '',
+      };
+
+      const mockRequest = {
+        json: async () => updateData,
+      } as Request;
+
+      const response = await VotingController.updateVotingEvent(mockRequest, {
+        votingEventId: testVotingEvent.votingEventId,
+      });
+
+      expect(response.status).toBe(400);
+      const responseData = await response.json();
+      expect(responseData.error).toContain('name');
       await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
     });
 
@@ -581,6 +655,7 @@ describe('GET /api/voting-event', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -629,6 +704,7 @@ describe('GET /api/voting-event/[id]', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -730,6 +806,7 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
       data: {
         name: 'Roll Call Results Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -979,6 +1056,7 @@ describe('Secret ballot results (aggregates only)', () => {
       data: {
         name: 'Secret Ballot Meeting',
         date: parseMeetingDate('2025-09-01'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-09-01')),
         startTime: parseMeetingDateTime('2025-09-01', '10:00'),
         endTime: parseMeetingDateTime('2025-09-01', '11:00'),
         notes: 'Test',
@@ -1088,6 +1166,7 @@ describe('GET /api/voting-event/by-type/[voteType]', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -1100,6 +1179,7 @@ describe('GET /api/voting-event/by-type/[voteType]', () => {
       data: {
         name: 'Route Test Meeting 2',
         date: parseMeetingDate('2025-10-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-10-04')),
         startTime: parseMeetingDateTime('2025-10-04', '09:00'),
         endTime: parseMeetingDateTime('2025-10-04', '10:00'),
         notes: 'Test notes 2',
@@ -1181,6 +1261,7 @@ describe('POST /api/voting-event', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -1200,7 +1281,7 @@ describe('POST /api/voting-event', () => {
     const requestBody = {
       meetingId: routeTestMeetingId,
       name: 'POST Route Test Event',
-      voteType: 'YES_NO',
+      voteType: VoteType.rollCall,
       updatedBy: 'test-user',
     };
 
@@ -1216,7 +1297,7 @@ describe('POST /api/voting-event', () => {
     expect(response.status).toBe(201);
     expect(data).toBeDefined();
     expect(data.name).toBe('POST Route Test Event');
-    expect(data.voteType).toBe('YES_NO');
+    expect(data.voteType).toBe(VoteType.rollCall);
     expect(data.meetingId).toBe(routeTestMeetingId);
     expect(data.votingEventId).toBeDefined();
     expect(data.updatedBy).toBe('test-user');
@@ -1228,7 +1309,7 @@ describe('POST /api/voting-event', () => {
     const requestBody = {
       meetingId: routeTestMeetingId,
       name: 'POST Route Test Event With Notes',
-      voteType: 'YES_NO',
+      voteType: VoteType.rollCall,
       notes: 'Create notes test',
       updatedBy: 'test-user',
     };
@@ -1298,7 +1379,7 @@ describe('POST /api/voting-event', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain('options must be an array of strings');
+    expect(data.error).toContain('options');
   });
 
   it('should return 400 when required fields are missing', async () => {
@@ -1318,7 +1399,8 @@ describe('POST /api/voting-event', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain('Missing required fields');
+    expect(data.error).toContain('meetingId');
+    expect(data.error).toContain('voteType');
   });
 });
 
@@ -1337,6 +1419,7 @@ describe('PUT /api/voting-event/[id]', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -1364,7 +1447,7 @@ describe('PUT /api/voting-event/[id]', () => {
     const { PUT } = await import('../../app/api/voting-event/[id]/route');
     const requestBody = {
       name: 'Updated PUT Route Test Event',
-      voteType: 'APPROVAL',
+      voteType: VoteType.placard,
       updatedBy: 'test-updater',
     };
 
@@ -1384,7 +1467,7 @@ describe('PUT /api/voting-event/[id]', () => {
     expect(response.status).toBe(200);
     expect(data).toBeDefined();
     expect(data.name).toBe('Updated PUT Route Test Event');
-    expect(data.voteType).toBe('APPROVAL');
+    expect(data.voteType).toBe(VoteType.placard);
     expect(data.updatedBy).toBe('test-updater');
     expect(data.votingEventId).toBe(routeTestVotingEventId);
     expect(data.updatedAt).toBeDefined();
@@ -1468,5 +1551,115 @@ describe('PUT /api/voting-event/[id]', () => {
 
     expect(response.status).toBe(404);
     expect(data.error).toBe('Voting event not found');
+  });
+});
+
+describe('Votes on soft-deleted meetings', () => {
+  let deletedMeetingId: string;
+  let keptMeetingId: string;
+  let deletedMeetingVoteId: string;
+  let keptMeetingVoteId: string;
+  let alreadyEndedVoteId: string;
+  const alreadyEndedAt = new Date('2025-10-08T15:30:00.000Z');
+
+  const createMeetingWithOpenVote = async (name: string, date: string) => {
+    const meeting = await prisma.meeting.create({
+      data: {
+        name,
+        date: parseMeetingDate(date),
+        semesterId: await semesterIdFor(parseMeetingDate(date)),
+        startTime: parseMeetingDateTime(date, '10:00'),
+        endTime: parseMeetingDateTime(date, '11:00'),
+        notes: '',
+        type: 'REGULAR',
+      },
+    });
+    const vote = await VotingService.createVotingEvent({
+      meetingId: meeting.meetingId,
+      name: `${name} vote`,
+      voteType: VoteType.rollCall,
+    });
+    return { meetingId: meeting.meetingId, voteId: vote.votingEventId };
+  };
+
+  beforeAll(async () => {
+    const deleted = await createMeetingWithOpenVote(
+      'Voting meeting that gets deleted',
+      '2025-10-08',
+    );
+    deletedMeetingId = deleted.meetingId;
+    deletedMeetingVoteId = deleted.voteId;
+
+    const kept = await createMeetingWithOpenVote(
+      'Voting meeting that stays',
+      '2025-10-09',
+    );
+    keptMeetingId = kept.meetingId;
+    keptMeetingVoteId = kept.voteId;
+
+    // a vote on the same meeting that had already ended before the delete
+    const ended = await VotingService.createVotingEvent({
+      meetingId: deletedMeetingId,
+      name: 'Vote that already ended',
+      voteType: VoteType.rollCall,
+    });
+    alreadyEndedVoteId = ended.votingEventId;
+    await prisma.votingEvent.update({
+      where: { votingEventId: alreadyEndedVoteId },
+      data: { endedAt: alreadyEndedAt },
+    });
+
+    await MeetingService.softDeleteMeeting(deletedMeetingId);
+  });
+
+  afterAll(async () => {
+    await prisma.votingEvent.deleteMany({
+      where: {
+        votingEventId: {
+          in: [deletedMeetingVoteId, keptMeetingVoteId, alreadyEndedVoteId],
+        },
+      },
+    });
+    await prisma.meeting.deleteMany({
+      where: { meetingId: { in: [deletedMeetingId, keptMeetingId] } },
+    });
+  });
+
+  const ids = (events: { votingEventId: string }[]) =>
+    events.map((e) => e.votingEventId);
+
+  it('should end open votes when their meeting is deleted', async () => {
+    const endedAtFor = async (votingEventId: string) =>
+      (await prisma.votingEvent.findUnique({ where: { votingEventId } }))
+        ?.endedAt;
+
+    // the open vote on the deleted meeting is now ended in the db
+    expect(await endedAtFor(deletedMeetingVoteId)).not.toBeNull();
+    // a vote that had already ended keeps its original end time
+    expect((await endedAtFor(alreadyEndedVoteId))?.toISOString()).toBe(
+      alreadyEndedAt.toISOString(),
+    );
+    // votes on other meetings are untouched
+    expect(await endedAtFor(keptMeetingVoteId)).toBeNull();
+  });
+
+  it('should not show an open vote on a deleted meeting as active', async () => {
+    const active = ids(await VotingService.getActiveVotingEvents());
+    expect(active).not.toContain(deletedMeetingVoteId);
+    expect(active).toContain(keptMeetingVoteId);
+  });
+
+  it('should leave votes on a deleted meeting out of getAllVotingEvents', async () => {
+    const all = ids(await VotingService.getAllVotingEvents({ isEboard: true }));
+    expect(all).not.toContain(deletedMeetingVoteId);
+    expect(all).toContain(keptMeetingVoteId);
+  });
+
+  it('should leave votes on a deleted meeting out of getVotingEventsByVoteType', async () => {
+    const byType = ids(
+      await VotingService.getVotingEventsByVoteType(VoteType.rollCall),
+    );
+    expect(byType).not.toContain(deletedMeetingVoteId);
+    expect(byType).toContain(keptMeetingVoteId);
   });
 });

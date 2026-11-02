@@ -34,7 +34,6 @@ const Header: React.FC<HeaderProps> = ({ onProfileClick, onLogoClick }) => {
                 SGA
               </div>
             </Link>
-            <div style={{ paddingLeft: '8px' }}>Version 2.1.5</div>
           </div>
 
           {/* Right side - Profile (always on far right) */}

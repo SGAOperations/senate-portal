@@ -1,6 +1,7 @@
 import { VotingRecordService } from '../voting-record.service';
 import { VotingRecordController } from '../voting-record.controller';
 import { prisma } from '../../lib/prisma';
+import { semesterIdFor } from '@/utils/test-helpers';
 import { VotingService } from '@/voting/voting.service';
 import { MeetingService } from '@/meeting/meeting.service';
 import { UsersService } from '@/users/users.service';
@@ -61,6 +62,7 @@ describe('VotingRecordService', () => {
       data: {
         name: 'Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -235,6 +237,7 @@ describe('VotingRecordController', () => {
       data: {
         name: 'Controller Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -359,7 +362,7 @@ describe('VotingRecordController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('Missing required fields');
+      expect(responseData.error).toBe('Invalid request body');
     });
 
     it('should reject invalid field types', async () => {
@@ -378,7 +381,7 @@ describe('VotingRecordController', () => {
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
-      expect(responseData.error).toContain('Invalid field types');
+      expect(responseData.error).toBe('Invalid request body');
     });
 
     it('should handle optional updatedBy field', async () => {
@@ -567,6 +570,7 @@ describe('GET /api/voting-record', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -665,6 +669,7 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -827,6 +832,7 @@ describe('POST /api/voting-record', () => {
       data: {
         name: 'Route Test Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',
@@ -912,7 +918,7 @@ describe('POST /api/voting-record', () => {
     const data = await response.json();
 
     expect(response.status).toBe(400);
-    expect(data.error).toContain('Missing required fields');
+    expect(data.error).toBe('Invalid request body');
   });
 
   it('should return 409 when user has already voted for the event', async () => {
@@ -969,6 +975,7 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
       data: {
         name: 'PATCH Route Meeting',
         date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
         startTime: parseMeetingDateTime('2025-08-04', '10:00'),
         endTime: parseMeetingDateTime('2025-08-04', '11:00'),
         notes: 'Test notes',

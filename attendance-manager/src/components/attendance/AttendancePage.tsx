@@ -11,6 +11,7 @@ import {
   RequestApiData,
 } from '@/types';
 import AttendanceMeetingEdit from './AttendanceMeetingEdit';
+import AttendanceMeetingView from './AttendanceMeetingView';
 import AttendanceMeetingUserList from './AttendanceMeetingUserList';
 import AttendanceMeetingCheckIn from './AttendanceMeetingCheckIn';
 import AttendanceHistory from './AttendanceHistory';
@@ -19,7 +20,7 @@ import AttendanceMembers from './AttendanceMembers';
 import { meetingAPI } from '@/utils/attendance_utils';
 import AttendancePageRequestsModal from './AttendancePageRequestsModal';
 import DeleteUserModal from './DeleteUserModal';
-import { ClipboardList, NotebookPen } from 'lucide-react';
+import { ClipboardList, NotebookPen, X } from 'lucide-react';
 
 const AttendancePage: React.FC = () => {
   const { user } = useAuth();
@@ -50,6 +51,9 @@ const AttendancePage: React.FC = () => {
   const [attendanceRecord, setAttendanceRecord] = useState<
     Record<string, AttendanceApiData[]>
   >({});
+  // Meeting shown in the read-only View Attendance modal
+  const [viewAttendanceMeeting, setViewAttendanceMeeting] =
+    useState<MeetingApiData | null>(null);
 
   // Sets loading
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -464,6 +468,7 @@ const AttendancePage: React.FC = () => {
           attendanceRecord={attendanceRecord}
           isAdmin={isAdmin}
           openEditAttendanceModal={openEditAttendanceModal}
+          openViewAttendanceModal={setViewAttendanceMeeting}
           loading={isLoadingHistory}
         />
       )}
@@ -522,7 +527,17 @@ const AttendancePage: React.FC = () => {
       {/* Attendance Check Modal - Multi-step flow */}
       {showAttendanceCheck && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white rounded-2xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto'>
+          <div className='relative bg-white rounded-2xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto'>
+            {/* Close button, shown on every step */}
+            <button
+              type='button'
+              onClick={closeAttendanceCheck}
+              className='absolute top-4 right-4 inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C8102E]'
+              aria-label='Close attendance check'
+            >
+              <X className='h-5 w-5' />
+            </button>
+
             {/* Step 1: Select Meeting */}
             {attendanceCheckStep === 'select-meeting' && (
               <AttendanceMeetingSelect
@@ -567,7 +582,6 @@ const AttendancePage: React.FC = () => {
                 handleMarkAttendance={handleMarkAttendance}
                 handleAddMember={handleAddMeetingMember}
                 attendanceRecord={attendanceRecord}
-                closeAttendanceCheck={closeAttendanceCheck}
                 setAttendanceCheckStep={setAttendanceCheckStep}
               />
             )}
@@ -585,6 +599,15 @@ const AttendancePage: React.FC = () => {
           isLoadingAttendance={isLoadingAttendance}
           setShowEditAttendanceModal={setShowEditAttendanceModal}
           setSelectedMeeting={setSelectedMeeting}
+        />
+      )}
+
+      {/* View Attendance Modal - Read-only list, uses the same records as the history table */}
+      {viewAttendanceMeeting && (
+        <AttendanceMeetingView
+          meeting={viewAttendanceMeeting}
+          attendance={attendanceRecord[viewAttendanceMeeting.meetingId] ?? []}
+          onClose={() => setViewAttendanceMeeting(null)}
         />
       )}
 
