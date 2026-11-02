@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { prisma } from '@/lib/prisma';
 import { UsersService } from '@/users/users.service';
 import { RoleType } from '@/generated/prisma';
+import { toErrorResponse } from '@/utils/api-errors';
 
 export async function POST(request: Request) {
   try {
@@ -123,11 +124,9 @@ export async function POST(request: Request) {
       throw dbError;
     }
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Failed to create user',
-      },
-      { status: 500 },
+    return toErrorResponse(
+      error,
+      'Failed to create account. Please try again.',
     );
   }
 }

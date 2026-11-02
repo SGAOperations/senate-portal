@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { RequestController } from '@/request/request.controller';
+import { toErrorResponse } from '@/utils/api-errors';
 
 /**
  * Create a new Request
@@ -32,8 +33,6 @@ export async function POST(
 
     return NextResponse.json(newRequest, { status: 201 });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to create request';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return toErrorResponse(error, 'Failed to create request');
   }
 }
