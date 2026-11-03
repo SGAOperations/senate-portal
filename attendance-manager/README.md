@@ -133,7 +133,7 @@ npx jest --runInBand
 
 If you want to clean up your code, running Prettier can be a great help!
 
-Start by going into a specific directory, such as `src/components`, just so you dont run it on the entire repo
+Start by going into a specific directory, such as `src/features`, just so you dont run it on the entire repo
 
 ```bash
 npx prettier "**/*.{js,jsx,ts,tsx,json,css,md}" --write
