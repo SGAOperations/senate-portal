@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { VotingService, formatVotingEventForApi } from './voting.service';
-import { VoteType } from '@/utils/consts';
+import { VoteType } from '@/lib/constants';
 import { requireAuth } from '@/server/auth/api-auth';
 
 const createVotingEventSchema = z.object({

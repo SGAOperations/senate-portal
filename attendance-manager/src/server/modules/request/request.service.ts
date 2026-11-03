@@ -1,6 +1,6 @@
 import { prisma } from '@/server/db/prisma';
 import { AttendanceMode, Prisma, TimeAdjustment } from '@/generated/prisma';
-import { isMeetingRequestLate } from '@/utils/meeting-time';
+import { isMeetingRequestLate } from '@/lib/datetime/meeting-time';
 import { UserFacingError } from '@/server/http/api-errors';
 
 // Prisma throws P2025 when updating or deleting a row that doesn't exist.

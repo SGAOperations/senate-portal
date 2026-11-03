@@ -8,7 +8,7 @@ import { UsersService } from '@/server/modules/users/users.service';
 import {
   parseMeetingDate,
   parseMeetingDateTime,
-} from '@/meeting/meetingDateTime';
+} from '@/lib/datetime/meeting-date-time';
 
 jest.setTimeout(20000);
 

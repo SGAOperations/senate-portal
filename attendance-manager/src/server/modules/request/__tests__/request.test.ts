@@ -10,7 +10,7 @@ import {
   parseMeetingDate,
   parseMeetingDateTime,
   formatMeetingDateInput,
-} from '@/meeting/meetingDateTime';
+} from '@/lib/datetime/meeting-date-time';
 
 jest.setTimeout(20000);
 

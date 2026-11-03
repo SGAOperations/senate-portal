@@ -5,7 +5,7 @@ import { semesterIdFor } from '@/test/helpers';
 import { MeetingType } from '@/generated/prisma';
 import { UsersService } from '@/server/modules/users/users.service';
 import { AttendanceService } from '@/server/modules/attendance/attendance.service';
-import { formatMeetingDateInput, parseMeetingDate } from '@/meeting/meetingDateTime';
+import { formatMeetingDateInput, parseMeetingDate } from '@/lib/datetime/meeting-date-time';
 
 jest.setTimeout(20000);
 

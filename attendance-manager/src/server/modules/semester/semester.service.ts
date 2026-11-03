@@ -1,6 +1,6 @@
 import { prisma } from '@/server/db/prisma';
 import { Prisma, Term } from '@/generated/prisma';
-import { formatMeetingDateInput } from '@/meeting/meetingDateTime';
+import { formatMeetingDateInput } from '@/lib/datetime/meeting-date-time';
 
 type Db = Prisma.TransactionClient;
 

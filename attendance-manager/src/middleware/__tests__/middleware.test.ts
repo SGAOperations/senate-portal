@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { middleware } from '../../middleware';
+import { middleware } from '@/middleware';
 import { createServerClient } from '@supabase/ssr';
 
 jest.setTimeout(20000);

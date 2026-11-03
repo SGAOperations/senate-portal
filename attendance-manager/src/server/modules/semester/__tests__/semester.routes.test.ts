@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
 import {
   parseMeetingDate,
   parseMeetingDateTime,
-} from '@/meeting/meetingDateTime';
+} from '@/lib/datetime/meeting-date-time';
 
 const TEST_YEAR = 2095;
 const EDIT_YEAR = 2096;

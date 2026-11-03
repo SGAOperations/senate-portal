@@ -9,7 +9,7 @@ import { AttendanceService } from '@/server/modules/attendance/attendance.servic
 import {
   parseMeetingDate,
   parseMeetingDateTime,
-} from '@/meeting/meetingDateTime';
+} from '@/lib/datetime/meeting-date-time';
 
 const TEST_YEARS = { gte: 2097, lte: 2098 };
 const USER_ID = 'semester-edits-user';

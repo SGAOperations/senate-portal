@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
-import Dashboard from '@/components/dashboard/Dashboard';
-import MeetingsPage from '@/components/meetings/MeetingsPage';
-import VotingPage from '@/components/voting/VotingPage';
-import AttendancePage from '@/components/attendance/AttendancePage';
-import ProfilePage from '@/components/profile/ProfilePage';
-import { useAuth } from '@/contexts/AuthContext';
-import LoginPage from '../profile/LoginPage';
-import { useActiveVotingEvent } from '@/hooks/useActiveVotingEvent';
-import ActiveVotingModal from '@/components/voting/ActiveVotingModal';
+import Dashboard from '@/features/dashboard/components/Dashboard';
+import MeetingsPage from '@/features/meetings/components/MeetingsPage';
+import VotingPage from '@/features/voting/components/VotingPage';
+import AttendancePage from '@/features/attendance/components/AttendancePage';
+import ProfilePage from '@/features/profile/components/ProfilePage';
+import { useAuth } from '@/providers/AuthContext';
+import LoginPage from '@/features/profile/components/LoginPage';
+import { useActiveVotingEvent } from '@/features/voting/hooks/useActiveVotingEvent';
+import ActiveVotingModal from '@/features/voting/components/ActiveVotingModal';
 import { TriangleAlert, Vote } from 'lucide-react';
 
 const Layout: React.FC = () => {

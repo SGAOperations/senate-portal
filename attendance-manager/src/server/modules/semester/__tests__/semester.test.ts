@@ -1,6 +1,6 @@
 import { prisma } from '@/server/db/prisma';
 import { SemesterService } from '@/server/modules/semester/semester.service';
-import { parseMeetingDate } from '@/meeting/meetingDateTime';
+import { parseMeetingDate } from '@/lib/datetime/meeting-date-time';
 
 const TEST_YEARS = { gte: 2091, lte: 2094 };
 

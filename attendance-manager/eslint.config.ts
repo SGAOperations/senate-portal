@@ -7,7 +7,6 @@ export default [
       '**/.next/**',
       '**/node_modules/**',
       'src/generated/**',
-      'src/lib/**',
       '**/*.config.js',
       '**/*.config.ts',
       '**/*.config.mjs',

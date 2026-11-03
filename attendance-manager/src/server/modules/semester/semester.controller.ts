@@ -3,7 +3,7 @@ import {
   formatMeetingDateInput,
   MeetingDateTimeInputError,
   parseMeetingDate,
-} from '@/meeting/meetingDateTime';
+} from '@/lib/datetime/meeting-date-time';
 import {
   SemesterDateRangeError,
   SemesterNotFoundError,

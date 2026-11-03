@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/server/db/prisma';
-import { VoteType, yesNoOptions } from '@/utils/consts';
+import { VoteType, yesNoOptions } from '@/lib/constants';
 import { VotingRecordService } from './voting-record.service';
 import { z } from 'zod';
 

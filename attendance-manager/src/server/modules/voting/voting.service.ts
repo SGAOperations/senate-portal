@@ -1,5 +1,5 @@
 import { prisma } from '@/server/db/prisma';
-import { VoteType } from '@/utils/consts';
+import { VoteType } from '@/lib/constants';
 
 const secretBallot = VoteType.secretBallot;
 

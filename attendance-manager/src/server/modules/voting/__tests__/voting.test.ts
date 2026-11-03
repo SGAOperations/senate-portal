@@ -7,12 +7,12 @@ import { VotingController } from '@/server/modules/voting/voting.controller';
 import { prisma } from '@/server/db/prisma';
 import { semesterIdFor } from '@/test/helpers';
 import { MeetingService } from '@/server/modules/meeting/meeting.service';
-import { VoteType } from '@/utils/consts';
+import { VoteType } from '@/lib/constants';
 import * as apiAuth from '@/server/auth/api-auth';
 import {
   parseMeetingDate,
   parseMeetingDateTime,
-} from '@/meeting/meetingDateTime';
+} from '@/lib/datetime/meeting-date-time';
 
 jest.setTimeout(20000);
 

@@ -10,7 +10,7 @@ import { RequestService } from '@/server/modules/request/request.service';
 import {
   parseMeetingDate,
   parseMeetingDateTime,
-} from '@/meeting/meetingDateTime';
+} from '@/lib/datetime/meeting-date-time';
 
 dotenv.config();
 jest.setTimeout(20000);

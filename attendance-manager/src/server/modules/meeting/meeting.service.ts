@@ -7,7 +7,7 @@ import {
   formatMeetingTimeInput,
   parseMeetingDate,
   parseMeetingDateTime,
-} from '@/meeting/meetingDateTime';
+} from '@/lib/datetime/meeting-date-time';
 
 function groupBy<T, K extends string | number | symbol>(
   items: T[],

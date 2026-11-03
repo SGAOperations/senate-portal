@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { MeetingService } from './meeting.service';
 import { z } from 'zod';
 import { CreateMeetingSchema, UpdateMeetingSchema } from '@/types';
-import { MeetingDateTimeInputError } from '@/meeting/meetingDateTime';
+import { MeetingDateTimeInputError } from '@/lib/datetime/meeting-date-time';
 
 export const MeetingController = {
   async listMeetings() {
