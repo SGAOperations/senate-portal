@@ -47,3 +47,6 @@ supabase/.branches/
 supabase/.local/
 supabase/.temp/
 .supabase/
+
+# local logs
+debug.log
