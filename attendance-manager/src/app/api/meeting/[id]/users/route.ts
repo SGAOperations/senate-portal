@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { MeetingController } from '@/meeting/meeting.controller';
-import { AttendanceController } from '@/attendance/attendance.controller';
-import { requireAuth } from '@/utils/api-auth';
+import { MeetingController } from '@/server/modules/meeting/meeting.controller';
+import { AttendanceController } from '@/server/modules/attendance/attendance.controller';
+import { requireAuth } from '@/server/auth/api-auth';
 /**
  * @swagger
  * /api/users:

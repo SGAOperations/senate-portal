@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { prisma } from '@/lib/prisma';
-import { UsersService } from '@/users/users.service';
+import { createServerSupabaseClient } from '@/server/supabase-server';
+import { prisma } from '@/server/db/prisma';
+import { UsersService } from '@/server/modules/users/users.service';
 import { RoleType } from '@/generated/prisma';
-import { toErrorResponse } from '@/utils/api-errors';
+import { toErrorResponse } from '@/server/http/api-errors';
 
 export async function POST(request: Request) {
   try {

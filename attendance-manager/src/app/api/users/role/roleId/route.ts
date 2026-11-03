@@ -1,4 +1,4 @@
-import { UsersController } from '@/users/users.controller';
+import { UsersController } from '@/server/modules/users/users.controller';
 
 /**
  * DELETE /api/user/role/:roleId
