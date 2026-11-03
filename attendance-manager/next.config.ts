@@ -1,23 +1,7 @@
-const nextConfig = {
-  async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: 'http://localhost:3001',
-          },
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET,DELETE,PATCH,POST,PUT',
-          },
-        ],
-      },
-    ];
-  },
-};
+// No CORS headers: the API is only for this origin's own pages. The old
+// Access-Control-Allow-Origin/Allow-Credentials pair let another origin read
+// signed-in responses.
+const nextConfig = {};
 
 module.exports = nextConfig;
 

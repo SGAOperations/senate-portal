@@ -1,40 +1,70 @@
 import { NextResponse } from 'next/server';
 import { UsersService } from './users.service';
-import { RoleType } from '../generated/prisma';
+import { SENATOR_POSITION } from '../lib/permissions';
+import { AttendanceStatus } from '../generated/prisma';
 import { AttendanceService } from '../attendance/attendance.service';
 import { z } from 'zod';
+import { prisma } from '../lib/prisma';
 
-const CreateUserSchema = z.object({
+const CreateUserSchema = z.strictObject({
   userId: z.string().min(1),
   nuid: z.string().regex(/^\d{9}$/),
-  password: z.string().nullish(),
   email: z.email(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  firstName: z.string().trim().min(1).max(100),
+  lastName: z.string().trim().min(1).max(100),
 });
 
+// The only fields an update may touch. sgauthUserId and positionKeys come from
+// SGAuth and are set by src/lib/sgauth.ts alone; strictObject rejects them, and
+// anything else unknown, instead of passing it through to Prisma.
+const UpdateUserSchema = z
+  .strictObject({
+    nuid: z.string().regex(/^\d{9}$/),
+    email: z.email(),
+    firstName: z.string().trim().min(1).max(100),
+    lastName: z.string().trim().min(1).max(100),
+  })
+  .partial();
+
+const AttendanceUpdateSchema = z.strictObject({
+  userId: z.string().min(1),
+  meetingId: z.string().min(1),
+  status: z.enum(AttendanceStatus),
+});
+
+async function readJson(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    return undefined;
+  }
+}
+
+function invalidBody(error: z.ZodError) {
+  return NextResponse.json(
+    {
+      error: 'Invalid request body',
+      details: z.flattenError(error).fieldErrors,
+    },
+    { status: 400 },
+  );
+}
+
 export const UsersController = {
+  /** The roster, each member marked with whether they hold a Senate seat. */
   async listUsers() {
-    const users = await UsersService.getAllUsers();
-    return NextResponse.json(users);
-  },
-
-  async listRoles() {
-    const roles = await UsersService.getAllRoles();
-    return NextResponse.json(roles);
-  },
-
-  async deleteRole(params: { roleId: string }) {
-    await UsersService.deleteRole(params.roleId);
+    const users = await UsersService.getRoster();
     return NextResponse.json(
-      { message: 'Role deleted successfully' },
-      { status: 200 },
+      users.map((user) => ({
+        ...user,
+        isSenator: user.positionKeys.includes(SENATOR_POSITION),
+      })),
     );
   },
 
   async getUserByNUID(params: { nuid: string }) {
-    const roles = await UsersService.getUserByNUID(params.nuid);
-    return NextResponse.json(roles);
+    const user = await UsersService.getUserByNUID(params.nuid);
+    return NextResponse.json(user);
   },
 
   async getUserByEmail(params: { email: string }) {
@@ -42,14 +72,16 @@ export const UsersController = {
     return NextResponse.json(user);
   },
 
+  // Names only: no NUID, email, positions or attendance.
   async listUsersSantizied() {
-    const users = await UsersService.getAllUsers();
-    const sanitizedUsers = users.map((user) => {
-      // eslint-disable-next-line no-unused-vars
-      const { email: _email, ...safeUser } = user;
-      return safeUser;
-    });
-    return NextResponse.json(sanitizedUsers);
+    const users = await UsersService.getRoster();
+    return NextResponse.json(
+      users.map(({ userId, firstName, lastName }) => ({
+        userId,
+        firstName,
+        lastName,
+      })),
+    );
   },
 
   async getUser(params: { userId: string }) {
@@ -58,14 +90,6 @@ export const UsersController = {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     return NextResponse.json(user);
-  },
-
-  async getRoleId(params: { role: RoleType }) {
-    const roleId = await UsersService.getRoleIdByRoleType(params.role);
-    if (!roleId) {
-      return NextResponse.json({ error: 'Role not found' }, { status: 404 });
-    }
-    return roleId;
   },
 
   async checkUserExists(params: { userEmail: string }) {
@@ -77,51 +101,26 @@ export const UsersController = {
       });
     }
 
-    // eslint-disable-next-line no-unused-vars
-    const { roleId: _roleId, ...userData } = user;
     return NextResponse.json({
       exists: true,
-      user: userData,
+      user,
     });
   },
 
   async createUser(request: Request) {
-    const body = await request.json();
-
-    // zod parse
-    const result = CreateUserSchema.safeParse(body);
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          error: 'Invalid request body',
-          details: z.flattenError(result.error).fieldErrors,
-        },
-        { status: 400 },
-      );
-    }
-    const roleId = await UsersService.getRoleIdByRoleType(RoleType.MEMBER);
-    if (!roleId) {
-      return NextResponse.json(
-        { error: 'Member role does not exist' },
-        { status: 500 },
-      );
-    }
-    const newUser = await UsersService.createUser({
-      ...result.data,
-      roleId,
-    });
+    const result = CreateUserSchema.safeParse(await readJson(request));
+    if (!result.success) return invalidBody(result.error);
+    const newUser = await UsersService.createUser(result.data);
     return NextResponse.json(newUser, { status: 201 });
   },
 
-  async createRole(request: Request) {
-    const body = await request.json();
-    const newRole = await UsersService.createRole(body);
-    return NextResponse.json(newRole, { status: 201 });
-  },
-
   async updateUser(request: Request, params: { userId: string }) {
-    const updates = await request.json();
-    const updatedUser = await UsersService.updateUser(params.userId, updates);
+    const result = UpdateUserSchema.safeParse(await readJson(request));
+    if (!result.success) return invalidBody(result.error);
+    const updatedUser = await UsersService.updateUser(
+      params.userId,
+      result.data,
+    );
     return NextResponse.json(updatedUser);
   },
 
@@ -213,26 +212,42 @@ export const UsersController = {
     }
   },
 
-  async updateAttendence(request: Request) {
-    const body = await request.json();
-    if (!body.userId || !body.meetingId || body.status === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 },
-      );
+  /**
+   * Sets one member's status for one meeting. `actor` is the signed-in user:
+   * with manageAttendance they may set any status for anyone; a member may only mark
+   * their own attendance PENDING, which is how an excuse request starts, and
+   * only while it is still PENDING -- never to clear a recorded absence.
+   */
+  async updateAttendence(
+    request: Request,
+    actor: { userId: string | null; canManage: boolean },
+  ) {
+    const result = AttendanceUpdateSchema.safeParse(await readJson(request));
+    if (!result.success) return invalidBody(result.error);
+    const body = result.data;
+    if (
+      !actor.canManage &&
+      (body.userId !== actor.userId || body.status !== 'PENDING')
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    const validStatuses = [
-      'PENDING',
-      'PRESENT',
-      'PENDING_ABSENCE',
-      'EXCUSED_ABSENCE',
-      'UNEXCUSED_ABSENCE',
-    ];
-    if (!validStatuses.includes(body.status)) {
-      return NextResponse.json(
-        { error: 'Invalid attendance value' },
-        { status: 400 },
-      );
+    if (!actor.canManage) {
+      const existing = await prisma.attendance.findUnique({
+        where: {
+          // eslint-disable-next-line
+          userId_meetingId: { userId: body.userId, meetingId: body.meetingId },
+        },
+        select: { status: true },
+      });
+      if (existing && existing.status !== 'PENDING') {
+        return NextResponse.json(
+          {
+            error:
+              'Attendance for this meeting is already recorded. Contact the Senate Operations Coordinator to change it.',
+          },
+          { status: 409 },
+        );
+      }
     }
 
     await AttendanceService.upsertAttendance(

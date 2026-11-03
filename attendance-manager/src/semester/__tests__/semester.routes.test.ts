@@ -1,5 +1,9 @@
+import {
+  STAFF_CAPABILITIES,
+  signInAsActor,
+  testActor,
+} from '@/utils/test-helpers';
 import { prisma } from '../../lib/prisma';
-import * as apiAuth from '@/utils/api-auth';
 import { SemesterService } from '../semester.service';
 import { GET as getCurrentSemesterRoute } from '@/app/api/semester/current/route';
 import { POST as createMeetingRoute } from '@/app/api/meeting/route';
@@ -18,11 +22,13 @@ function day(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
-function signInAs(roleType: 'EBOARD' | 'MEMBER') {
-  jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
-    user: { role: { roleType } } as any,
-    error: null,
-  });
+// 'staff' holds what the old EBOARD role did; 'member' only a roster seat.
+function signInAs(who: 'staff' | 'member') {
+  signInAsActor(
+    testActor({
+      capabilities: who === 'staff' ? STAFF_CAPABILITIES : ['roster'],
+    }),
+  );
 }
 
 function jsonRequest(method: string, body: unknown) {
@@ -69,10 +75,7 @@ describe('GET /api/semester/current', () => {
 
 describe('POST /api/meeting and PUT /api/meeting/[id]', () => {
   beforeAll(() => {
-    jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
-      user: { role: { roleType: 'EBOARD' } } as any,
-      error: null,
-    });
+    signInAsActor(testActor({ capabilities: STAFF_CAPABILITIES }));
   });
 
   it('assigns the semester for the meeting date on create', async () => {
@@ -177,10 +180,7 @@ describe('PUT /api/semester/[id]', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('returns 401 when logged out', async () => {
-    jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
-      user: null,
-      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-    });
+    signInAsActor(null);
     const res = await putDates(fallId, {
       startsOn: `${EDIT_YEAR}-09-01`,
       endsOn: `${EDIT_YEAR}-12-15`,
@@ -188,8 +188,8 @@ describe('PUT /api/semester/[id]', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 403 for a member', async () => {
-    signInAs('MEMBER');
+  it('returns 403 without manageSemesters', async () => {
+    signInAs('member');
     const res = await putDates(fallId, {
       startsOn: `${EDIT_YEAR}-09-01`,
       endsOn: `${EDIT_YEAR}-12-15`,
@@ -198,7 +198,7 @@ describe('PUT /api/semester/[id]', () => {
   });
 
   it('returns 400 for a date that does not exist', async () => {
-    signInAs('EBOARD');
+    signInAs('staff');
     const res = await putDates(fallId, {
       startsOn: `${EDIT_YEAR}-02-30`,
       endsOn: `${EDIT_YEAR}-12-15`,
@@ -207,7 +207,7 @@ describe('PUT /api/semester/[id]', () => {
   });
 
   it('returns 404 for an unknown semester', async () => {
-    signInAs('EBOARD');
+    signInAs('staff');
     const res = await putDates('no-such-semester', {
       startsOn: `${EDIT_YEAR}-09-01`,
       endsOn: `${EDIT_YEAR}-12-15`,
@@ -216,7 +216,7 @@ describe('PUT /api/semester/[id]', () => {
   });
 
   it('returns 409 when the new dates overlap another semester', async () => {
-    signInAs('EBOARD');
+    signInAs('staff');
     const res = await putDates(fallId, {
       startsOn: `${EDIT_YEAR}-04-01`,
       endsOn: `${EDIT_YEAR}-12-15`,
@@ -225,7 +225,7 @@ describe('PUT /api/semester/[id]', () => {
   });
 
   it('updates the dates and moves meetings that now fall inside them', async () => {
-    signInAs('EBOARD');
+    signInAs('staff');
     const res = await putDates(fallId, {
       startsOn: `${EDIT_YEAR}-05-03`,
       endsOn: `${EDIT_YEAR}-12-15`,

@@ -2,16 +2,16 @@ import { UserApiData } from '@/types';
 import React from 'react';
 
 interface AttendanceMembersProps {
-  eboardMembers: UserApiData[];
-  regularMembers: UserApiData[];
+  officerMembers: UserApiData[];
+  senatorMembers: UserApiData[];
   loading?: boolean;
 
   setDeleteUser: (userId: UserApiData | null) => void;
 }
 
 const AttendanceMembers: React.FC<AttendanceMembersProps> = ({
-  eboardMembers,
-  regularMembers,
+  officerMembers,
+  senatorMembers,
   loading = false,
   setDeleteUser,
 }) => {
@@ -31,11 +31,11 @@ const AttendanceMembers: React.FC<AttendanceMembersProps> = ({
 
   return (
     <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-      {/* Eboard Members */}
+      {/* Officers: on the roster through an SGA position other than senator */}
       <div className='bg-white rounded-2xl shadow-lg p-6 border border-gray-100'>
-        <h2 className='text-xl font-semibold text-gray-900 mb-4'>Eboard</h2>
+        <h2 className='text-xl font-semibold text-gray-900 mb-4'>Officers</h2>
         <div className='space-y-3 max-h-64 overflow-y-auto'>
-          {eboardMembers.map((member) => (
+          {officerMembers.map((member) => (
             <div
               key={member.userId}
               className='flex items-center space-x-3 p-3 bg-gray-50 rounded-lg'
@@ -62,11 +62,11 @@ const AttendanceMembers: React.FC<AttendanceMembersProps> = ({
         </div>
       </div>
 
-      {/* Regular Members */}
+      {/* Senators */}
       <div className='bg-white rounded-2xl shadow-lg p-6 border border-gray-100'>
-        <h2 className='text-xl font-semibold text-gray-900 mb-4'>Members</h2>
+        <h2 className='text-xl font-semibold text-gray-900 mb-4'>Senators</h2>
         <div className='space-y-3 max-h-64 overflow-y-auto'>
-          {regularMembers.map((member) => (
+          {senatorMembers.map((member) => (
             <div
               key={member.userId}
               className='flex items-center space-x-3 p-3 bg-gray-50 rounded-lg'

@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { AttendanceController } from '../attendance.controller';
 import { prisma } from '../../lib/prisma';
-import { semesterIdFor } from '@/utils/test-helpers';
+import {
+  createTestGroup,
+  deleteTestGroup,
+  semesterIdFor,
+} from '@/utils/test-helpers';
 import dotenv from 'dotenv';
 import { UsersService } from '@/users/users.service';
 import { MeetingService } from '@/meeting/meeting.service';
@@ -27,19 +31,18 @@ describe('AttendanceController', () => {
 
   beforeAll(async () => {
     // Test role
-    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    const role = await createTestGroup();
     roleId = role.roleId;
     // Test user
     const user = await prisma.user.create({
       data: {
         userId: 'test-attendance-user-1',
-        supabaseAuthId: 'test-supabase-auth-id-1',
+        sgauthUserId: 'test-sgauth-id-1',
         nuid: '001234569',
         email: 'testuser@example.com',
         firstName: 'Test',
         lastName: 'User',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUserId = user.userId;
@@ -47,13 +50,12 @@ describe('AttendanceController', () => {
     const user2 = await prisma.user.create({
       data: {
         userId: 'test-attendance-user-2',
-        supabaseAuthId: 'test-supabase-auth-id-2',
+        sgauthUserId: 'test-sgauth-id-2',
         nuid: '001234570',
         email: 'testuser2@example.com',
         firstName: 'Test2',
         lastName: 'User2',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUser2Id = user2.userId;
@@ -101,13 +103,12 @@ describe('AttendanceController', () => {
     const user3 = await prisma.user.create({
       data: {
         userId: 'test-attendance-user-3',
-        supabaseAuthId: 'test-supabase-auth-id-3',
+        sgauthUserId: 'test-sgauth-id-3',
         nuid: '001234571',
         email: 'testuser3@example.com',
         firstName: 'Test3',
         lastName: 'User3',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUser3Id = user3.userId;
@@ -160,7 +161,7 @@ describe('AttendanceController', () => {
     await UsersService.deleteUser(testUser2Id);
     await UsersService.deleteUser(testUser3Id);
 
-    await UsersService.deleteRole(roleId);
+    await deleteTestGroup(roleId);
   });
 
   it('should get attendance by userId', async () => {
@@ -287,18 +288,23 @@ describe('AttendanceController', () => {
     }
   });
 
-    it('roster edits preserve statuses', async () => {
+  it('roster edits preserve statuses', async () => {
     try {
       // Arrange: two members already on the roster with recorded statuses
       await prisma.attendance.createMany({
         data: [
           { userId: testUserId, meetingId: testMeeting3Id, status: 'PRESENT' },
-          { userId: testUser2Id, meetingId: testMeeting3Id, status: 'EXCUSED_ABSENCE' },
+          {
+            userId: testUser2Id,
+            meetingId: testMeeting3Id,
+            status: 'EXCUSED_ABSENCE',
+          },
         ],
       });
 
       const statuses = async () => {
-        const rows = await AttendanceController.getMeetingAttendance(testMeeting3Id);
+        const rows =
+          await AttendanceController.getMeetingAttendance(testMeeting3Id);
         return Object.fromEntries(rows.map((r) => [r.userId, r.status]));
       };
 
@@ -332,7 +338,9 @@ describe('AttendanceController', () => {
       ]);
       expect(await statuses()).toEqual(before);
     } finally {
-      await prisma.attendance.deleteMany({ where: { meetingId: testMeeting3Id } });
+      await prisma.attendance.deleteMany({
+        where: { meetingId: testMeeting3Id },
+      });
     }
   });
 
@@ -468,18 +476,17 @@ describe('getRemainingUnexcusedAbsences', () => {
     currentSemesterId = await semesterIdFor(new Date());
 
     // Create a new user for these tests
-    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    const role = await createTestGroup();
     roleId = role.roleId;
     const user4 = await prisma.user.create({
       data: {
         nuid: '001234572',
         userId: 'test-attendance-user-4',
-        supabaseAuthId: 'test-supabase-auth-id-4',
+        sgauthUserId: 'test-sgauth-id-4',
         email: 'testuser4@example.com',
         firstName: 'Test4',
         lastName: 'User4',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUser4Id = user4.userId;
@@ -488,12 +495,11 @@ describe('getRemainingUnexcusedAbsences', () => {
       data: {
         nuid: '001234573',
         userId: 'test-attendance-user-5',
-        supabaseAuthId: 'test-supabase-auth-id-5',
+        sgauthUserId: 'test-sgauth-id-5',
         email: 'testuser5@example.com',
         firstName: 'Test5',
         lastName: 'User5',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUser5Id = user5.userId;
@@ -603,7 +609,7 @@ describe('getRemainingUnexcusedAbsences', () => {
     await UsersService.deleteUser(testUser4Id);
     await UsersService.deleteUser(testUser5Id);
 
-    await UsersService.deleteRole(roleId);
+    await deleteTestGroup(roleId);
   });
 
   it('should return full allowance when user has no unexcused absences', async () => {
@@ -822,7 +828,8 @@ describe('getRemainingUnexcusedAbsences', () => {
     const before =
       await AttendanceController.getRemainingUnexcusedAbsences(testUser5Id);
     expect(before.fullBody.used).toBe(1);
-    const historyBefore = await AttendanceService.getUserAttendance(testUser5Id);
+    const historyBefore =
+      await AttendanceService.getUserAttendance(testUser5Id);
     expect(historyBefore.map((a) => a.meetingId)).toContain(meeting.meetingId);
 
     await MeetingService.softDeleteMeeting(meeting.meetingId);

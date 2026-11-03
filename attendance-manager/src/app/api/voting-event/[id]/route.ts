@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { VotingController } from '@/voting/voting.controller';
-import { requireAuth } from '@/utils/api-auth';
+import { actorId, requireAuth, requireCapability } from '@/utils/api-auth';
 
 /**
  * @swagger
@@ -23,6 +22,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
   const { id } = await params;
   return VotingController.getVotingEvent({ votingEventId: id });
 }
@@ -56,11 +57,12 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireAuth();
-  if (error) return error;
-  if (user.role.roleType !== 'EBOARD') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const auth = await requireCapability('hostVotes');
+  if (auth.error) return auth.error;
   const { id } = await params;
-  return VotingController.updateVotingEvent(request, { votingEventId: id });
+  return VotingController.updateVotingEvent(
+    request,
+    { votingEventId: id },
+    actorId(auth.actor),
+  );
 }

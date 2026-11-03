@@ -1,6 +1,13 @@
 import { RequestController } from '../request.controller';
 import { prisma } from '../../lib/prisma';
-import { semesterIdFor } from '@/utils/test-helpers';
+import {
+  STAFF_CAPABILITIES,
+  createTestGroup,
+  deleteTestGroup,
+  semesterIdFor,
+  signInAsActor,
+  testActor,
+} from '@/utils/test-helpers';
 import { POST } from '../../app/api/attendance/[attendanceId]/requests/route';
 import { UsersService } from '@/users/users.service';
 import { MeetingService } from '@/meeting/meeting.service';
@@ -13,6 +20,16 @@ import {
 } from '@/meeting/meetingDateTime';
 
 jest.setTimeout(20000);
+
+// The request routes need a signed-in user; this stands in for the SGAuth one.
+function signInAs(userId: string, staff = false) {
+  return signInAsActor(
+    testActor({
+      userId,
+      capabilities: staff ? STAFF_CAPABILITIES : ['roster'],
+    }),
+  );
+}
 
 interface Attendance {
   attendanceId: string;
@@ -43,20 +60,19 @@ describe('RequestController', () => {
 
   beforeAll(async () => {
     // Create a test role
-    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    const role = await createTestGroup();
     testRoleId = role.roleId;
 
     // Create a test user
     const user = await prisma.user.create({
       data: {
         userId: 'test-request-user-1',
-        supabaseAuthId: 'test-supabase-auth-id-1',
+        sgauthUserId: 'test-sgauth-id-1',
         nuid: '001234567',
         email: 'requestuser@example.com',
         firstName: 'Request',
         lastName: 'User',
-        roleId: testRoleId,
-        password: null,
+        positionKeys: [testRoleId],
       },
     });
     testUserId = user.userId;
@@ -65,13 +81,12 @@ describe('RequestController', () => {
     const secondUser = await prisma.user.create({
       data: {
         userId: 'test-request-user-2',
-        supabaseAuthId: 'test-supabase-auth-id-2',
+        sgauthUserId: 'test-sgauth-id-2',
         nuid: '001234568',
         email: 'otherrequestuser@example.com',
         firstName: 'Other',
         lastName: 'Request',
-        roleId: testRoleId,
-        password: null,
+        positionKeys: [testRoleId],
       },
     });
     secondTestUserId = secondUser.userId;
@@ -143,7 +158,7 @@ describe('RequestController', () => {
     await MeetingService.deleteMeeting(testMeetingId);
     await UsersService.deleteUser(secondTestUserId);
     await UsersService.deleteUser(testUserId);
-    await UsersService.deleteRole(testRoleId);
+    await deleteTestGroup(testRoleId);
   });
 
   it('should get a request by requestId', async () => {
@@ -512,19 +527,18 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
 
   beforeAll(async () => {
     // Create test data for route endpoint tests
-    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    const role = await createTestGroup();
     routeTestRoleId = role.roleId;
 
     const user = await prisma.user.create({
       data: {
         nuid: '001234570',
         userId: 'test-request-user-3',
-        supabaseAuthId: 'test-supabase-auth-id-3',
+        sgauthUserId: 'test-sgauth-id-3',
         email: 'requestrouteuser@example.com',
         firstName: 'Request',
         lastName: 'Route',
-        roleId: routeTestRoleId,
-        password: null,
+        positionKeys: [routeTestRoleId],
       },
     });
     routeTestUserId = user.userId;
@@ -552,11 +566,39 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     routeTestAttendanceId = attendance.attendanceId;
   });
 
+  // The attendance belongs to routeTestUserId, who files the requests.
+  beforeEach(() => {
+    signInAs(routeTestUserId);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("returns 403 for a request on someone else's attendance", async () => {
+    signInAs('some-other-member');
+    const response = await POST(
+      new Request(
+        `http://localhost/api/attendance/${routeTestAttendanceId}/requests`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reason: 'Not mine',
+            attendanceMode: 'ONLINE',
+          }),
+        },
+      ),
+      { params: Promise.resolve({ attendanceId: routeTestAttendanceId }) },
+    );
+    expect(response.status).toBe(403);
+  });
+
   afterAll(async () => {
     await AttendanceService.deleteAttendance(routeTestAttendanceId);
     await MeetingService.deleteMeeting(routeTestMeetingId);
     await UsersService.deleteUser(routeTestUserId);
-    await UsersService.deleteRole(routeTestRoleId);
+    await deleteTestGroup(routeTestRoleId);
   });
 
   it('should create a request successfully via POST endpoint', async () => {
@@ -926,6 +968,14 @@ describe('/api/requests/[id] with a request that does not exist', () => {
   const params = () => ({ params: Promise.resolve({ id: missingId }) });
   const url = `http://localhost/api/requests/${missingId}`;
 
+  beforeEach(() => {
+    signInAs('request-404-reader', true);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('GET returns 404', async () => {
     const { GET } = await import('../../app/api/requests/[id]/route');
     const response = await GET(new Request(url), params());
@@ -993,18 +1043,17 @@ describe('Requests for soft-deleted meetings', () => {
   };
 
   beforeAll(async () => {
-    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    const role = await createTestGroup();
     roleId = role.roleId;
     await prisma.user.create({
       data: {
         userId,
-        supabaseAuthId: userId,
+        sgauthUserId: userId,
         nuid: '006600001',
         email: 'deletedmeetingrequests@example.com',
         firstName: 'Deleted',
         lastName: 'Meeting',
-        roleId,
-        password: null,
+        positionKeys: [roleId],
       },
     });
 
@@ -1032,7 +1081,7 @@ describe('Requests for soft-deleted meetings', () => {
       where: { meetingId: { in: [deletedMeetingId, keptMeetingId] } },
     });
     await prisma.user.deleteMany({ where: { userId } });
-    await prisma.role.delete({ where: { roleId } });
+    await deleteTestGroup(roleId);
   });
 
   it('should leave requests for a deleted meeting out of getAllRequests', async () => {

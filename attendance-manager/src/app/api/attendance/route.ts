@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AttendanceController } from '../../../attendance/attendance.controller';
+import { requireCapability } from '@/utils/api-auth';
 
 /**
  * Posts an Attendance
@@ -9,6 +10,8 @@ import { AttendanceController } from '../../../attendance/attendance.controller'
  * @openapi
  */
 export async function POST(req: NextRequest) {
+  const { error } = await requireCapability('manageAttendance');
+  if (error) return error;
   try {
     const data = await req.json();
     const attendance = await AttendanceController.createAttendance(data);

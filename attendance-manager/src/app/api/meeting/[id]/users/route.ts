@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MeetingController } from '@/meeting/meeting.controller';
 import { AttendanceController } from '@/attendance/attendance.controller';
-import { requireAuth } from '@/utils/api-auth';
+import { requireCapability } from '@/utils/api-auth';
 /**
  * @swagger
  * /api/users:
@@ -15,6 +15,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Full user rows, NUID included.
+  const { error } = await requireCapability('readRecords');
+  if (error) return error;
   const { id } = await params;
   return MeetingController.getUsers({ meetingId: id });
 }
@@ -23,11 +26,8 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireAuth();
+  const { error } = await requireCapability('manageAttendance');
   if (error) return error;
-  if (user.role.roleType !== 'EBOARD') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const { id } = await params; // necessary
   const body = await request.json();
@@ -43,11 +43,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireAuth();
+  const { error } = await requireCapability('manageAttendance');
   if (error) return error;
-  if (user.role.roleType !== 'EBOARD') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const { id } = await params;
   const body = await request.json();

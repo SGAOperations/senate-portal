@@ -1,6 +1,6 @@
 import { requireAuth } from '@/utils/api-auth';
-import { VotingRecordController } from '@/voting-record/voting-record.controller';
 import { NextResponse } from 'next/server';
+import { VotingRecordController } from '@/voting-record/voting-record.controller';
 
 /**
  * @swagger
@@ -21,13 +21,13 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ votingEventId: string }> },
 ) {
-  const { user } = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: 'Invalid credentials' }, { status: 403 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
   const { votingEventId } = await params;
+  // Staff without a profile have no vote to have cast.
+  if (!auth.actor.user) return NextResponse.json({ hasVoted: false });
   return VotingRecordController.getHasUserVoted({
     votingEventId,
-    userId: user?.userId,
+    userId: auth.actor.user.userId,
   });
 }

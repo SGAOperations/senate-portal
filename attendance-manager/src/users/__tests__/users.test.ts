@@ -1,28 +1,22 @@
-import { UsersService } from '../users.service';
+import { UsersService, isOnRoster } from '../users.service';
 import { UsersController } from '../users.controller';
 import { prisma } from '../../lib/prisma';
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { RoleType } from '@/generated/prisma';
+import {
+  createTestGroup,
+  deleteTestGroup,
+  sgauthSession,
+} from '@/utils/test-helpers';
 
 jest.setTimeout(20000);
 
-// Mock Supabase for signup tests
-jest.mock('@/lib/supabase-server', () => ({
-  createServerSupabaseClient: jest.fn(),
+// SGAuth: every route resolves the signed-in user from this mock session.
+const mockGetSession = jest.fn();
+jest.mock('@nusgaops/sgauth', () => ({
+  ...jest.requireActual('@nusgaops/sgauth'),
+  createSgauthClient: () => ({ getSession: () => mockGetSession() }),
 }));
-
-// Mock UsersService for signup tests
-jest.mock('../users.service', () => {
-  const actual = jest.requireActual('../users.service');
-  return {
-    ...actual,
-    UsersService: {
-      ...actual.UsersService,
-      getRoleIdByRoleType: jest.fn(),
-    },
-  };
-});
+jest.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
 const USERS_TEST_NUIDS = [
   '001234567',
@@ -48,17 +42,17 @@ const USERS_TEST_NUIDS = [
   '006000002',
 ];
 
-const USERS_TEST_SUPABASE_IDS = [
-  'test-supabase-auth-id-users-1',
-  'test-supabase-auth-id-users-2',
-  'test-supabase-auth-id-users-3',
-  'test-supabase-auth-id-users-4',
-  'test-supabase-auth-id-users-5',
-  'test-supabase-auth-id-users-validate',
-  'test-supabase-auth-id-users-route',
-  'test-supabase-auth-id-users-eboard',
-  'test-supabase-auth-id-users-signup-1',
-  'test-supabase-auth-id-users-signup-2',
+const USERS_TEST_SGAUTH_IDS = [
+  'test-sgauth-id-users-1',
+  'test-sgauth-id-users-2',
+  'test-sgauth-id-users-3',
+  'test-sgauth-id-users-4',
+  'test-sgauth-id-users-5',
+  'test-sgauth-id-users-validate',
+  'test-sgauth-id-users-route',
+  'test-sgauth-id-users-eboard',
+  'test-sgauth-id-users-signup-1',
+  'test-sgauth-id-users-signup-2',
 ];
 
 async function cleanupUsersAndAttendanceByNuids(nuids: string[]) {
@@ -92,9 +86,9 @@ async function cleanupUsersAndAttendanceByNuids(nuids: string[]) {
   });
 }
 
-async function cleanupUsersBySupabaseAuthIds(supabaseAuthIds: string[]) {
+async function cleanupUsersBySgauthIds(sgauthUserIds: string[]) {
   const users = await prisma.user.findMany({
-    where: { supabaseAuthId: { in: supabaseAuthIds } },
+    where: { sgauthUserId: { in: sgauthUserIds } },
     select: { nuid: true },
   });
 
@@ -107,46 +101,58 @@ describe('UsersService', () => {
   beforeAll(async () => {
     // Clean up any leftover data from previous runs
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
+    await cleanupUsersBySgauthIds(USERS_TEST_SGAUTH_IDS);
 
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     testRoleId = role.roleId;
 
     await UsersService.createUser({
       userId: 'test-user-id-1',
-      supabaseAuthId: USERS_TEST_SUPABASE_IDS[0],
       nuid: USERS_TEST_NUIDS[0],
       email: 'jdoe@northeastern.edu',
       firstName: 'John',
       lastName: 'Doe',
-      roleId: testRoleId,
-      password: null,
+      positionKeys: [testRoleId],
     });
   });
 
   afterAll(async () => {
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
-    await UsersService.deleteRole(testRoleId);
+    await cleanupUsersBySgauthIds(USERS_TEST_SGAUTH_IDS);
+    await deleteTestGroup(testRoleId);
   });
 
-  it('should fetch users by role type', async () => {
-    const users = await UsersService.getUsersByRole('MEMBER');
-    expect(users.length).toBeGreaterThan(0);
-    expect(users[0].role.roleType).toBe('MEMBER');
+  it('keeps users who have not signed in since SGAuth on the roster', async () => {
+    const roster = await UsersService.getRoster();
+    expect(roster.some((user) => user.userId === 'test-user-id-1')).toBe(true);
+  });
+
+  it('puts a user on the roster by their recorded positions', async () => {
+    const synced = { positionsSyncedAt: new Date() };
+    expect(isOnRoster({ ...synced, positionKeys: ['senator'] })).toBe(true);
+    expect(
+      isOnRoster({
+        ...synced,
+        positionKeys: ['vice-president-of-campus-affairs'],
+      }),
+    ).toBe(true);
+    expect(
+      isOnRoster({ ...synced, positionKeys: ['speaker-of-the-senate'] }),
+    ).toBe(false);
+    expect(isOnRoster({ ...synced, positionKeys: [] })).toBe(false);
+    expect(isOnRoster({ positionsSyncedAt: null, positionKeys: [] })).toBe(
+      true,
+    );
   });
 
   it('should create a new user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-2',
-      supabaseAuthId: USERS_TEST_SUPABASE_IDS[1],
       nuid: USERS_TEST_NUIDS[1],
       email: 'jdoe2@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
-      roleId: testRoleId,
+      positionKeys: [testRoleId],
     });
 
     expect(newUser).toBeDefined();
@@ -168,12 +174,11 @@ describe('UsersService', () => {
   it('should update a user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-4',
-      supabaseAuthId: USERS_TEST_SUPABASE_IDS[2],
       nuid: USERS_TEST_NUIDS[2],
       email: 'jdoe3@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
-      roleId: testRoleId,
+      positionKeys: [testRoleId],
     });
 
     const updatedUser = await UsersService.updateUser(newUser.userId, {
@@ -190,12 +195,11 @@ describe('UsersService', () => {
   it('should delete a user', async () => {
     const newUser = await UsersService.createUser({
       userId: 'test-user-id-5',
-      supabaseAuthId: USERS_TEST_SUPABASE_IDS[3],
       nuid: USERS_TEST_NUIDS[3],
       email: 'jdoe4@northeastern.edu',
       firstName: 'Jane',
       lastName: 'Doe',
-      roleId: testRoleId,
+      positionKeys: [testRoleId],
     });
     await UsersService.deleteUser(newUser.userId);
     const deletedUser = await UsersService.getUserById(newUser.userId);
@@ -242,22 +246,19 @@ describe('UsersController.createUser', () => {
 
   beforeAll(async () => {
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
-    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    await cleanupUsersBySgauthIds(USERS_TEST_SGAUTH_IDS);
+    const role = await createTestGroup();
     createUserTestRoleId = role.roleId;
   });
 
   afterAll(async () => {
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
-    await UsersService.deleteRole(createUserTestRoleId);
+    await cleanupUsersBySgauthIds(USERS_TEST_SGAUTH_IDS);
+    await deleteTestGroup(createUserTestRoleId);
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (UsersService.getRoleIdByRoleType as jest.Mock).mockResolvedValue(
-      createUserTestRoleId,
-    );
   });
 
   // --- rejected bodies ---------------------------------------------------
@@ -322,31 +323,21 @@ describe('UsersController.createUser', () => {
     );
   });
 
-  // --- password ----------------------------------------------------------
-
-  it('preserves a password when one is supplied', async () => {
-    const response = await postCreateUser(
-      validBody({ password: 'a-supplied-password' }),
-    );
-
-    expect(response.status).toBe(201);
-    const data = await response.json();
-    expect(data.password).toBe('a-supplied-password');
-
-    const stored = await prisma.user.findUnique({
-      where: { userId: data.userId },
-    });
-    expect(stored?.password).toBe('a-supplied-password');
-  });
+  // --- fields the caller may not set -------------------------------------
 
   it.each([
-    ['omitted', {}],
-    ['explicitly null', { password: null }],
-  ])('stores a null password when it is %s', async (_label, passwordField) => {
-    const response = await postCreateUser(validBody({ ...passwordField }));
+    ['password', { password: 'a-supplied-password' }],
+    ['sgauthUserId', { sgauthUserId: 'someone-elses-sgauth-id' }],
+    ['roleId', { roleId: 'eboard-role-id' }],
+    ['positionKeys', { positionKeys: ['speaker-of-the-senate'] }],
+  ])('rejects a body that sets %s', async (_label, field) => {
+    const body = validBody(field);
+    const response = await postCreateUser(body);
 
-    expect(response.status).toBe(201);
-    expect((await response.json()).password).toBeNull();
+    expect(response.status).toBe(400);
+    expect(
+      await prisma.user.findUnique({ where: { userId: body.userId } }),
+    ).toBeNull();
   });
 
   // --- happy path --------------------------------------------------------
@@ -365,7 +356,7 @@ describe('UsersController.createUser', () => {
     expect(data.lastName).toBe(body.lastName);
 
     // server-decided fields are present on the response
-    expect(data.roleId).toBe(createUserTestRoleId);
+    expect(data.positionKeys).toEqual([]);
     expect(data.createdAt).toBeDefined();
   });
 });
@@ -376,30 +367,26 @@ describe('UsersController.validateNuid', () => {
 
   beforeAll(async () => {
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    await cleanupUsersBySgauthIds(USERS_TEST_SGAUTH_IDS);
+    const role = await createTestGroup();
     testRoleId = role.roleId;
 
     // Create a test user for validation
     const user = await UsersService.createUser({
       userId: 'test-user-id-validate-1',
-      supabaseAuthId: USERS_TEST_SUPABASE_IDS[0],
       nuid: USERS_TEST_NUIDS[0],
       email: 'jdoe@northeastern.edu',
       firstName: 'John',
       lastName: 'Doe',
-      roleId: testRoleId,
-      password: null,
+      positionKeys: [testRoleId],
     });
     testUserId = user.userId;
   });
 
   afterAll(async () => {
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
-    await UsersService.deleteRole(testRoleId);
+    await cleanupUsersBySgauthIds(USERS_TEST_SGAUTH_IDS);
+    await deleteTestGroup(testRoleId);
   });
 
   it('should validate correct NUID and name combination', async () => {
@@ -486,355 +473,408 @@ describe('UsersController.validateNuid', () => {
   });
 });
 
-describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
-  let routeTestRoleId: string;
-  let routeTestUserId: string;
-  let routeTestSupabaseAuthId: string;
-  let eboardRoleId: string | undefined;
+// --- signed-in routes -------------------------------------------------------
+
+function signInAs(id: string, email: string, positions: string[] = []) {
+  mockGetSession.mockResolvedValue(sgauthSession({ id, email, positions }));
+}
+
+function signOut() {
+  mockGetSession.mockResolvedValue(null);
+}
+
+function jsonRequest(url: string, method: string, body: unknown) {
+  return new Request(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+describe('signed-in user routes', () => {
+  let memberRoleId: string;
+  let memberId: string;
+  let otherMemberId: string;
+  let eboardId: string;
+
+  const MEMBER_SGAUTH = USERS_TEST_SGAUTH_IDS[6];
+  const OTHER_SGAUTH = USERS_TEST_SGAUTH_IDS[7];
+  const EBOARD_SGAUTH = USERS_TEST_SGAUTH_IDS[8];
 
   beforeAll(async () => {
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
-    // Create a test role
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
-    routeTestRoleId = role.roleId;
+    await cleanupUsersBySgauthIds(USERS_TEST_SGAUTH_IDS);
+    memberRoleId = (await createTestGroup()).roleId;
 
-    // Create a test user with supabaseAuthId
-    const user = await prisma.user.create({
-      data: {
-        supabaseAuthId: USERS_TEST_SUPABASE_IDS[6],
-        nuid: USERS_TEST_NUIDS[17],
-        email: 'routeuser@example.com',
-        firstName: 'Route',
-        lastName: 'User',
-        roleId: routeTestRoleId,
-        password: null,
-      },
-    });
-    routeTestUserId = user.userId;
-    routeTestSupabaseAuthId = user.supabaseAuthId!;
+    memberId = (
+      await prisma.user.create({
+        data: {
+          sgauthUserId: MEMBER_SGAUTH,
+          nuid: USERS_TEST_NUIDS[16],
+          email: 'member-route@example.com',
+          firstName: 'Member',
+          lastName: 'Route',
+          positionKeys: [memberRoleId],
+        },
+      })
+    ).userId;
+    otherMemberId = (
+      await prisma.user.create({
+        data: {
+          sgauthUserId: OTHER_SGAUTH,
+          nuid: USERS_TEST_NUIDS[17],
+          email: 'other-route@example.com',
+          firstName: 'Other',
+          lastName: 'Route',
+          positionKeys: [memberRoleId],
+        },
+      })
+    ).userId;
+    eboardId = (
+      await prisma.user.create({
+        data: {
+          sgauthUserId: EBOARD_SGAUTH,
+          nuid: USERS_TEST_NUIDS[18],
+          email: 'eboard-route@example.com',
+          firstName: 'Eboard',
+          lastName: 'Route',
+          positionKeys: [memberRoleId],
+        },
+      })
+    ).userId;
   });
 
   afterAll(async () => {
-    await cleanupUsersBySupabaseAuthIds([
-      routeTestSupabaseAuthId,
-      USERS_TEST_SUPABASE_IDS[7],
-    ]);
-    if (eboardRoleId) {
-      await UsersService.deleteRole(eboardRoleId);
-    }
-    await UsersService.deleteRole(routeTestRoleId);
-  });
-
-  it('should fetch user by supabaseAuthId successfully', async () => {
-    const { GET } =
-      await import('../../app/api/users/by-supabase-id/[supabaseAuthId]/route');
-    const req = new Request(
-      `http://localhost/api/users/by-supabase-id/${routeTestSupabaseAuthId}`,
-    );
-
-    const params = Promise.resolve({ supabaseAuthId: routeTestSupabaseAuthId });
-    const response = await GET(req, { params });
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data).toBeDefined();
-    expect(data.userId).toBe(routeTestUserId);
-    expect(data.supabaseAuthId).toBe(routeTestSupabaseAuthId);
-    expect(data.email).toBe('routeuser@example.com');
-    expect(data.firstName).toBe('Route');
-    expect(data.lastName).toBe('User');
-    expect(data.nuid).toBe(USERS_TEST_NUIDS[17]);
-    expect(data.role).toBeDefined();
-    expect(data.role.roleType).toBe('MEMBER');
-  });
-
-  it('should return 404 when user is not found', async () => {
-    const { GET } =
-      await import('../../app/api/users/by-supabase-id/[supabaseAuthId]/route');
-    const req = new Request(
-      'http://localhost/api/users/by-supabase-id/non-existent-id',
-    );
-
-    const params = Promise.resolve({ supabaseAuthId: 'non-existent-id' });
-    const response = await GET(req, { params });
-    const data = await response.json();
-
-    expect(response.status).toBe(404);
-    expect(data.error).toBe('User not found');
-  });
-
-  it('should include role information in response', async () => {
-    const { GET } =
-      await import('../../app/api/users/by-supabase-id/[supabaseAuthId]/route');
-    // Create a user with EBOARD role
-    const eboardRole = await prisma.role.create({
-      data: { roleType: 'EBOARD' },
-    });
-    eboardRoleId = eboardRole.roleId;
-
-    await prisma.user.create({
-      data: {
-        supabaseAuthId: USERS_TEST_SUPABASE_IDS[7],
-        nuid: USERS_TEST_NUIDS[18],
-        email: 'eboardroute@example.com',
-        firstName: 'Eboard',
-        lastName: 'Route',
-        roleId: eboardRole.roleId,
-        password: null,
-      },
-    });
-
-    const req = new Request(
-      `http://localhost/api/users/by-supabase-id/${USERS_TEST_SUPABASE_IDS[7]}`,
-    );
-
-    const params = Promise.resolve({
-      supabaseAuthId: USERS_TEST_SUPABASE_IDS[7],
-    });
-    const response = await GET(req, { params });
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data.role).toBeDefined();
-    expect(data.role.roleId).toBe(eboardRole.roleId);
-    expect(data.role.roleType).toBe('EBOARD');
-  });
-});
-
-describe('POST /api/auth/signup', () => {
-  let signupTestRoleId: string;
-
-  beforeAll(async () => {
     await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
-    // Create a test role
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
-    signupTestRoleId = role.roleId;
-
-    // Mock UsersService.getRoleIdByRoleType
-    (UsersService.getRoleIdByRoleType as jest.Mock).mockResolvedValue(
-      signupTestRoleId,
-    );
-  });
-
-  afterAll(async () => {
-    await cleanupUsersBySupabaseAuthIds([...USERS_TEST_SUPABASE_IDS]);
-    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
-    await UsersService.deleteRole(signupTestRoleId);
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('should create a new user successfully', async () => {
-    const { POST } = await import('../../app/api/auth/signup/route');
-    const mockSupabaseClient = {
-      auth: {
-        signUp: jest.fn().mockResolvedValue({
-          data: {
-            user: {
-              id: USERS_TEST_SUPABASE_IDS[8],
-              email: 'newuser@example.com',
-            },
-          },
-          error: null,
-        }),
+    await cleanupUsersBySgauthIds(USERS_TEST_SGAUTH_IDS);
+    await prisma.user.deleteMany({
+      where: {
+        email: { in: ['legacy-route@example.com', 'new-route@example.com'] },
       },
-    };
-
-    (createServerSupabaseClient as jest.Mock).mockResolvedValue(
-      mockSupabaseClient,
-    );
-
-    const requestBody = {
-      email: 'newuser@example.com',
-      password: 'password123',
-      firstName: 'New',
-      lastName: 'User',
-      nuid: USERS_TEST_NUIDS[19],
-    };
-
-    const req = new Request('http://localhost/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
     });
-
-    const response = await POST(req);
-    const data = await response.json();
-
-    expect(response.status).toBe(201);
-    expect(data.message).toBe('User created successfully');
-    expect(data.user).toBeDefined();
-    expect(data.user.email).toBe('newuser@example.com');
-    expect(data.user.supabaseAuthId).toBe(USERS_TEST_SUPABASE_IDS[8]);
-    expect(data.user.firstName).toBe('New');
-    expect(data.user.lastName).toBe('User');
-    expect(data.user.nuid).toBe(USERS_TEST_NUIDS[19]);
-    expect(data.user.roleId).toBe(signupTestRoleId);
-
-    // Verify user was created in database
-    const createdUser = await prisma.user.findUnique({
-      where: { supabaseAuthId: USERS_TEST_SUPABASE_IDS[8] },
-    });
-    expect(createdUser).toBeDefined();
-    expect(createdUser?.email).toBe('newuser@example.com');
+    await deleteTestGroup(memberRoleId);
   });
 
-  it('should return 400 when required fields are missing', async () => {
-    const { POST } = await import('../../app/api/auth/signup/route');
-    const requestBody = {
-      email: 'test@example.com',
-      // Missing password, firstName, lastName, nuid
-    };
-
-    const req = new Request('http://localhost/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+  describe('GET /api/users/me', () => {
+    it('returns 401 when signed out', async () => {
+      const { GET } = await import('../../app/api/users/me/route');
+      signOut();
+      expect((await GET()).status).toBe(401);
     });
 
-    const response = await POST(req);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('Missing required fields');
-  });
-
-  it('should return 400 when Supabase signup fails', async () => {
-    const { POST } = await import('../../app/api/auth/signup/route');
-    const mockSupabaseClient = {
-      auth: {
-        signUp: jest.fn().mockResolvedValue({
-          data: { user: null },
-          error: { message: 'Email already registered' },
-        }),
-      },
-    };
-
-    (createServerSupabaseClient as jest.Mock).mockResolvedValue(
-      mockSupabaseClient,
-    );
-
-    const requestBody = {
-      email: 'existing@example.com',
-      password: 'password123',
-      firstName: 'Existing',
-      lastName: 'User',
-      nuid: USERS_TEST_NUIDS[20],
-    };
-
-    const req = new Request('http://localhost/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    });
-
-    const response = await POST(req);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('Email already registered');
-  });
-
-  it('should hide internal database errors behind a generic message', async () => {
-    const { POST } = await import('../../app/api/auth/signup/route');
-    const mockSupabaseClient = {
-      auth: {
-        signUp: jest.fn().mockResolvedValue({
-          data: {
-            user: {
-              id: USERS_TEST_SUPABASE_IDS[9],
-              email: 'dbfailure@example.com',
-            },
-          },
-          error: null,
-        }),
-      },
-    };
-    (createServerSupabaseClient as jest.Mock).mockResolvedValue(
-      mockSupabaseClient,
-    );
-    const createSpy = jest
-      .spyOn(prisma.user, 'create')
-      .mockRejectedValue(new Error('internal details'));
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-    try {
-      const req = new Request('http://localhost/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: 'dbfailure@example.com',
-          password: 'password123',
-          firstName: 'Db',
-          lastName: 'Failure',
-          nuid: USERS_TEST_NUIDS[20],
-        }),
-      });
-
-      const response = await POST(req);
+    it('returns the profile, without NUID, and what they may do', async () => {
+      const { GET } = await import('../../app/api/users/me/route');
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      const response = await GET();
       const data = await response.json();
 
-      expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to create account. Please try again.');
-      expect(JSON.stringify(data)).not.toContain('internal details');
-      // the real error is still logged on the server
-      expect(errorSpy).toHaveBeenCalled();
-    } finally {
-      createSpy.mockRestore();
-      errorSpy.mockRestore();
-    }
-  });
-
-  it('should default to MEMBER role when roleId is not provided', async () => {
-    const { POST } = await import('../../app/api/auth/signup/route');
-    const mockSupabaseClient = {
-      auth: {
-        signUp: jest.fn().mockResolvedValue({
-          data: {
-            user: {
-              id: USERS_TEST_SUPABASE_IDS[9],
-              email: 'member@example.com',
-            },
-          },
-          error: null,
-        }),
-      },
-    };
-
-    (createServerSupabaseClient as jest.Mock).mockResolvedValue(
-      mockSupabaseClient,
-    );
-
-    const requestBody = {
-      email: 'member@example.com',
-      password: 'password123',
-      firstName: 'Member',
-      lastName: 'User',
-      nuid: USERS_TEST_NUIDS[20],
-      // roleId not provided
-    };
-
-    const req = new Request('http://localhost/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+      expect(response.status).toBe(200);
+      expect(data.user.userId).toBe(memberId);
+      expect(data.user.capabilities.sort()).toEqual(['roster', 'vote']);
+      expect(data.user.nuid).toBeUndefined();
     });
 
-    const response = await POST(req);
-    const data = await response.json();
+    it('links an existing row by email on first SGAuth sign-in', async () => {
+      const { GET } = await import('../../app/api/users/me/route');
+      const legacy = await prisma.user.create({
+        data: {
+          nuid: USERS_TEST_NUIDS[15],
+          email: 'legacy-route@example.com',
+          firstName: 'Legacy',
+          lastName: 'Route',
+          positionKeys: [memberRoleId],
+        },
+      });
+      signInAs(USERS_TEST_SGAUTH_IDS[5], 'Legacy-Route@Example.com', [
+        'senator',
+      ]);
+      const response = await GET();
 
-    expect(response.status).toBe(201);
-    expect(data.user.roleId).toBe(signupTestRoleId);
-    expect(UsersService.getRoleIdByRoleType).toHaveBeenCalledWith(
-      RoleType.MEMBER,
-    );
+      expect(response.status).toBe(200);
+      expect((await response.json()).user.userId).toBe(legacy.userId);
+      const stored = await prisma.user.findUnique({
+        where: { userId: legacy.userId },
+      });
+      expect(stored?.sgauthUserId).toBe(USERS_TEST_SGAUTH_IDS[5]);
+    });
+
+    it('never relinks a row already linked to another SGAuth account', async () => {
+      const { GET } = await import('../../app/api/users/me/route');
+      signInAs('attacker-sgauth-id', 'member-route@example.com', ['senator']);
+      const response = await GET();
+
+      expect(response.status).toBe(404);
+      const stored = await prisma.user.findUnique({
+        where: { userId: memberId },
+      });
+      expect(stored?.sgauthUserId).toBe(MEMBER_SGAUTH);
+    });
+  });
+
+  describe('POST /api/auth/register', () => {
+    const register = async (body: unknown) => {
+      const { POST } = await import('../../app/api/auth/register/route');
+      return POST(
+        jsonRequest('http://localhost/api/auth/register', 'POST', body),
+      );
+    };
+
+    it('returns 401 when signed out', async () => {
+      signOut();
+      expect(
+        (
+          await register({
+            nuid: USERS_TEST_NUIDS[14],
+            firstName: 'New',
+            lastName: 'Route',
+          })
+        ).status,
+      ).toBe(401);
+    });
+
+    it('rejects positions in the body instead of honouring them', async () => {
+      signInAs(USERS_TEST_SGAUTH_IDS[9], 'new-route@example.com', ['senator']);
+      const response = await register({
+        nuid: USERS_TEST_NUIDS[14],
+        firstName: 'New',
+        lastName: 'Route',
+        positionKeys: ['speaker-of-the-senate'],
+      });
+      expect(response.status).toBe(400);
+    });
+
+    it('creates a profile keyed by the session, with its email and positions', async () => {
+      signInAs(USERS_TEST_SGAUTH_IDS[9], 'new-route@example.com', ['senator']);
+      const response = await register({
+        nuid: USERS_TEST_NUIDS[14],
+        firstName: 'New',
+        lastName: 'Route',
+      });
+      expect(response.status).toBe(201);
+
+      const created = await prisma.user.findUnique({
+        where: { sgauthUserId: USERS_TEST_SGAUTH_IDS[9] },
+      });
+      expect(created?.email).toBe('new-route@example.com');
+      expect(created?.positionKeys).toEqual(['senator']);
+    });
+
+    it('returns 409 for someone who already has a profile', async () => {
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      const response = await register({
+        nuid: USERS_TEST_NUIDS[13],
+        firstName: 'Member',
+        lastName: 'Route',
+      });
+      expect(response.status).toBe(409);
+    });
+  });
+
+  describe('PUT /api/users/[id]', () => {
+    const put = async (id: string, body: unknown) => {
+      const { PUT } = await import('../../app/api/users/[id]/route');
+      return PUT(jsonRequest(`http://localhost/api/users/${id}`, 'PUT', body), {
+        params: Promise.resolve({ id }),
+      });
+    };
+
+    it('returns 401 when signed out', async () => {
+      signOut();
+      expect((await put(memberId, { firstName: 'Hacked' })).status).toBe(401);
+    });
+
+    it('forbids anyone but a superadmin, even a member editing themselves', async () => {
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect((await put(memberId, { firstName: 'Hacked' })).status).toBe(403);
+      signInAs('test-sgauth-id-users-speaker', 'speaker@example.com', [
+        'speaker-of-the-senate',
+      ]);
+      expect((await put(memberId, { firstName: 'Hacked' })).status).toBe(403);
+      const stored = await prisma.user.findUnique({
+        where: { userId: memberId },
+      });
+      expect(stored?.firstName).toBe('Member');
+    });
+
+    it('rejects positionKeys even from a superadmin', async () => {
+      signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
+        'digital-innovation-manager',
+      ]);
+      expect(
+        (await put(memberId, { positionKeys: ['speaker-of-the-senate'] }))
+          .status,
+      ).toBe(400);
+    });
+
+    it('rejects sgauthUserId even from a superadmin', async () => {
+      signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
+        'digital-innovation-manager',
+      ]);
+      expect(
+        (await put(otherMemberId, { sgauthUserId: EBOARD_SGAUTH })).status,
+      ).toBe(400);
+      const stored = await prisma.user.findUnique({
+        where: { userId: otherMemberId },
+      });
+      expect(stored?.sgauthUserId).toBe(OTHER_SGAUTH);
+    });
+
+    it('lets a superadmin change a name', async () => {
+      signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
+        'digital-innovation-manager',
+      ]);
+      const response = await put(otherMemberId, { firstName: 'Renamed' });
+      expect(response.status).toBe(200);
+      expect((await response.json()).firstName).toBe('Renamed');
+    });
+  });
+
+  describe('member lookups (staff capabilities)', () => {
+    it('GET /api/users is Executive Board only', async () => {
+      const { GET } = await import('../../app/api/users/route');
+      signOut();
+      expect((await GET()).status).toBe(401);
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect((await GET()).status).toBe(403);
+      signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
+        'digital-innovation-manager',
+      ]);
+      expect((await GET()).status).toBe(200);
+    });
+
+    it('GET /api/users/get-user-by-nuid is Executive Board only', async () => {
+      const { GET } =
+        await import('../../app/api/users/get-user-by-nuid/[nuid]/route');
+      const call = () =>
+        GET(new Request('http://localhost'), {
+          params: Promise.resolve({ nuid: USERS_TEST_NUIDS[17] }),
+        });
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect((await call()).status).toBe(403);
+      signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
+        'digital-innovation-manager',
+      ]);
+      expect((await (await call()).json()).userId).toBe(otherMemberId);
+    });
+
+    it('GET /api/users/[id] is self or Executive Board', async () => {
+      const { GET } = await import('../../app/api/users/[id]/route');
+      const call = (id: string) =>
+        GET(new Request('http://localhost'), {
+          params: Promise.resolve({ id }),
+        });
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect((await call(memberId)).status).toBe(200);
+      expect((await call(otherMemberId)).status).toBe(403);
+    });
+  });
+
+  describe('PUT /api/users/attendance_update', () => {
+    let meetingId: string;
+
+    beforeAll(async () => {
+      const date = new Date('2099-03-02T18:00:00.000Z');
+      const { semesterIdFor } = await import('@/utils/test-helpers');
+      meetingId = (
+        await prisma.meeting.create({
+          data: {
+            name: 'Attendance update route meeting',
+            date,
+            startTime: date,
+            endTime: new Date(date.getTime() + 60 * 60 * 1000),
+            notes: '',
+            type: 'REGULAR',
+            semesterId: await semesterIdFor(date),
+          },
+        })
+      ).meetingId;
+    });
+
+    afterAll(async () => {
+      await prisma.attendance.deleteMany({ where: { meetingId } });
+      await prisma.meeting.delete({ where: { meetingId } });
+    });
+
+    const update = async (body: unknown) => {
+      const { PUT } =
+        await import('../../app/api/users/attendance_update/route');
+      return PUT(
+        jsonRequest(
+          'http://localhost/api/users/attendance_update',
+          'PUT',
+          body,
+        ),
+      );
+    };
+
+    it('returns 401 when signed out', async () => {
+      signOut();
+      expect(
+        (await update({ userId: memberId, meetingId, status: 'PRESENT' }))
+          .status,
+      ).toBe(401);
+    });
+
+    it('lets a member mark only their own attendance PENDING', async () => {
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect(
+        (await update({ userId: memberId, meetingId, status: 'PENDING' }))
+          .status,
+      ).toBe(200);
+      expect(
+        (
+          await update({
+            userId: memberId,
+            meetingId,
+            status: 'EXCUSED_ABSENCE',
+          })
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await update({
+            userId: otherMemberId,
+            meetingId,
+            status: 'UNEXCUSED_ABSENCE',
+          })
+        ).status,
+      ).toBe(403);
+    });
+
+    it('does not let a member clear a recorded absence', async () => {
+      signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
+        'digital-innovation-manager',
+      ]);
+      expect(
+        (
+          await update({
+            userId: memberId,
+            meetingId,
+            status: 'UNEXCUSED_ABSENCE',
+          })
+        ).status,
+      ).toBe(200);
+
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect(
+        (await update({ userId: memberId, meetingId, status: 'PENDING' }))
+          .status,
+      ).toBe(409);
+    });
+
+    it('rejects a status outside the enum', async () => {
+      signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
+        'digital-innovation-manager',
+      ]);
+      expect(
+        (
+          await update({
+            userId: memberId,
+            meetingId,
+            status: 'PENDING_ABSENCE',
+          })
+        ).status,
+      ).toBe(400);
+    });
   });
 });

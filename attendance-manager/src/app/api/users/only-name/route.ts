@@ -1,4 +1,5 @@
 import { UsersController } from '@/users/users.controller';
+import { requireAuth } from '@/utils/api-auth';
 
 /**
  * @swagger
@@ -10,5 +11,7 @@ import { UsersController } from '@/users/users.controller';
  *         description: A JSON array of user objects.
  */
 export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
   return UsersController.listUsersSantizied();
 }

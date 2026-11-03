@@ -1,11 +1,26 @@
 import { z } from 'zod';
+import type { Capability } from '@/lib/permissions';
+
+export type { Capability };
 
 export interface User {
-  id: string;
+  // Portal profile id; null for staff whose positions need no profile.
+  id: string | null;
   email: string;
   name: string;
-  role: 'MEMBER' | 'EBOARD';
+  // SGAuth position names, for display.
+  positions: string[];
+  // What their SGAuth positions let them do (src/lib/permissions.ts). The
+  // server checks every one again; this only decides what to show.
+  capabilities: Capability[];
   avatar?: string;
+}
+
+export function userCan(
+  user: User | null | undefined,
+  capability: Capability,
+): boolean {
+  return user?.capabilities.includes(capability) ?? false;
 }
 
 export interface MeetingApiData {
@@ -54,22 +69,21 @@ export interface MeetingApiData {
   percentage: number;
 }
 
-export interface LoginCredentials {
+// Signed in to SGAuth, but no portal profile yet: they still owe an NUID.
+export interface PendingRegistration {
   email: string;
-  password: string;
+  name: string;
 }
 
 export interface AuthContextType {
   user: User | null;
-
-  login: (credentials: LoginCredentials) => Promise<void>;
+  pendingRegistration: PendingRegistration | null;
+  // Signed in to SGAuth, but no position gives them access to the portal.
+  noAccess: PendingRegistration | null;
+  login: () => void;
   logout: () => void;
+  refresh: () => Promise<void>;
   isLoading: boolean;
-}
-
-export interface RoleData {
-  roleId: string;
-  roleType: string;
 }
 
 export interface UserData {
@@ -79,8 +93,6 @@ export interface UserData {
   email: string;
   firstName: string;
   lastName: string;
-  role: RoleData;
-  password: string;
 }
 
 export type MeetingType = 'FULL_BODY' | 'REGULAR';
@@ -93,7 +105,9 @@ export interface UserApiData {
   nuid: string;
   attendance: AttendanceApiData[];
   attendanceId?: string;
-  role: RoleData;
+  positionKeys: string[];
+  // Holds a Senate seat (from /api/users); otherwise an officer on the roster
+  isSenator?: boolean;
 }
 
 export interface AttendanceApiData {
@@ -196,22 +210,19 @@ export const TimeAdjustment = z
 export const MeetingTypeEnum = z.enum(['REGULAR', 'FULL_BODY']);
 
 // Schemas
-export const RoleSchema = z.object({
-  roleId: z.string().describe('Role ID'),
-  roleType: z.string().describe('Role Type'),
-});
-
 // User schema
 export const UserSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
     userId: z.string().describe('User ID'),
-    role: RoleSchema.describe('Role'),
-    supabaseAuthId: z.string().nullable().describe('Supabase Auth ID'),
+    sgauthUserId: z.string().nullable().describe('SGAuth user ID'),
+    positionKeys: z
+      .array(z.string())
+      .describe('SGAuth position keys as of their last sign-in'),
+    isSenator: z.boolean().optional().describe('Holds a Senate seat'),
     nuid: z.string().describe('NUID'),
     email: z.string().describe('Email address'),
     firstName: z.string().describe('First name'),
     lastName: z.string().describe('Last name'),
-    password: z.string().nullable().describe('Password'),
     createdAt: z.date().describe('Creation timestamp'),
     updatedAt: z.date().describe('Last updated timestamp'),
     deletedAt: z.date().nullable().describe('Deletion timestamp, if deleted'),

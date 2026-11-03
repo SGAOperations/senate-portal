@@ -1,10 +1,11 @@
+import { actorId, requireCapability } from '@/utils/api-auth';
 import { VotingRecordController } from '@/voting-record/voting-record.controller';
 
 /**
  * @swagger
  * /api/voting-record/{votingRecordId}:
  *   patch:
- *     summary: Updates an existing voting record (e.g. admin corrects a vote while the event is ongoing).
+ *     summary: Updates an existing voting record (a vote host corrects a vote while the event is ongoing).
  *     parameters:
  *       - in: path
  *         name: votingRecordId
@@ -22,8 +23,6 @@ import { VotingRecordController } from '@/voting-record/voting-record.controller
  *             properties:
  *               result:
  *                 type: string
- *               updatedBy:
- *                 type: string
  *     responses:
  *       200:
  *         description: Updated voting record.
@@ -38,8 +37,12 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ votingRecordId: string }> },
 ) {
+  const auth = await requireCapability('hostVotes');
+  if (auth.error) return auth.error;
   const { votingRecordId } = await params;
-  return VotingRecordController.updateVotingRecord(request, {
-    votingRecordId,
-  });
+  return VotingRecordController.updateVotingRecord(
+    request,
+    { votingRecordId },
+    actorId(auth.actor),
+  );
 }

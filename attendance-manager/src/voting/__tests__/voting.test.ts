@@ -5,16 +5,36 @@ import {
 } from '../voting.service';
 import { VotingController } from '../voting.controller';
 import { prisma } from '../../lib/prisma';
-import { semesterIdFor } from '@/utils/test-helpers';
+import {
+  STAFF_CAPABILITIES,
+  createTestGroup,
+  deleteTestGroup,
+  semesterIdFor,
+  signInAsActor,
+  testActor,
+} from '@/utils/test-helpers';
 import { MeetingService } from '@/meeting/meeting.service';
 import { VoteType } from '@/utils/consts';
-import * as apiAuth from '@/utils/api-auth';
 import {
   parseMeetingDate,
   parseMeetingDateTime,
 } from '@/meeting/meetingDateTime';
 
 jest.setTimeout(20000);
+
+// The voting-event GET routes need a signed-in user. Call inside a describe.
+function signInForReads() {
+  let spy: jest.SpyInstance;
+  beforeAll(() => {
+    spy = signInAsActor(
+      testActor({
+        userId: 'voting-test-reader',
+        capabilities: STAFF_CAPABILITIES,
+      }),
+    );
+  });
+  afterAll(() => spy.mockRestore());
+}
 
 describe('computeVotePassedFromCounts', () => {
   it('Yes beats No using display labels; YES/NO uppercase supported', () => {
@@ -140,7 +160,7 @@ describe('VotingService', () => {
 
   it('should fetch all voting events', async () => {
     const votingEvents = await VotingService.getAllVotingEvents({
-      isEboard: true,
+      includeRecent: true,
     });
     expect(Array.isArray(votingEvents)).toBe(true);
     expect(votingEvents.length).toBeGreaterThan(0);
@@ -202,10 +222,9 @@ describe('VotingController', () => {
   let requireAuthSpy: jest.SpyInstance;
 
   beforeAll(async () => {
-    requireAuthSpy = jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
-      user: { role: { roleType: 'EBOARD' } } as any,
-      error: null,
-    });
+    requireAuthSpy = signInAsActor(
+      testActor({ capabilities: STAFF_CAPABILITIES }),
+    );
     // Create test meetings
     const meeting = await prisma.meeting.create({
       data: {
@@ -349,7 +368,10 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(mockRequest);
+      const response = await VotingController.createVotingEvent(
+        mockRequest,
+        'test-host',
+      );
 
       expect(response.status).toBe(201);
       const responseData = await response.json();
@@ -372,7 +394,10 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(mockRequest);
+      const response = await VotingController.createVotingEvent(
+        mockRequest,
+        'test-host',
+      );
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -391,7 +416,10 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(mockRequest);
+      const response = await VotingController.createVotingEvent(
+        mockRequest,
+        'test-host',
+      );
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -409,7 +437,10 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(mockRequest);
+      const response = await VotingController.createVotingEvent(
+        mockRequest,
+        'test-host',
+      );
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -428,11 +459,15 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(mockRequest);
+      const response = await VotingController.createVotingEvent(
+        mockRequest,
+        'test-host',
+      );
 
       expect(response.status).toBe(201);
       const responseData = await response.json();
-      expect(responseData.updatedBy).toBeNull();
+      // updatedBy is the signed-in host, never the body
+      expect(responseData.updatedBy).toBe('test-host');
       await VotingService.deleteVotingEvent(responseData.votingEventId);
     });
   });
@@ -456,15 +491,18 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(mockRequest, {
-        votingEventId: testVotingEvent.votingEventId,
-      });
+      const response = await VotingController.updateVotingEvent(
+        mockRequest,
+        { votingEventId: testVotingEvent.votingEventId },
+        'test-host',
+      );
 
       expect(response).toBeDefined();
       const responseData = await response.json();
       expect(responseData.name).toBe('Updated PUT Test Event');
       expect(responseData.voteType).toBe(VoteType.placard);
-      expect(responseData.updatedBy).toBe('test-updater');
+      // updatedBy is the signed-in host, whatever the body says
+      expect(responseData.updatedBy).toBe('test-host');
       expect(responseData.updatedAt).toBeDefined(); // Should be set after update
       await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
     });
@@ -485,9 +523,11 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(mockRequest, {
-        votingEventId: testVotingEvent.votingEventId,
-      });
+      const response = await VotingController.updateVotingEvent(
+        mockRequest,
+        { votingEventId: testVotingEvent.votingEventId },
+        'test-host',
+      );
 
       expect(response).toBeDefined();
       const responseData = await response.json();
@@ -506,9 +546,11 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(mockRequest, {
-        votingEventId: 'non-existent-id-12345',
-      });
+      const response = await VotingController.updateVotingEvent(
+        mockRequest,
+        { votingEventId: 'non-existent-id-12345' },
+        'test-host',
+      );
 
       expect(response.status).toBe(404);
       const responseData = await response.json();
@@ -528,9 +570,11 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(mockRequest, {
-        votingEventId: testVotingEvent.votingEventId,
-      });
+      const response = await VotingController.updateVotingEvent(
+        mockRequest,
+        { votingEventId: testVotingEvent.votingEventId },
+        'test-host',
+      );
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -553,9 +597,11 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(mockRequest, {
-        votingEventId: testVotingEvent.votingEventId,
-      });
+      const response = await VotingController.updateVotingEvent(
+        mockRequest,
+        { votingEventId: testVotingEvent.votingEventId },
+        'test-host',
+      );
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -578,9 +624,11 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(mockRequest, {
-        votingEventId: testVotingEvent.votingEventId,
-      });
+      const response = await VotingController.updateVotingEvent(
+        mockRequest,
+        { votingEventId: testVotingEvent.votingEventId },
+        'test-host',
+      );
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -603,9 +651,11 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(mockRequest, {
-        votingEventId: testVotingEvent.votingEventId,
-      });
+      const response = await VotingController.updateVotingEvent(
+        mockRequest,
+        { votingEventId: testVotingEvent.votingEventId },
+        'test-host',
+      );
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -628,9 +678,11 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(mockRequest, {
-        votingEventId: testVotingEvent.votingEventId,
-      });
+      const response = await VotingController.updateVotingEvent(
+        mockRequest,
+        { votingEventId: testVotingEvent.votingEventId },
+        'test-host',
+      );
 
       expect(response).toBeDefined();
       const responseData = await response.json();
@@ -646,10 +698,9 @@ describe('GET /api/voting-event', () => {
   let requireAuthSpy: jest.SpyInstance;
 
   beforeAll(async () => {
-    requireAuthSpy = jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
-      user: { role: { roleType: 'EBOARD' } } as any,
-      error: null,
-    });
+    requireAuthSpy = signInAsActor(
+      testActor({ capabilities: STAFF_CAPABILITIES }),
+    );
     // Create a test meeting
     const meeting = await prisma.meeting.create({
       data: {
@@ -695,6 +746,8 @@ describe('GET /api/voting-event', () => {
 });
 
 describe('GET /api/voting-event/[id]', () => {
+  signInForReads();
+
   let routeTestMeetingId: string;
   let routeTestVotingEventId: string;
 
@@ -759,9 +812,23 @@ describe('GET /api/voting-event/[id]', () => {
     expect(response.status).toBe(404);
     expect(data.error).toBe('Voting event not found');
   });
+
+  it('returns 401 when signed out', async () => {
+    const { GET } = await import('../../app/api/voting-event/[id]/route');
+    signInAsActor(null);
+    const response = await GET(
+      new Request(
+        `http://localhost/api/voting-event/${routeTestVotingEventId}`,
+      ),
+      { params: Promise.resolve({ id: routeTestVotingEventId }) },
+    );
+    expect(response.status).toBe(401);
+  });
 });
 
 describe('Per-voter voting results include voter names (non-secret ballot)', () => {
+  signInForReads();
+
   let testMeetingId: string;
   let testRoleId: string;
   let user1Id: string;
@@ -769,21 +836,18 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
   let votingEventId: string;
 
   beforeAll(async () => {
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     testRoleId = role.roleId;
 
     const user1 = await prisma.user.create({
       data: {
         userId: 'test-roll-call-user-1',
-        supabaseAuthId: 'test-roll-call-supabase-auth-1',
+        sgauthUserId: 'test-roll-call-supabase-auth-1',
         nuid: '009900001',
         email: 'rollcall1@example.com',
         firstName: 'Roll',
         lastName: 'CallOne',
-        roleId: testRoleId,
-        password: null,
+        positionKeys: [testRoleId],
       },
     });
     user1Id = user1.userId;
@@ -791,13 +855,12 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
     const user2 = await prisma.user.create({
       data: {
         userId: 'test-roll-call-user-2',
-        supabaseAuthId: 'test-roll-call-supabase-auth-2',
+        sgauthUserId: 'test-roll-call-supabase-auth-2',
         nuid: '009900002',
         email: 'rollcall2@example.com',
         firstName: 'Roll',
         lastName: 'CallTwo',
-        roleId: testRoleId,
-        password: null,
+        positionKeys: [testRoleId],
       },
     });
     user2Id = user2.userId;
@@ -848,7 +911,7 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
     await prisma.user.deleteMany({
       where: { userId: { in: [user1Id, user2Id] } },
     });
-    await prisma.role.deleteMany({ where: { roleId: testRoleId } });
+    await deleteTestGroup(testRoleId);
   });
 
   // concluded ROLL_CALL returns each voter's name and result
@@ -884,7 +947,9 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
 
   // same enrichment as GET [id], but via getAllVotingEvents()
   it('getAllVotingEvents returns votingRecords with user first/last names for ROLL_CALL', async () => {
-    const events = await VotingService.getAllVotingEvents({ isEboard: true });
+    const events = await VotingService.getAllVotingEvents({
+      includeRecent: true,
+    });
     const data = events.find(
       (e) => e != null && e.votingEventId === votingEventId,
     );
@@ -997,6 +1062,8 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
 });
 
 describe('Secret ballot results (aggregates only)', () => {
+  signInForReads();
+
   let testMeetingId: string;
   let secretVotingEventId: string;
   let testRoleId: string;
@@ -1005,21 +1072,18 @@ describe('Secret ballot results (aggregates only)', () => {
   let user3Id: string;
 
   beforeAll(async () => {
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     testRoleId = role.roleId;
 
     const u1 = await prisma.user.create({
       data: {
         userId: 'test-secret-ballot-user-1',
-        supabaseAuthId: 'test-secret-supabase-1',
+        sgauthUserId: 'test-secret-supabase-1',
         nuid: '009901001',
         email: 'secret1@example.com',
         firstName: 'Secret',
         lastName: 'VoterOne',
-        roleId: testRoleId,
-        password: null,
+        positionKeys: [testRoleId],
       },
     });
     user1Id = u1.userId;
@@ -1027,13 +1091,12 @@ describe('Secret ballot results (aggregates only)', () => {
     const u2 = await prisma.user.create({
       data: {
         userId: 'test-secret-ballot-user-2',
-        supabaseAuthId: 'test-secret-supabase-2',
+        sgauthUserId: 'test-secret-supabase-2',
         nuid: '009901002',
         email: 'secret2@example.com',
         firstName: 'Secret',
         lastName: 'VoterTwo',
-        roleId: testRoleId,
-        password: null,
+        positionKeys: [testRoleId],
       },
     });
     user2Id = u2.userId;
@@ -1041,13 +1104,12 @@ describe('Secret ballot results (aggregates only)', () => {
     const u3 = await prisma.user.create({
       data: {
         userId: 'test-secret-ballot-user-3',
-        supabaseAuthId: 'test-secret-supabase-3',
+        sgauthUserId: 'test-secret-supabase-3',
         nuid: '009901003',
         email: 'secret3@example.com',
         firstName: 'Secret',
         lastName: 'VoterThree',
-        roleId: testRoleId,
-        password: null,
+        positionKeys: [testRoleId],
       },
     });
     user3Id = u3.userId;
@@ -1097,7 +1159,7 @@ describe('Secret ballot results (aggregates only)', () => {
     await prisma.user.deleteMany({
       where: { userId: { in: [user1Id, user2Id, user3Id] } },
     });
-    await prisma.role.deleteMany({ where: { roleId: testRoleId } });
+    await deleteTestGroup(testRoleId);
   });
 
   it('GET /api/voting-event/[id] returns resultCounts, votePassed, notes — no votingRecords', async () => {
@@ -1120,7 +1182,9 @@ describe('Secret ballot results (aggregates only)', () => {
   });
 
   it('getAllVotingEvents omits votingRecords for secret ballot with aggregates', async () => {
-    const events = await VotingService.getAllVotingEvents({ isEboard: true });
+    const events = await VotingService.getAllVotingEvents({
+      includeRecent: true,
+    });
     const row = events.find(
       (e) => e != null && e.votingEventId === secretVotingEventId,
     );
@@ -1155,6 +1219,8 @@ describe('Secret ballot results (aggregates only)', () => {
 });
 
 describe('GET /api/voting-event/by-type/[voteType]', () => {
+  signInForReads();
+
   let routeTestMeetingId: string;
   let routeTestMeeting2Id: string;
   let routeTestVotingEvent1Id: string;
@@ -1252,10 +1318,9 @@ describe('POST /api/voting-event', () => {
   let requireAuthSpy: jest.SpyInstance;
 
   beforeAll(async () => {
-    requireAuthSpy = jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
-      user: { role: { roleType: 'EBOARD' } } as any,
-      error: null,
-    });
+    requireAuthSpy = signInAsActor(
+      testActor({ capabilities: STAFF_CAPABILITIES }),
+    );
     // Create a test meeting
     const meeting = await prisma.meeting.create({
       data: {
@@ -1300,7 +1365,8 @@ describe('POST /api/voting-event', () => {
     expect(data.voteType).toBe(VoteType.rollCall);
     expect(data.meetingId).toBe(routeTestMeetingId);
     expect(data.votingEventId).toBeDefined();
-    expect(data.updatedBy).toBe('test-user');
+    // the signed-in host (testActor's default id), not the body's 'test-user'
+    expect(data.updatedBy).toBe('test-actor');
     await VotingService.deleteVotingEvent(data.votingEventId);
   });
 
@@ -1410,10 +1476,9 @@ describe('PUT /api/voting-event/[id]', () => {
   let requireAuthSpy: jest.SpyInstance;
 
   beforeAll(async () => {
-    requireAuthSpy = jest.spyOn(apiAuth, 'requireAuth').mockResolvedValue({
-      user: { role: { roleType: 'EBOARD' } } as any,
-      error: null,
-    });
+    requireAuthSpy = signInAsActor(
+      testActor({ capabilities: STAFF_CAPABILITIES }),
+    );
     // Create a test meeting
     const meeting = await prisma.meeting.create({
       data: {
@@ -1468,7 +1533,7 @@ describe('PUT /api/voting-event/[id]', () => {
     expect(data).toBeDefined();
     expect(data.name).toBe('Updated PUT Route Test Event');
     expect(data.voteType).toBe(VoteType.placard);
-    expect(data.updatedBy).toBe('test-updater');
+    expect(data.updatedBy).toBe('test-actor');
     expect(data.votingEventId).toBe(routeTestVotingEventId);
     expect(data.updatedAt).toBeDefined();
   });
@@ -1650,7 +1715,9 @@ describe('Votes on soft-deleted meetings', () => {
   });
 
   it('should leave votes on a deleted meeting out of getAllVotingEvents', async () => {
-    const all = ids(await VotingService.getAllVotingEvents({ isEboard: true }));
+    const all = ids(
+      await VotingService.getAllVotingEvents({ includeRecent: true }),
+    );
     expect(all).not.toContain(deletedMeetingVoteId);
     expect(all).toContain(keptMeetingVoteId);
   });

@@ -1,187 +1,117 @@
 import { NextRequest } from 'next/server';
-import { middleware } from '../../middleware';
-import { createServerClient } from '@supabase/ssr';
 
 jest.setTimeout(20000);
 
-// Mock @supabase/ssr
-jest.mock('@supabase/ssr', () => ({
-  createServerClient: jest.fn(),
-}));
+// Read when the proxy module loads, so set before importing it.
+process.env.SGAUTH_URL = 'https://auth.example.test';
+delete process.env.SGAUTH_COOKIE_NAME;
+const COOKIE = '__Secure-sgauth.session_token';
 
-describe('Middleware', () => {
-  const mockGetSession = jest.fn();
-  let mockSupabaseClient: any;
+async function loadProxy() {
+  return (await import('../../proxy')).proxy;
+}
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    mockSupabaseClient = {
-      auth: {
-        getSession: mockGetSession,
-      },
-    };
-
-    (createServerClient as jest.Mock).mockReturnValue(mockSupabaseClient);
+function request(
+  pathname: string,
+  {
+    method = 'GET',
+    signedIn = false,
+    origin,
+  }: { method?: string; signedIn?: boolean; origin?: string } = {},
+) {
+  const headers: Record<string, string> = { host: 'senate.example.test' };
+  if (signedIn) headers.cookie = `${COOKIE}=token`;
+  if (origin) headers.origin = origin;
+  return new NextRequest(new URL(`https://senate.example.test${pathname}`), {
+    method,
+    headers,
   });
+}
 
-  const createMockRequest = (pathname: string, cookies: any[] = []) => {
-    const url = new URL(`http://localhost${pathname}`);
-    const request = new NextRequest(url, {
-      headers: {
-        cookie: cookies.map((c) => `${c.name}=${c.value}`).join('; '),
-      },
-    });
-
-    // Mock cookies.getAll
-    request.cookies.getAll = jest.fn().mockReturnValue(cookies);
-    request.cookies.set = jest.fn();
-
-    return request;
-  };
-
-  describe('Protected routes', () => {
-    const protectedRoutes = [
+describe('Proxy', () => {
+  describe('SGAuth sign-in redirect', () => {
+    it.each([
       '/dashboard',
       '/meetings',
       '/attendance',
       '/profile',
       '/homepage',
-    ];
-
-    protectedRoutes.forEach((route) => {
-      it(`should redirect to /login when accessing ${route} without session`, async () => {
-        mockGetSession.mockResolvedValue({
-          data: { session: null },
-          error: null,
-        });
-
-        const request = createMockRequest(route);
-        const response = await middleware(request);
-
-        expect(response.status).toBe(307); // Redirect status
-        expect(response.headers.get('location')).toBe('http://localhost/login');
-      });
-
-      it(`should allow access to ${route} when session exists`, async () => {
-        mockGetSession.mockResolvedValue({
-          data: {
-            session: {
-              user: { id: 'test-user-id', email: 'test@example.com' },
-            },
-          },
-          error: null,
-        });
-
-        const request = createMockRequest(route);
-        const response = await middleware(request);
-
-        expect(response.status).toBe(200);
-        expect(response.headers.get('location')).toBeNull();
-      });
-    });
-
-    it('should protect nested protected routes', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: null,
-      });
-
-      const request = createMockRequest('/dashboard/settings');
-      const response = await middleware(request);
+    ])('redirects %s to SGAuth sign-in without the cookie', async (route) => {
+      const proxy = await loadProxy();
+      const response = proxy(request(route));
 
       expect(response.status).toBe(307);
-      expect(response.headers.get('location')).toBe('http://localhost/login');
-    });
-  });
-
-  describe('Login page redirect', () => {
-    it('should redirect to /homepage when accessing /login with active session', async () => {
-      mockGetSession.mockResolvedValue({
-        data: {
-          session: {
-            user: { id: 'test-user-id', email: 'test@example.com' },
-          },
-        },
-        error: null,
-      });
-
-      const request = createMockRequest('/login');
-      const response = await middleware(request);
-
-      expect(response.status).toBe(307);
-      expect(response.headers.get('location')).toBe(
-        'http://localhost/homepage',
+      const location = new URL(response.headers.get('location')!);
+      expect(location.origin).toBe('https://auth.example.test');
+      expect(location.searchParams.get('redirect')).toBe(
+        `https://senate.example.test${route}`,
       );
     });
 
-    it('should allow access to /login when no session exists', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: null,
-      });
-
-      const request = createMockRequest('/login');
-      const response = await middleware(request);
+    it('lets a request with the cookie through', async () => {
+      const proxy = await loadProxy();
+      const response = proxy(request('/homepage', { signedIn: true }));
 
       expect(response.status).toBe(200);
       expect(response.headers.get('location')).toBeNull();
     });
-  });
 
-  describe('Public routes', () => {
-    it('should allow access to public routes without session', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: null,
-      });
-
-      const publicRoutes = ['/', '/about', '/contact'];
-
-      for (const route of publicRoutes) {
-        const request = createMockRequest(route);
-        const response = await middleware(request);
+    it.each(['/', '/login', '/api/users/me'])(
+      'leaves public path %s alone without the cookie',
+      async (route) => {
+        const proxy = await loadProxy();
+        const response = proxy(request(route));
 
         expect(response.status).toBe(200);
         expect(response.headers.get('location')).toBeNull();
-      }
-    });
+      },
+    );
   });
 
-  describe('Session handling', () => {
-    it('should handle session errors gracefully', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: { message: 'Session error' },
-      });
+  describe('cross-origin API writes', () => {
+    it.each(['POST', 'PUT', 'PATCH', 'DELETE'])(
+      'refuses %s with no Origin header',
+      async (method) => {
+        const proxy = await loadProxy();
+        const response = proxy(
+          request('/api/users/abc', { method, signedIn: true }),
+        );
+        expect(response.status).toBe(403);
+      },
+    );
 
-      const request = createMockRequest('/homepage');
-      const response = await middleware(request);
-
-      // Should redirect to login on error
-      expect(response.status).toBe(307);
-      expect(response.headers.get('location')).toBe('http://localhost/login');
-    });
-
-    it('should create Supabase client with correct configuration', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: null,
-      });
-
-      const request = createMockRequest('/homepage');
-      await middleware(request);
-
-      expect(createServerClient).toHaveBeenCalledWith(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        expect.objectContaining({
-          cookies: expect.objectContaining({
-            getAll: expect.any(Function),
-            setAll: expect.any(Function),
-          }),
+    it.each([
+      ['another site', 'https://evil.example.com'],
+      ['another SGA subdomain', 'https://chambers.example.test'],
+      ['a malformed origin', 'null'],
+    ])('refuses a write from %s', async (_label, origin) => {
+      const proxy = await loadProxy();
+      const response = proxy(
+        request('/api/voting-record', {
+          method: 'POST',
+          signedIn: true,
+          origin,
         }),
       );
+      expect(response.status).toBe(403);
+    });
+
+    it('allows a same-origin write', async () => {
+      const proxy = await loadProxy();
+      const response = proxy(
+        request('/api/voting-record', {
+          method: 'POST',
+          signedIn: true,
+          origin: 'https://senate.example.test',
+        }),
+      );
+      expect(response.status).toBe(200);
+    });
+
+    it('does not check Origin on reads', async () => {
+      const proxy = await loadProxy();
+      const response = proxy(request('/api/meeting', { signedIn: true }));
+      expect(response.status).toBe(200);
     });
   });
 });

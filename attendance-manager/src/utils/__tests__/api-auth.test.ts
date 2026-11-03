@@ -1,252 +1,211 @@
-import { getAuthenticatedUser, requireAuth } from '../api-auth';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import {
+  actorId,
+  getAuthenticatedUser,
+  requireAuth,
+  requireCapability,
+  requireProfile,
+  requireSelfOr,
+} from '../api-auth';
 import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
-import { UsersService } from '@/users/users.service';
+import { sgauthSession } from '@/utils/test-helpers';
 
 jest.setTimeout(20000);
 
-// Mock Supabase server client
-jest.mock('@/lib/supabase-server', () => ({
-  createServerSupabaseClient: jest.fn(),
+const mockGetSession = jest.fn();
+jest.mock('@nusgaops/sgauth', () => ({
+  ...jest.requireActual('@nusgaops/sgauth'),
+  createSgauthClient: () => ({ getSession: () => mockGetSession() }),
 }));
+jest.mock('next/headers', () => ({ headers: async () => new Headers() }));
+
+const SENATOR_SGAUTH = 'test-sgauth-id-api-senator';
+const OTHER_SGAUTH = 'test-sgauth-id-api-other';
+const SPEAKER_SGAUTH = 'test-sgauth-id-api-speaker';
+
+function signInAs(id: string, positions: string[]) {
+  mockGetSession.mockResolvedValue(
+    sgauthSession({ id, email: `${id}@example.com`, positions }),
+  );
+}
 
 describe('API Auth Utilities', () => {
-  let testRoleId: string;
-  let testUserId: string;
-  let testSupabaseAuthId: string;
-  const mockGetSession = jest.fn();
-  let mockSupabaseClient: any;
+  let senatorId: string;
+  let otherId: string;
 
   beforeAll(async () => {
-    // Create test role
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
+    await prisma.user.deleteMany({
+      where: { sgauthUserId: { in: [SENATOR_SGAUTH, OTHER_SGAUTH] } },
     });
-    testRoleId = role.roleId;
-
-    // Create test user
-    const user = await prisma.user.create({
-      data: {
-        supabaseAuthId: 'test-supabase-auth-id-api',
-        nuid: '001234888',
-        email: 'apitest@example.com',
-        firstName: 'API',
-        lastName: 'Test',
-        roleId: testRoleId,
-        password: null,
-      },
-    });
-    testUserId = user.userId;
-    testSupabaseAuthId = user.supabaseAuthId!;
+    senatorId = (
+      await prisma.user.create({
+        data: {
+          sgauthUserId: SENATOR_SGAUTH,
+          nuid: '001234888',
+          email: 'apitest@example.com',
+          firstName: 'API',
+          lastName: 'Test',
+        },
+      })
+    ).userId;
+    otherId = (
+      await prisma.user.create({
+        data: {
+          sgauthUserId: OTHER_SGAUTH,
+          nuid: '001234889',
+          email: 'apiother@example.com',
+          firstName: 'API',
+          lastName: 'Other',
+        },
+      })
+    ).userId;
   });
 
   afterAll(async () => {
-    await prisma.user.delete({ where: { userId: testUserId } });
-    await UsersService.deleteRole(testRoleId);
+    await prisma.user.deleteMany({
+      where: { userId: { in: [senatorId, otherId] } },
+    });
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    mockSupabaseClient = {
-      auth: {
-        getSession: mockGetSession,
-      },
-    };
-
-    (createServerSupabaseClient as jest.Mock).mockResolvedValue(
-      mockSupabaseClient,
-    );
-  });
-
-  describe('getAuthenticatedUser', () => {
-    it('should return user when valid session exists', async () => {
-      mockGetSession.mockResolvedValue({
-        data: {
-          session: {
-            user: {
-              id: testSupabaseAuthId,
-              email: 'apitest@example.com',
-            },
-          },
-        },
-        error: null,
-      });
-
-      const user = await getAuthenticatedUser();
-
-      expect(user).toBeDefined();
-      expect(user?.userId).toBe(testUserId);
-      expect(user?.supabaseAuthId).toBe(testSupabaseAuthId);
-      expect(user?.email).toBe('apitest@example.com');
-      expect(user?.role).toBeDefined();
-      expect(user?.role.roleType).toBe('MEMBER');
-    });
-
-    it('should return null when no session exists', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: null,
-      });
-
-      const user = await getAuthenticatedUser();
-
-      expect(user).toBeNull();
-    });
-
-    it('should return null when session error occurs', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: { message: 'Session error' },
-      });
-
-      const user = await getAuthenticatedUser();
-
-      expect(user).toBeNull();
-    });
-
-    it('should return null when user profile not found in database', async () => {
-      mockGetSession.mockResolvedValue({
-        data: {
-          session: {
-            user: {
-              id: 'non-existent-supabase-id',
-              email: 'notfound@example.com',
-            },
-          },
-        },
-        error: null,
-      });
-
-      const user = await getAuthenticatedUser();
-
-      expect(user).toBeNull();
-    });
-
-    it('should handle database errors gracefully', async () => {
-      mockGetSession.mockResolvedValue({
-        data: {
-          session: {
-            user: {
-              id: testSupabaseAuthId,
-              email: 'apitest@example.com',
-            },
-          },
-        },
-        error: null,
-      });
-
-      // Mock prisma to throw an error
-      const originalFindUnique = prisma.user.findUnique;
-      prisma.user.findUnique = jest
-        .fn()
-        .mockRejectedValue(new Error('Database error'));
-
-      const user = await getAuthenticatedUser();
-
-      expect(user).toBeNull();
-
-      // Restore original method
-      prisma.user.findUnique = originalFindUnique;
-    });
   });
 
   describe('requireAuth', () => {
-    it('should return user when authenticated', async () => {
-      mockGetSession.mockResolvedValue({
-        data: {
-          session: {
-            user: {
-              id: testSupabaseAuthId,
-              email: 'apitest@example.com',
-            },
-          },
-        },
-        error: null,
-      });
+    it('returns the actor, profile and capabilities when signed in', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      const auth = await requireAuth();
 
-      const result = await requireAuth();
-
-      expect(result.user).toBeDefined();
-      expect(result.user?.userId).toBe(testUserId);
-      expect(result.error).toBeNull();
+      expect(auth.error).toBeNull();
+      if (auth.error) return;
+      expect(auth.actor.user?.userId).toBe(senatorId);
+      expect([...auth.actor.capabilities].sort()).toEqual(['roster', 'vote']);
     });
 
-    it('should return error response when not authenticated', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: null,
+    it('records the session positions on the profile', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator', 'parliamentarian']);
+      await requireAuth();
+      const stored = await prisma.user.findUnique({
+        where: { userId: senatorId },
       });
-
-      const result = await requireAuth();
-
-      expect(result.user).toBeNull();
-      expect(result.error).toBeDefined();
-
-      const errorResponse = result.error as NextResponse;
-      expect(errorResponse.status).toBe(401);
-
-      const errorData = await errorResponse.json();
-      expect(errorData.error).toBe('Unauthorized');
+      expect(stored?.positionKeys).toEqual(['parliamentarian', 'senator']);
+      expect(stored?.positionsSyncedAt).not.toBeNull();
     });
 
-    it('should return error response when session error occurs', async () => {
-      mockGetSession.mockResolvedValue({
-        data: { session: null },
-        error: { message: 'Session error' },
-      });
+    it('lets staff with no profile through, with user null', async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      const auth = await requireAuth();
 
-      const result = await requireAuth();
-
-      expect(result.user).toBeNull();
-      expect(result.error).toBeDefined();
-
-      const errorResponse = result.error as NextResponse;
-      expect(errorResponse.status).toBe(401);
+      expect(auth.error).toBeNull();
+      if (auth.error) return;
+      expect(auth.actor.user).toBeNull();
+      expect(auth.actor.capabilities.has('manageAttendance')).toBe(true);
+      expect(auth.actor.capabilities.has('vote')).toBe(false);
     });
 
-    it('should return error response when user profile not found', async () => {
-      mockGetSession.mockResolvedValue({
-        data: {
-          session: {
-            user: {
-              id: 'non-existent-supabase-id',
-              email: 'notfound@example.com',
-            },
-          },
-        },
-        error: null,
+    it('returns 401 when signed out', async () => {
+      mockGetSession.mockResolvedValue(null);
+      expect((await requireAuth()).error?.status).toBe(401);
+    });
+
+    it('returns 403 for someone no position gives access', async () => {
+      signInAs('test-sgauth-id-api-nobody', ['t-shirt-team-member']);
+      expect((await requireAuth()).error?.status).toBe(403);
+    });
+
+    it('returns 401 for a soft-deleted profile', async () => {
+      await prisma.user.update({
+        where: { userId: otherId },
+        data: { deletedAt: new Date() },
       });
+      try {
+        signInAs(OTHER_SGAUTH, ['senator']);
+        expect((await requireAuth()).error?.status).toBe(401);
+      } finally {
+        await prisma.user.update({
+          where: { userId: otherId },
+          data: { deletedAt: null },
+        });
+      }
+    });
 
-      const result = await requireAuth();
-
-      expect(result.user).toBeNull();
-      expect(result.error).toBeDefined();
-
-      const errorResponse = result.error as NextResponse;
-      expect(errorResponse.status).toBe(401);
+    it('returns 401 when the session lookup throws', async () => {
+      mockGetSession.mockRejectedValue(new Error('config'));
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      try {
+        expect((await requireAuth()).error?.status).toBe(401);
+      } finally {
+        errorSpy.mockRestore();
+      }
     });
   });
 
-  // ensuring that soft delete worked
-  describe('UsersService.deleteUser', () => {
-    it('should soft delete a user by setting deletedAt', async () => {
-      await UsersService.deleteUser(testUserId);
-      const user = await prisma.user.findUnique({
-        where: { userId: testUserId },
-      });
-
-      expect(user).toBeDefined();
-      expect(user?.deletedAt).not.toBeNull();
-      expect(user?.deletedAt).toBeInstanceOf(Date);
+  describe('requireCapability', () => {
+    it('returns 403 without the capability', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect((await requireCapability('manageAttendance')).error?.status).toBe(
+        403,
+      );
     });
 
-    it('should not return soft deleted user from getAllUsers', async () => {
-      const users = await UsersService.getAllUsers();
-      const deletedUser = users.find((u) => u.userId === testUserId);
+    it('allows a holder of the capability', async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      expect((await requireCapability('manageAttendance')).error).toBeNull();
+    });
 
-      expect(deletedUser).toBeUndefined();
+    it('lets a superadmin manage but not vote', async () => {
+      signInAs('test-sgauth-id-api-admin', ['digital-innovation-manager']);
+      expect((await requireCapability('hostVotes')).error).toBeNull();
+      expect((await requireCapability('vote')).error?.status).toBe(403);
+    });
+  });
+
+  describe('requireProfile', () => {
+    it('returns the profile for a member', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      const auth = await requireProfile();
+      expect(auth.error).toBeNull();
+      if (auth.error) return;
+      expect(auth.user.userId).toBe(senatorId);
+    });
+
+    it('returns 403 for staff without a profile', async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      expect((await requireProfile()).error?.status).toBe(403);
+    });
+  });
+
+  describe('requireSelfOr', () => {
+    it("allows a member their own records but not someone else's", async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect((await requireSelfOr(senatorId, 'readRecords')).error).toBeNull();
+      expect((await requireSelfOr(otherId, 'readRecords')).error?.status).toBe(
+        403,
+      );
+    });
+
+    it("allows a holder of the capability anyone's records", async () => {
+      signInAs('test-sgauth-id-api-sbp', ['student-body-president']);
+      expect((await requireSelfOr(otherId, 'readRecords')).error).toBeNull();
+    });
+  });
+
+  describe('getAuthenticatedUser and actorId', () => {
+    it('returns the profile, and records it as the actor', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect((await getAuthenticatedUser())?.userId).toBe(senatorId);
+      const auth = await requireAuth();
+      if (auth.error) throw new Error('expected a session');
+      expect(actorId(auth.actor)).toBe(senatorId);
+    });
+
+    it('records staff without a profile by their SGAuth id', async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      expect(await getAuthenticatedUser()).toBeNull();
+      const auth = await requireAuth();
+      if (auth.error) throw new Error('expected a session');
+      expect(actorId(auth.actor)).toBe(`sgauth:${SPEAKER_SGAUTH}`);
     });
   });
 });

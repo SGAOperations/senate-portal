@@ -41,11 +41,10 @@ const ActiveVotingModal: React.FC<ActiveVotingModalProps> = ({
         headers: {
           'Content-Type': 'application/json',
         },
+        // The server records the signed-in user as the voter.
         body: JSON.stringify({
           votingEventId: event.votingEventId,
-          userId: user.id,
           result: choice,
-          updatedBy: user.id,
         }),
       });
 

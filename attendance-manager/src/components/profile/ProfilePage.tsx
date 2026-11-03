@@ -1,26 +1,20 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { userCan } from '@/types';
 
 const ProfilePage: React.FC = () => {
   const { user, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const isAdmin = user?.role === 'EBOARD';
+  const isAdmin = userCan(user, 'superadmin');
   const handleLogout = () => {
     logout();
   };
 
-  /* Maps enum value to appropriate plain text */
-  const rolePlainText = (role?: string) => {
-    switch (role) {
-      case 'EBOARD':
-        return 'E-Board';
-      case 'MEMBER':
-        return 'Member';
-      default:
-        return role;
-    }
-  };
+  // SGA positions come from SGAuth; the portal has no roles of its own.
+  const positionsText = user?.positions.length
+    ? user.positions.join(', ')
+    : 'No SGA position';
 
   if (!user) {
     return (
@@ -53,7 +47,7 @@ const ProfilePage: React.FC = () => {
               </span>
             </div>
             <h2 className='text-2xl font-bold text-gray-900'>{user.name}</h2>
-            <p className='text-gray-600'>{rolePlainText(user?.role)} Account</p>
+            <p className='text-gray-600'>{positionsText}</p>
           </div>
 
           {/* Profile Information */}
@@ -78,11 +72,15 @@ const ProfilePage: React.FC = () => {
 
             <div>
               <label className='block text-sm font-medium text-gray-700 mb-2'>
-                Account Role
+                SGA Positions
               </label>
-              <div className='w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 capitalize'>
-                {rolePlainText(user?.role)}
+              <div className='w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900'>
+                {positionsText}
               </div>
+              <p className='text-xs text-gray-500 mt-1'>
+                Positions are managed in your SGA account and decide what you
+                can do here.
+              </p>
             </div>
 
             <div>

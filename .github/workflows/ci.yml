@@ -60,6 +60,10 @@ jobs:
       - name: Test API Auth Utilities
         working-directory: attendance-manager
         run: npm run test -- src/utils/__tests__/api-auth.test.ts
+
+      - name: Test Permissions
+        working-directory: attendance-manager
+        run: npm run test -- src/utils/__tests__/permissions.test.ts
       
       - name: Test Users
         working-directory: attendance-manager

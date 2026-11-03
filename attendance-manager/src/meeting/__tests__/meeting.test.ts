@@ -1,7 +1,11 @@
 import { MeetingService } from '../meeting.service';
 import { MeetingController } from '../meeting.controller';
 import { prisma } from '../../lib/prisma';
-import { semesterIdFor } from '@/utils/test-helpers';
+import {
+  createTestGroup,
+  deleteTestGroup,
+  semesterIdFor,
+} from '@/utils/test-helpers';
 import { MeetingType } from '../../generated/prisma';
 import { UsersService } from '@/users/users.service';
 import { AttendanceService } from '@/attendance/attendance.service';
@@ -575,30 +579,28 @@ describe('MeetingController', () => {
       [],
     );
     const testMeetingId = newMeeting.meetingId;
-    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    const role = await createTestGroup();
     const user = await prisma.user.create({
       data: {
         userId: 'test-attendance-user-1',
-        supabaseAuthId: 'test-supabase-auth-id-1',
+        sgauthUserId: 'test-sgauth-id-1',
         nuid: '001234569',
         email: 'testuser@example.com',
         firstName: 'Test',
         lastName: 'User',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
 
     const user2 = await prisma.user.create({
       data: {
         userId: 'test-attendance-user-2',
-        supabaseAuthId: 'test-supabase-auth-id-2',
+        sgauthUserId: 'test-sgauth-id-2',
         nuid: '001234570',
         email: 'testuser2@example.com',
         firstName: 'Test2',
         lastName: 'User2',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     const attendance = await prisma.attendance.create({
@@ -618,7 +620,7 @@ describe('MeetingController', () => {
     await AttendanceService.deleteAttendance(attendance.attendanceId);
     await prisma.user.delete({ where: { userId: user.userId } });
     await prisma.user.delete({ where: { userId: user2.userId } });
-    await prisma.role.delete({ where: { roleId: role.roleId } });
+    await deleteTestGroup(role.roleId);
     await MeetingService.deleteMeeting(newMeeting.meetingId);
   });
 
@@ -635,30 +637,28 @@ describe('MeetingController', () => {
       [],
     );
     const testMeetingId = newMeeting.meetingId;
-    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    const role = await createTestGroup();
     const user = await prisma.user.create({
       data: {
         userId: 'test-attendance-user-1',
-        supabaseAuthId: 'test-supabase-auth-id-1',
+        sgauthUserId: 'test-sgauth-id-1',
         nuid: '001234569',
         email: 'testuser@example.com',
         firstName: 'Test',
         lastName: 'User',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
 
     const user2 = await prisma.user.create({
       data: {
         userId: 'test-attendance-user-2',
-        supabaseAuthId: 'test-supabase-auth-id-2',
+        sgauthUserId: 'test-sgauth-id-2',
         nuid: '001234570',
         email: 'testuser2@example.com',
         firstName: 'Test2',
         lastName: 'User2',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     const attendance = await prisma.attendance.create({
@@ -688,7 +688,7 @@ describe('MeetingController', () => {
     await AttendanceService.deleteAttendance(attendance2?.attendanceId);
     await prisma.user.delete({ where: { userId: user.userId } });
     await prisma.user.delete({ where: { userId: user2.userId } });
-    await prisma.role.delete({ where: { roleId: role.roleId } });
+    await deleteTestGroup(role.roleId);
     await MeetingService.deleteMeeting(newMeeting.meetingId);
   });
 

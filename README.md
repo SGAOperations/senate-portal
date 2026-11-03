@@ -22,7 +22,7 @@ Backend:
 Hosting/Deployment:
 - [Vercel](https://vercel.com/docs)
 
-Authentication: Supabase Auth
+Authentication: [SGAuth](https://github.com/SGAOperations/auth-sdk), the SGA single sign-on (`@nusgaops/sgauth`)
 
 Components: TBD
 

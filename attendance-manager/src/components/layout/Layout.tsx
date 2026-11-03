@@ -1,3 +1,4 @@
+import { userCan } from '@/types';
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
@@ -17,12 +18,14 @@ const Layout: React.FC = () => {
     'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile'
   >('dashboard');
   const { user, isLoading } = useAuth();
-  const isAdmin = user?.role === 'EBOARD';
+  const canReadRecords = userCan(user, 'readRecords');
   const { activeEvent } = useActiveVotingEvent();
   const [canVoteInActiveEvent, setCanVoteInActiveEvent] = useState(false);
   const [dismissedVoteId, setDismissedVoteId] = useState<string | null>(null);
 
   const userId = user?.id;
+  // Only Senators vote; the server checks this too.
+  const userCanVote = userCan(user, 'vote');
   const votingEventId = activeEvent?.votingEventId;
   const meetingId = activeEvent?.meetingId;
 
@@ -30,6 +33,7 @@ const Layout: React.FC = () => {
     // no polling once the member has dismissed this vote
     if (
       !userId ||
+      !userCanVote ||
       !votingEventId ||
       !meetingId ||
       votingEventId === dismissedVoteId
@@ -108,7 +112,7 @@ const Layout: React.FC = () => {
       isCancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [userId, votingEventId, meetingId, dismissedVoteId]);
+  }, [userId, userCanVote, votingEventId, meetingId, dismissedVoteId]);
 
   const handleProfileClick = () => {
     setActiveTab('profile');
@@ -126,8 +130,8 @@ const Layout: React.FC = () => {
       case 'voting':
         return <VotingPage />;
       case 'attendance':
-        // Check if user is admin
-        if (isAdmin) {
+        // Everyone's attendance: readRecords only
+        if (canReadRecords) {
           return <AttendancePage />;
         } else {
           return (

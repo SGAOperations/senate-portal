@@ -1,3 +1,4 @@
+import { requireCapability } from '@/utils/api-auth';
 import { VotingRecordController } from '@/voting-record/voting-record.controller';
 
 /**
@@ -19,6 +20,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ votingEventId: string }> },
 ) {
+  const { error } = await requireCapability('readRecords');
+  if (error) return error;
   const { votingEventId } = await params;
   return VotingRecordController.getVotingRecordsByVotingEvent({
     votingEventId,

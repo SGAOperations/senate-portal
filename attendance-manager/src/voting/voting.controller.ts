@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { VotingService, formatVotingEventForApi } from './voting.service';
 import { VoteType } from '@/utils/consts';
-import { requireAuth } from '@/utils/api-auth';
+import { can, requireAuth } from '@/utils/api-auth';
 
 const createVotingEventSchema = z.object({
   meetingId: z.string().min(1),
@@ -54,10 +54,14 @@ export const VotingController = {
   },
 
   async getAllVotingEvents() {
-    const { user, error } = await requireAuth();
-    if (error) return error;
-    const isEboard = user!.role.roleType === 'EBOARD';
-    const votingEvents = await VotingService.getAllVotingEvents({ isEboard });
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+    // Hosts and record readers see votes as they happen; others an hour after.
+    const includeRecent =
+      can(auth.actor, 'readRecords') || can(auth.actor, 'hostVotes');
+    const votingEvents = await VotingService.getAllVotingEvents({
+      includeRecent,
+    });
     return NextResponse.json(votingEvents);
   },
 
@@ -81,7 +85,8 @@ export const VotingController = {
     return NextResponse.json(votingEvents);
   },
 
-  async createVotingEvent(request: Request) {
+  /** `actorId` is recorded as updatedBy, whatever the body says. */
+  async createVotingEvent(request: Request, actorId: string) {
     const parsed = createVotingEventSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json(
@@ -101,7 +106,7 @@ export const VotingController = {
           body.voteType,
           body.options,
         ),
-        updatedBy: body.updatedBy,
+        updatedBy: actorId,
       });
       return NextResponse.json(formatVotingEventForApi(newVotingEvent), {
         status: 201,
@@ -114,9 +119,14 @@ export const VotingController = {
     }
   },
 
-  async updateVotingEvent(request: Request, params: { votingEventId: string }) {
+  /** `actorId` is recorded as updatedBy, whatever the body says. */
+  async updateVotingEvent(
+    request: Request,
+    params: { votingEventId: string },
+    actorId: string,
+  ) {
     const parsed = updateVotingEventSchema.safeParse(
-    await request.json().catch(() => null),
+      await request.json().catch(() => null),
     );
     if (!parsed.success) {
       return NextResponse.json(
@@ -124,7 +134,8 @@ export const VotingController = {
         { status: 400 },
       );
     }
-    const { end, ...updates } = parsed.data;
+    const { end, ...rest } = parsed.data;
+    const updates = { ...rest, updatedBy: actorId };
 
     // End voting event
     try {

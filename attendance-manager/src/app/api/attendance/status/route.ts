@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AttendanceController } from '../../../../attendance/attendance.controller';
+import { requireCapability } from '@/utils/api-auth';
 
 /**
  * Updates an Attendance Status based on request
@@ -8,7 +9,11 @@ import { AttendanceController } from '../../../../attendance/attendance.controll
  * @response AttendanceResponse
  * @openapi
  */
+// manageAttendance only, like PATCH /api/attendance/[attendanceId]: this decides
+// whether an absence is excused (Bylaws XIV §4.4).
 export async function PUT(req: NextRequest) {
+  const { error } = await requireCapability('manageAttendance');
+  if (error) return error;
   try {
     const { requestId, status } = await req.json();
 

@@ -4,10 +4,31 @@ import { z } from 'zod';
 import { CreateMeetingSchema, UpdateMeetingSchema } from '../types';
 import { MeetingDateTimeInputError } from './meetingDateTime';
 
+// What a member may see of someone else on a meeting's attendance: no NUID
+// or email. Those who may read records (readRecords) get the full row.
+function redactAttendee<
+  T extends { userId: string; firstName: string; lastName: string },
+>(user: T) {
+  return {
+    userId: user.userId,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  };
+}
+
 export const MeetingController = {
-  async listMeetings() {
-    const meeting = await MeetingService.getAllMeeting();
-    return NextResponse.json(meeting);
+  async listMeetings({ full }: { full: boolean }) {
+    const meetings = await MeetingService.getAllMeeting();
+    if (full) return NextResponse.json(meetings);
+    return NextResponse.json(
+      meetings.map((meeting) => ({
+        ...meeting,
+        attendance: meeting.attendance.map((record) => ({
+          ...record,
+          user: redactAttendee(record.user),
+        })),
+      })),
+    );
   },
 
   async listUpcomingMeetings() {

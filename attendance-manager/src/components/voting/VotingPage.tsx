@@ -1,3 +1,4 @@
+import { userCan } from '@/types';
 import React, { useCallback, useEffect, useState } from 'react';
 import { MeetingApiData, VotingEventWithRelations } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +14,7 @@ const VotingPage: React.FC = () => {
     useState<VotingEventWithRelations | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const { user } = useAuth();
-  const isEboard = user?.role === 'EBOARD';
+  const canHostVotes = userCan(user, 'hostVotes');
 
   const loadMeetingsAndEvents = useCallback(async () => {
     setEventsLoading(true);
@@ -85,10 +86,10 @@ const VotingPage: React.FC = () => {
         events={events}
         loading={eventsLoading}
         setDeleteEvent={setDeleteEvent}
-        canDelete={isEboard}
+        canDelete={canHostVotes}
       />
 
-      {deleteEvent && isEboard && (
+      {deleteEvent && canHostVotes && (
         <DeleteVotingModal
           deleteEvent={deleteEvent}
           onDeleteEvent={handleDeleteVotingEvent}
