@@ -116,7 +116,7 @@ export const VotingController = {
 
   async updateVotingEvent(request: Request, params: { votingEventId: string }) {
     const parsed = updateVotingEventSchema.safeParse(
-    await request.json().catch(() => null),
+      await request.json().catch(() => null),
     );
     if (!parsed.success) {
       return NextResponse.json(

@@ -1,6 +1,6 @@
 import { RequestController } from '@/server/modules/request/request.controller';
 import { prisma } from '@/server/db/prisma';
-import { semesterIdFor } from '@/test/helpers';
+import { semesterIdFor, uniqueUserFields } from '@/test/helpers';
 import { POST } from '@/app/api/attendance/[attendanceId]/requests/route';
 import { UsersService } from '@/server/modules/users/users.service';
 import { MeetingService } from '@/server/modules/meeting/meeting.service';
@@ -49,10 +49,7 @@ describe('RequestController', () => {
     // Create a test user
     const user = await prisma.user.create({
       data: {
-        userId: 'test-request-user-1',
-        supabaseAuthId: 'test-supabase-auth-id-1',
-        nuid: '001234567',
-        email: 'requestuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Request',
         lastName: 'User',
         roleId: testRoleId,
@@ -64,10 +61,7 @@ describe('RequestController', () => {
     // Create a test user
     const secondUser = await prisma.user.create({
       data: {
-        userId: 'test-request-user-2',
-        supabaseAuthId: 'test-supabase-auth-id-2',
-        nuid: '001234568',
-        email: 'otherrequestuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Other',
         lastName: 'Request',
         roleId: testRoleId,
@@ -517,10 +511,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
 
     const user = await prisma.user.create({
       data: {
-        nuid: '001234570',
-        userId: 'test-request-user-3',
-        supabaseAuthId: 'test-supabase-auth-id-3',
-        email: 'requestrouteuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Request',
         lastName: 'Route',
         roleId: routeTestRoleId,

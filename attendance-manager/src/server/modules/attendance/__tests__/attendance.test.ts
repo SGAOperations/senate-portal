@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { AttendanceController } from '@/server/modules/attendance/attendance.controller';
 import { prisma } from '@/server/db/prisma';
-import { semesterIdFor } from '@/test/helpers';
+import { semesterIdFor, uniqueUserFields } from '@/test/helpers';
 import dotenv from 'dotenv';
 import { UsersService } from '@/server/modules/users/users.service';
 import { MeetingService } from '@/server/modules/meeting/meeting.service';
@@ -23,6 +23,7 @@ describe('AttendanceController', () => {
   let testAttendanceId: string;
   let testMeeting3Id: string;
   let testUser3Id: string;
+  let testUser3Nuid: string;
   let roleId: string;
 
   beforeAll(async () => {
@@ -32,10 +33,7 @@ describe('AttendanceController', () => {
     // Test user
     const user = await prisma.user.create({
       data: {
-        userId: 'test-attendance-user-1',
-        supabaseAuthId: 'test-supabase-auth-id-1',
-        nuid: '001234569',
-        email: 'testuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test',
         lastName: 'User',
         roleId: role.roleId,
@@ -46,10 +44,7 @@ describe('AttendanceController', () => {
 
     const user2 = await prisma.user.create({
       data: {
-        userId: 'test-attendance-user-2',
-        supabaseAuthId: 'test-supabase-auth-id-2',
-        nuid: '001234570',
-        email: 'testuser2@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test2',
         lastName: 'User2',
         roleId: role.roleId,
@@ -100,10 +95,7 @@ describe('AttendanceController', () => {
 
     const user3 = await prisma.user.create({
       data: {
-        userId: 'test-attendance-user-3',
-        supabaseAuthId: 'test-supabase-auth-id-3',
-        nuid: '001234571',
-        email: 'testuser3@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test3',
         lastName: 'User3',
         roleId: role.roleId,
@@ -111,6 +103,7 @@ describe('AttendanceController', () => {
       },
     });
     testUser3Id = user3.userId;
+    testUser3Nuid = user3.nuid;
 
     // Create initial attendance record
     const attendance = await prisma.attendance.create({
@@ -224,7 +217,7 @@ describe('AttendanceController', () => {
         },
       });
 
-      const lateMember = await UsersService.getUserByNUID('001234571');
+      const lateMember = await UsersService.getUserByNUID(testUser3Nuid);
       expect(lateMember?.userId).toBe(testUser3Id);
       const nonexistentNuid = `nonexistent-${randomUUID()}`;
       expect(await UsersService.getUserByNUID(nonexistentNuid)).toBeNull();
@@ -287,18 +280,23 @@ describe('AttendanceController', () => {
     }
   });
 
-    it('roster edits preserve statuses', async () => {
+  it('roster edits preserve statuses', async () => {
     try {
       // Arrange: two members already on the roster with recorded statuses
       await prisma.attendance.createMany({
         data: [
           { userId: testUserId, meetingId: testMeeting3Id, status: 'PRESENT' },
-          { userId: testUser2Id, meetingId: testMeeting3Id, status: 'EXCUSED_ABSENCE' },
+          {
+            userId: testUser2Id,
+            meetingId: testMeeting3Id,
+            status: 'EXCUSED_ABSENCE',
+          },
         ],
       });
 
       const statuses = async () => {
-        const rows = await AttendanceController.getMeetingAttendance(testMeeting3Id);
+        const rows =
+          await AttendanceController.getMeetingAttendance(testMeeting3Id);
         return Object.fromEntries(rows.map((r) => [r.userId, r.status]));
       };
 
@@ -332,7 +330,9 @@ describe('AttendanceController', () => {
       ]);
       expect(await statuses()).toEqual(before);
     } finally {
-      await prisma.attendance.deleteMany({ where: { meetingId: testMeeting3Id } });
+      await prisma.attendance.deleteMany({
+        where: { meetingId: testMeeting3Id },
+      });
     }
   });
 
@@ -472,10 +472,7 @@ describe('getRemainingUnexcusedAbsences', () => {
     roleId = role.roleId;
     const user4 = await prisma.user.create({
       data: {
-        nuid: '001234572',
-        userId: 'test-attendance-user-4',
-        supabaseAuthId: 'test-supabase-auth-id-4',
-        email: 'testuser4@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test4',
         lastName: 'User4',
         roleId: role.roleId,
@@ -486,10 +483,7 @@ describe('getRemainingUnexcusedAbsences', () => {
 
     const user5 = await prisma.user.create({
       data: {
-        nuid: '001234573',
-        userId: 'test-attendance-user-5',
-        supabaseAuthId: 'test-supabase-auth-id-5',
-        email: 'testuser5@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test5',
         lastName: 'User5',
         roleId: role.roleId,
@@ -822,7 +816,8 @@ describe('getRemainingUnexcusedAbsences', () => {
     const before =
       await AttendanceController.getRemainingUnexcusedAbsences(testUser5Id);
     expect(before.fullBody.used).toBe(1);
-    const historyBefore = await AttendanceService.getUserAttendance(testUser5Id);
+    const historyBefore =
+      await AttendanceService.getUserAttendance(testUser5Id);
     expect(historyBefore.map((a) => a.meetingId)).toContain(meeting.meetingId);
 
     await MeetingService.softDeleteMeeting(meeting.meetingId);
