@@ -62,7 +62,6 @@ const EditMeetingModal: React.FC<EditMeetingModalProps> = ({
     fetch('/api/users')
       .then((response) => response.json())
       .then((json) => setUsers(json))
-      // eslint-disable-next-line
       .catch((error) => console.error(error));
   };
 

@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { MeetingType } from '../generated/prisma';
+import type { CreateMeetingInput } from '../types';
 import { SemesterService } from '../semester/semester.service';
 import {
   formatMeetingDateInput,
@@ -104,14 +105,7 @@ export const MeetingService = {
   },
 
   async createMeeting(
-    meetingData: {
-      name: string;
-      startTime: string;
-      date: string;
-      endTime: string;
-      notes: string;
-      type: MeetingType;
-    },
+    meetingData: Omit<CreateMeetingInput, 'attendeeIds'>,
     attendeeIds: string[],
   ) {
     const date = parseMeetingDate(meetingData.date);
@@ -233,9 +227,19 @@ export const MeetingService = {
   },
 
   async softDeleteMeeting(meetingId: string) {
-    return prisma.meeting.update({
-      where: { meetingId },
-      data: { deletedAt: new Date() },
-    });
+    const now = new Date();
+    // End the meeting's open votes in the same transaction, so a vote on a
+    // deleted meeting isn't left "active" with no way to end it from the UI.
+    const [, meeting] = await prisma.$transaction([
+      prisma.votingEvent.updateMany({
+        where: { meetingId, endedAt: null, deletedAt: null },
+        data: { endedAt: now },
+      }),
+      prisma.meeting.update({
+        where: { meetingId },
+        data: { deletedAt: now },
+      }),
+    ]);
+    return meeting;
   },
 };

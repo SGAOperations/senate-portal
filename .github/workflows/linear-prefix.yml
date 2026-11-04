@@ -1,0 +1,20 @@
+name: Linear prefix check
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  linear-prefix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title and branch name
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          if [[ "$TITLE" =~ ^ATM-[0-9]+ ]] || [[ "$BRANCH" =~ (^|/)[Aa][Tt][Mm]-[0-9]+ ]]; then
+            echo "Linear ID found"
+          else
+            echo "PR title or branch name must include a Linear ID (e.g. ATM-123)"
+            exit 1
+          fi

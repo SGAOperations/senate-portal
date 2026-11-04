@@ -88,7 +88,6 @@ const MeetingsPage: React.FC = () => {
       .then((json) => {
         setMeetings(json);
       })
-      // eslint-disable-next-line
       .catch((error) => console.error(error));
   };
 
@@ -101,7 +100,6 @@ const MeetingsPage: React.FC = () => {
     fetch(`/api/meeting/${editingMeeting.meetingId}/users`)
       .then((response) => response.json())
       .then((json) => setSelectedUserIds(json.map((d: any) => d.userId)))
-      // eslint-disable-next-line
       .catch(console.error);
   }, [editingMeeting?.meetingId, showEditMeetingModal]);
 
@@ -196,7 +194,6 @@ const MeetingsPage: React.FC = () => {
       .then((data) => {
         setMembers(data);
       })
-      // eslint-disable-next-line
       .catch((err) => console.error(err));
   }, []);
 
