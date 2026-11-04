@@ -1,5 +1,5 @@
-import { requireAuth } from '@/utils/api-auth';
-import { VotingRecordController } from '@/voting-record/voting-record.controller';
+import { requireAuth } from '@/server/auth/api-auth';
+import { VotingRecordController } from '@/server/modules/voting-record/voting-record.controller';
 import { NextResponse } from 'next/server';
 
 /**

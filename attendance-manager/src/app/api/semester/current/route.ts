@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SemesterService } from '@/semester/semester.service';
+import { SemesterService } from '@/server/modules/semester/semester.service';
 
 export async function GET() {
   try {
