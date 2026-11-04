@@ -678,7 +678,26 @@ describe('signed-in user routes', () => {
       });
     };
 
+    it('returns 401 when signed out', async () => {
+      signOut();
+      expect((await put(memberId, { firstName: 'Hacked' })).status).toBe(401);
+    });
 
+    it('forbids anyone but a superadmin, even a member editing themselves', async () => {
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect((await put(memberId, { firstName: 'Hacked' })).status).toBe(403);
+      signInAs('test-sgauth-id-users-speaker', 'speaker@example.com', [
+        'speaker-of-the-senate',
+      ]);
+      expect((await put(memberId, { email: 'attacker@example.com' })).status).toBe(
+        403,
+      );
+      const stored = await prisma.user.findUnique({
+        where: { userId: memberId },
+      });
+      expect(stored?.firstName).toBe('Member');
+      expect(stored?.email).toBe('member-route@example.com');
+    });
 
     it('rejects positionKeys even from a superadmin', async () => {
       signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
@@ -713,5 +732,88 @@ describe('signed-in user routes', () => {
     });
   });
 
+  describe('POST /api/users', () => {
+    const post = async (body: unknown) => {
+      const { POST } = await import('@/app/api/users/route');
+      return POST(jsonRequest('http://localhost/api/users', 'POST', body));
+    };
+    const body = {
+      userId: 'test-users-route-created',
+      nuid: USERS_TEST_NUIDS[19],
+      email: 'created-route@example.com',
+      firstName: 'Created',
+      lastName: 'Route',
+    };
 
+    afterEach(async () => {
+      await prisma.user.deleteMany({ where: { userId: body.userId } });
+    });
+
+    it('returns 401 signed out and 403 for anyone but a superadmin', async () => {
+      signOut();
+      expect((await post(body)).status).toBe(401);
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect((await post(body)).status).toBe(403);
+      expect(
+        await prisma.user.findUnique({ where: { userId: body.userId } }),
+      ).toBeNull();
+    });
+
+    it('lets a superadmin create a profile', async () => {
+      signInAs(EBOARD_SGAUTH, 'eboard-route@example.com', [
+        'digital-innovation-manager',
+      ]);
+      expect((await post(body)).status).toBe(201);
+    });
+  });
+
+  describe('DELETE /api/users/[id]', () => {
+    const del = async (id: string) => {
+      const { DELETE } = await import('@/app/api/users/[id]/route');
+      return DELETE(
+        new Request(`http://localhost/api/users/${id}`, { method: 'DELETE' }),
+        { params: Promise.resolve({ id }) },
+      );
+    };
+    let doomedId: string;
+
+    beforeEach(async () => {
+      doomedId = (
+        await prisma.user.create({
+          data: {
+            nuid: USERS_TEST_NUIDS[19],
+            email: 'doomed-route@example.com',
+            firstName: 'Doomed',
+            lastName: 'Route',
+          },
+        })
+      ).userId;
+    });
+
+    afterEach(async () => {
+      await prisma.user.deleteMany({ where: { userId: doomedId } });
+    });
+
+    it('returns 401 signed out and 403 for a member', async () => {
+      signOut();
+      expect((await del(doomedId)).status).toBe(401);
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      expect((await del(doomedId)).status).toBe(403);
+      const stored = await prisma.user.findUnique({
+        where: { userId: doomedId },
+      });
+      expect(stored?.deletedAt).toBeNull();
+    });
+
+    it('lets whoever manages attendance remove a member', async () => {
+      signInAs('test-sgauth-id-users-speaker', 'speaker@example.com', [
+        'speaker-of-the-senate',
+      ]);
+      expect((await del(doomedId)).status).toBe(200);
+      const stored = await prisma.user.findUnique({
+        where: { userId: doomedId },
+      });
+      expect(stored?.deletedAt).not.toBeNull();
+    });
+  });
 });

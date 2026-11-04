@@ -10,8 +10,8 @@ const CreateUserSchema = z.strictObject({
   userId: z.string().min(1),
   nuid: z.string().regex(/^\d{9}$/),
   email: z.email(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  firstName: z.string().trim().min(1).max(100),
+  lastName: z.string().trim().min(1).max(100),
 });
 
 // The only fields an update may touch. sgauthUserId and positionKeys come from
@@ -118,9 +118,11 @@ export const UsersController = {
 
   async deleteUser(params: { userId: string }) {
     await UsersService.deleteUser(params.userId);
+    // 200, not 204: a 204 response cannot carry this JSON body, and
+    // NextResponse.json throws on one, turning a successful delete into a 500.
     return NextResponse.json(
       { message: 'User deleted successfully' },
-      { status: 204 },
+      { status: 200 },
     );
   },
 

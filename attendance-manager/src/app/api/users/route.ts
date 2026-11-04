@@ -1,4 +1,5 @@
 import { UsersController } from '@/server/modules/users/users.controller';
+import { requireCapability } from '@/server/auth/api-auth';
 
 /**
  * @swagger
@@ -25,6 +26,9 @@ export async function GET() {
  *       400:
  *         description: Missing required fields.
  */
+// Superadmin only; members create their own profile through /api/auth/register.
 export async function POST(request: Request) {
+  const { error } = await requireCapability('superadmin');
+  if (error) return error;
   return UsersController.createUser(request);
 }
