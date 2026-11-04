@@ -1,7 +1,7 @@
 import { VotingRecordService } from '../voting-record.service';
 import { VotingRecordController } from '../voting-record.controller';
 import { prisma } from '../../lib/prisma';
-import { semesterIdFor } from '@/utils/test-helpers';
+import { semesterIdFor, uniqueUserFields } from '@/utils/test-helpers';
 import { VotingService } from '@/voting/voting.service';
 import { MeetingService } from '@/meeting/meeting.service';
 import { UsersService } from '@/users/users.service';
@@ -30,10 +30,7 @@ describe('VotingRecordService', () => {
     // Create test user
     const user = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-1',
-        supabaseAuthId: 'test-supabase-auth-id-1',
-        nuid: '001234567',
-        email: 'votingrecorduser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test',
         lastName: 'User',
         roleId: role.roleId,
@@ -45,10 +42,7 @@ describe('VotingRecordService', () => {
     // Create second test user (for create/fetch tests to avoid duplicate-vote conflicts)
     const user2 = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-1b',
-        supabaseAuthId: 'test-supabase-auth-id-1b',
-        nuid: '001234572',
-        email: 'votingrecorduser1b@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test1b',
         lastName: 'User1b',
         roleId: role.roleId,
@@ -205,10 +199,7 @@ describe('VotingRecordController', () => {
     // Create test user
     const user = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-2',
-        supabaseAuthId: 'test-supabase-auth-id-2',
-        nuid: '001234568',
-        email: 'votingrecorduser2@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test2',
         lastName: 'User2',
         roleId: role.roleId,
@@ -220,10 +211,7 @@ describe('VotingRecordController', () => {
     // Create second test user (for POST/GET tests to avoid duplicate-vote conflicts)
     const user2 = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-2b',
-        supabaseAuthId: 'test-supabase-auth-id-2b',
-        nuid: '001234573',
-        email: 'votingrecorduser2b@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test2b',
         lastName: 'User2b',
         roleId: role.roleId,
@@ -553,10 +541,7 @@ describe('GET /api/voting-record', () => {
     // Create test user
     const user = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-3',
-        supabaseAuthId: 'test-supabase-auth-id-3',
-        nuid: '001234569',
-        email: 'votingrecorduser3@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test3',
         lastName: 'User3',
         roleId: role.roleId,
@@ -637,10 +622,7 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
     // Create test user
     const user = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-4',
-        supabaseAuthId: 'test-supabase-auth-id-4',
-        nuid: '001234570',
-        email: 'votingrecorduser4@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test4',
         lastName: 'User4',
         roleId: role.roleId,
@@ -652,10 +634,7 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
     // Create second test user (so two records can exist for the same voting event)
     const user2 = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-4b',
-        supabaseAuthId: 'test-supabase-auth-id-4b',
-        nuid: '001234574',
-        email: 'votingrecorduser4b@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test4b',
         lastName: 'User4b',
         roleId: role.roleId,
@@ -815,10 +794,7 @@ describe('POST /api/voting-record', () => {
     // Create test user
     const user = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-5',
-        supabaseAuthId: 'test-supabase-auth-id-5',
-        nuid: '001234571',
-        email: 'votingrecorduser5@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test5',
         lastName: 'User5',
         roleId: role.roleId,
@@ -959,10 +935,7 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
 
     const user = await prisma.user.create({
       data: {
-        userId: 'test-voting-record-user-patch-route',
-        supabaseAuthId: 'test-supabase-auth-id-patch-route',
-        nuid: '001234599',
-        email: 'votingrecordpatchroute@example.com',
+        ...uniqueUserFields(),
         firstName: 'Patch',
         lastName: 'Route',
         roleId: role.roleId,

@@ -1,6 +1,6 @@
 import { RequestController } from '../request.controller';
 import { prisma } from '../../lib/prisma';
-import { semesterIdFor } from '@/utils/test-helpers';
+import { semesterIdFor, uniqueUserFields } from '@/utils/test-helpers';
 import { POST } from '../../app/api/attendance/[attendanceId]/requests/route';
 import { UsersService } from '@/users/users.service';
 import { MeetingService } from '@/meeting/meeting.service';
@@ -49,10 +49,7 @@ describe('RequestController', () => {
     // Create a test user
     const user = await prisma.user.create({
       data: {
-        userId: 'test-request-user-1',
-        supabaseAuthId: 'test-supabase-auth-id-1',
-        nuid: '001234567',
-        email: 'requestuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Request',
         lastName: 'User',
         roleId: testRoleId,
@@ -64,10 +61,7 @@ describe('RequestController', () => {
     // Create a test user
     const secondUser = await prisma.user.create({
       data: {
-        userId: 'test-request-user-2',
-        supabaseAuthId: 'test-supabase-auth-id-2',
-        nuid: '001234568',
-        email: 'otherrequestuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Other',
         lastName: 'Request',
         roleId: testRoleId,
@@ -358,7 +352,9 @@ describe('RequestController', () => {
       data: {
         name: 'Soon Meeting',
         date: parseMeetingDate(formatMeetingDateInput(meetingStart)),
-        semesterId: await semesterIdFor(parseMeetingDate(formatMeetingDateInput(meetingStart))),
+        semesterId: await semesterIdFor(
+          parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        ),
         startTime: meetingStart,
         endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Soon meeting',
@@ -393,7 +389,9 @@ describe('RequestController', () => {
       data: {
         name: 'Far Future Meeting',
         date: parseMeetingDate(formatMeetingDateInput(meetingStart)),
-        semesterId: await semesterIdFor(parseMeetingDate(formatMeetingDateInput(meetingStart))),
+        semesterId: await semesterIdFor(
+          parseMeetingDate(formatMeetingDateInput(meetingStart)),
+        ),
         startTime: meetingStart,
         endTime: new Date(meetingStart.getTime() + 60 * 60 * 1000),
         notes: 'Far future meeting',
@@ -513,10 +511,7 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
 
     const user = await prisma.user.create({
       data: {
-        nuid: '001234570',
-        userId: 'test-request-user-3',
-        supabaseAuthId: 'test-supabase-auth-id-3',
-        email: 'requestrouteuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Request',
         lastName: 'Route',
         roleId: routeTestRoleId,
