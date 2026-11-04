@@ -1,5 +1,5 @@
 import { VotingController } from '@/voting/voting.controller';
-import { actorId, requireCapability } from '@/utils/api-auth';
+import { requireCapability } from '@/utils/api-auth';
 
 /**
  * @swagger
@@ -31,7 +31,7 @@ export async function GET() {
  *         description: Missing required fields or invalid data.
  */
 export async function POST(request: Request) {
-  const auth = await requireCapability('hostVotes');
-  if (auth.error) return auth.error;
-  return VotingController.createVotingEvent(request, actorId(auth.actor));
+  const { error } = await requireCapability('hostVotes');
+  if (error) return error;
+  return VotingController.createVotingEvent(request);
 }

@@ -1,5 +1,5 @@
 import { MeetingController } from '@/meeting/meeting.controller';
-import { can, requireAuth, requireCapability } from '@/utils/api-auth';
+import { requireCapability } from '@/utils/api-auth';
 /**
  * @swagger
  * /api/users:
@@ -10,11 +10,7 @@ import { can, requireAuth, requireCapability } from '@/utils/api-auth';
  *         description: A JSON array of array of meeting objects.
  */
 export async function GET() {
-  const auth = await requireAuth();
-  if (auth.error) return auth.error;
-  return MeetingController.listMeetings({
-    full: can(auth.actor, 'readRecords'),
-  });
+  return MeetingController.listMeetings();
 }
 
 /**

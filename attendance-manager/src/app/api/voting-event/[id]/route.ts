@@ -1,5 +1,5 @@
 import { VotingController } from '@/voting/voting.controller';
-import { actorId, requireAuth, requireCapability } from '@/utils/api-auth';
+import { requireCapability } from '@/utils/api-auth';
 
 /**
  * @swagger
@@ -22,8 +22,6 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { error } = await requireAuth();
-  if (error) return error;
   const { id } = await params;
   return VotingController.getVotingEvent({ votingEventId: id });
 }
@@ -57,12 +55,8 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireCapability('hostVotes');
-  if (auth.error) return auth.error;
+  const { error } = await requireCapability('hostVotes');
+  if (error) return error;
   const { id } = await params;
-  return VotingController.updateVotingEvent(
-    request,
-    { votingEventId: id },
-    actorId(auth.actor),
-  );
+  return VotingController.updateVotingEvent(request, { votingEventId: id });
 }

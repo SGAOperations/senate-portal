@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 import { UsersService } from './users.service';
 import { SENATOR_POSITION } from '../lib/permissions';
-import { AttendanceStatus } from '../generated/prisma';
 import { AttendanceService } from '../attendance/attendance.service';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma';
 
+// strictObject: sgauthUserId and positionKeys come from SGAuth alone, so a
+// body that tries to set them (or anything else unknown) is rejected.
 const CreateUserSchema = z.strictObject({
   userId: z.string().min(1),
   nuid: z.string().regex(/^\d{9}$/),
   email: z.email(),
-  firstName: z.string().trim().min(1).max(100),
-  lastName: z.string().trim().min(1).max(100),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
 });
 
 // The only fields an update may touch. sgauthUserId and positionKeys come from
@@ -25,12 +25,6 @@ const UpdateUserSchema = z
     lastName: z.string().trim().min(1).max(100),
   })
   .partial();
-
-const AttendanceUpdateSchema = z.strictObject({
-  userId: z.string().min(1),
-  meetingId: z.string().min(1),
-  status: z.enum(AttendanceStatus),
-});
 
 async function readJson(request: Request): Promise<unknown> {
   try {
@@ -72,16 +66,14 @@ export const UsersController = {
     return NextResponse.json(user);
   },
 
-  // Names only: no NUID, email, positions or attendance.
   async listUsersSantizied() {
     const users = await UsersService.getRoster();
-    return NextResponse.json(
-      users.map(({ userId, firstName, lastName }) => ({
-        userId,
-        firstName,
-        lastName,
-      })),
-    );
+    const sanitizedUsers = users.map((user) => {
+      // eslint-disable-next-line no-unused-vars
+      const { email: _email, ...safeUser } = user;
+      return safeUser;
+    });
+    return NextResponse.json(sanitizedUsers);
   },
 
   async getUser(params: { userId: string }) {
@@ -212,42 +204,26 @@ export const UsersController = {
     }
   },
 
-  /**
-   * Sets one member's status for one meeting. `actor` is the signed-in user:
-   * with manageAttendance they may set any status for anyone; a member may only mark
-   * their own attendance PENDING, which is how an excuse request starts, and
-   * only while it is still PENDING -- never to clear a recorded absence.
-   */
-  async updateAttendence(
-    request: Request,
-    actor: { userId: string | null; canManage: boolean },
-  ) {
-    const result = AttendanceUpdateSchema.safeParse(await readJson(request));
-    if (!result.success) return invalidBody(result.error);
-    const body = result.data;
-    if (
-      !actor.canManage &&
-      (body.userId !== actor.userId || body.status !== 'PENDING')
-    ) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  async updateAttendence(request: Request) {
+    const body = await request.json();
+    if (!body.userId || !body.meetingId || body.status === undefined) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 },
+      );
     }
-    if (!actor.canManage) {
-      const existing = await prisma.attendance.findUnique({
-        where: {
-          // eslint-disable-next-line
-          userId_meetingId: { userId: body.userId, meetingId: body.meetingId },
-        },
-        select: { status: true },
-      });
-      if (existing && existing.status !== 'PENDING') {
-        return NextResponse.json(
-          {
-            error:
-              'Attendance for this meeting is already recorded. Contact the Senate Operations Coordinator to change it.',
-          },
-          { status: 409 },
-        );
-      }
+    const validStatuses = [
+      'PENDING',
+      'PRESENT',
+      'PENDING_ABSENCE',
+      'EXCUSED_ABSENCE',
+      'UNEXCUSED_ABSENCE',
+    ];
+    if (!validStatuses.includes(body.status)) {
+      return NextResponse.json(
+        { error: 'Invalid attendance value' },
+        { status: 400 },
+      );
     }
 
     await AttendanceService.upsertAttendance(

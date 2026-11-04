@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { RequestController } from '@/request/request.controller';
 import { toErrorResponse } from '@/utils/api-errors';
-import { can, forbidden, requireAuth } from '@/utils/api-auth';
-import { attendanceOwner } from '@/utils/ownership';
 
 /**
  * Create a new Request
@@ -15,21 +13,8 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ attendanceId: string }> },
 ) {
-  const auth = await requireAuth();
-  if (auth.error) return auth.error;
-  const { actor } = auth;
   try {
     const { attendanceId } = await params;
-    const owner = await attendanceOwner(attendanceId);
-    if (!owner) {
-      return NextResponse.json(
-        { error: 'Attendance record not found' },
-        { status: 404 },
-      );
-    }
-    if (owner !== actor.user?.userId && !can(actor, 'manageAttendance')) {
-      return forbidden();
-    }
     const { reason, attendanceMode, timeAdjustment } = await req.json();
 
     if (!reason || !attendanceMode) {

@@ -8,11 +8,14 @@ const FIXED_OPTIONS = ['Abstain', 'No Confidence'] as const;
 
 interface CreateVoteFormProps {
   meetings: MeetingApiData[];
+  // null/undefined for staff without a portal profile
+  userId?: string;
   onCreated: () => Promise<void>;
 }
 
 const CreateVoteForm: React.FC<CreateVoteFormProps> = ({
   meetings,
+  userId,
   onCreated,
 }) => {
   // Form fields
@@ -54,6 +57,7 @@ const CreateVoteForm: React.FC<CreateVoteFormProps> = ({
           meetingId,
           name,
           voteType,
+          updatedBy: userId,
           options:
             voteType === VoteType.secretBallot
               ? [...FIXED_OPTIONS, ...options]

@@ -35,7 +35,10 @@ const VotingAdminPanel: React.FC<VotingAdminPanelProps> = ({
       const res = await fetch(`/api/voting-event/${votingEventId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ end: true }),
+        body: JSON.stringify({
+          end: true,
+          ...(user?.id ? { updatedBy: user.id } : {}),
+        }),
       });
       if (!res.ok) throw new Error();
       await refreshActiveEvent();
@@ -81,7 +84,11 @@ const VotingAdminPanel: React.FC<VotingAdminPanelProps> = ({
       )}
 
       {!activeEventLoading && activeEvents.length === 0 && (
-        <CreateVoteForm meetings={meetings} onCreated={refreshActiveEvent} />
+        <CreateVoteForm
+          meetings={meetings}
+          userId={user?.id ?? undefined}
+          onCreated={refreshActiveEvent}
+        />
       )}
     </div>
   );

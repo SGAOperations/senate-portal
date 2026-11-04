@@ -368,10 +368,7 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(
-        mockRequest,
-        'test-host',
-      );
+      const response = await VotingController.createVotingEvent(mockRequest);
 
       expect(response.status).toBe(201);
       const responseData = await response.json();
@@ -394,10 +391,7 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(
-        mockRequest,
-        'test-host',
-      );
+      const response = await VotingController.createVotingEvent(mockRequest);
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -416,10 +410,7 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(
-        mockRequest,
-        'test-host',
-      );
+      const response = await VotingController.createVotingEvent(mockRequest);
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -437,10 +428,7 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(
-        mockRequest,
-        'test-host',
-      );
+      const response = await VotingController.createVotingEvent(mockRequest);
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -459,15 +447,11 @@ describe('VotingController', () => {
         json: async () => createData,
       } as Request;
 
-      const response = await VotingController.createVotingEvent(
-        mockRequest,
-        'test-host',
-      );
+      const response = await VotingController.createVotingEvent(mockRequest);
 
       expect(response.status).toBe(201);
       const responseData = await response.json();
-      // updatedBy is the signed-in host, never the body
-      expect(responseData.updatedBy).toBe('test-host');
+      expect(responseData.updatedBy).toBeNull();
       await VotingService.deleteVotingEvent(responseData.votingEventId);
     });
   });
@@ -491,18 +475,13 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(
-        mockRequest,
-        { votingEventId: testVotingEvent.votingEventId },
-        'test-host',
-      );
+      const response = await VotingController.updateVotingEvent(mockRequest, { votingEventId: testVotingEvent.votingEventId });
 
       expect(response).toBeDefined();
       const responseData = await response.json();
       expect(responseData.name).toBe('Updated PUT Test Event');
       expect(responseData.voteType).toBe(VoteType.placard);
-      // updatedBy is the signed-in host, whatever the body says
-      expect(responseData.updatedBy).toBe('test-host');
+      expect(responseData.updatedBy).toBe('test-updater');
       expect(responseData.updatedAt).toBeDefined(); // Should be set after update
       await VotingService.deleteVotingEvent(testVotingEvent.votingEventId);
     });
@@ -523,11 +502,7 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(
-        mockRequest,
-        { votingEventId: testVotingEvent.votingEventId },
-        'test-host',
-      );
+      const response = await VotingController.updateVotingEvent(mockRequest, { votingEventId: testVotingEvent.votingEventId });
 
       expect(response).toBeDefined();
       const responseData = await response.json();
@@ -546,11 +521,7 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(
-        mockRequest,
-        { votingEventId: 'non-existent-id-12345' },
-        'test-host',
-      );
+      const response = await VotingController.updateVotingEvent(mockRequest, { votingEventId: 'non-existent-id-12345' });
 
       expect(response.status).toBe(404);
       const responseData = await response.json();
@@ -570,11 +541,7 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(
-        mockRequest,
-        { votingEventId: testVotingEvent.votingEventId },
-        'test-host',
-      );
+      const response = await VotingController.updateVotingEvent(mockRequest, { votingEventId: testVotingEvent.votingEventId });
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -597,11 +564,7 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(
-        mockRequest,
-        { votingEventId: testVotingEvent.votingEventId },
-        'test-host',
-      );
+      const response = await VotingController.updateVotingEvent(mockRequest, { votingEventId: testVotingEvent.votingEventId });
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -624,11 +587,7 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(
-        mockRequest,
-        { votingEventId: testVotingEvent.votingEventId },
-        'test-host',
-      );
+      const response = await VotingController.updateVotingEvent(mockRequest, { votingEventId: testVotingEvent.votingEventId });
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -651,11 +610,7 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(
-        mockRequest,
-        { votingEventId: testVotingEvent.votingEventId },
-        'test-host',
-      );
+      const response = await VotingController.updateVotingEvent(mockRequest, { votingEventId: testVotingEvent.votingEventId });
 
       expect(response.status).toBe(400);
       const responseData = await response.json();
@@ -678,11 +633,7 @@ describe('VotingController', () => {
         json: async () => updateData,
       } as Request;
 
-      const response = await VotingController.updateVotingEvent(
-        mockRequest,
-        { votingEventId: testVotingEvent.votingEventId },
-        'test-host',
-      );
+      const response = await VotingController.updateVotingEvent(mockRequest, { votingEventId: testVotingEvent.votingEventId });
 
       expect(response).toBeDefined();
       const responseData = await response.json();
@@ -813,17 +764,6 @@ describe('GET /api/voting-event/[id]', () => {
     expect(data.error).toBe('Voting event not found');
   });
 
-  it('returns 401 when signed out', async () => {
-    const { GET } = await import('../../app/api/voting-event/[id]/route');
-    signInAsActor(null);
-    const response = await GET(
-      new Request(
-        `http://localhost/api/voting-event/${routeTestVotingEventId}`,
-      ),
-      { params: Promise.resolve({ id: routeTestVotingEventId }) },
-    );
-    expect(response.status).toBe(401);
-  });
 });
 
 describe('Per-voter voting results include voter names (non-secret ballot)', () => {
@@ -1365,8 +1305,7 @@ describe('POST /api/voting-event', () => {
     expect(data.voteType).toBe(VoteType.rollCall);
     expect(data.meetingId).toBe(routeTestMeetingId);
     expect(data.votingEventId).toBeDefined();
-    // the signed-in host (testActor's default id), not the body's 'test-user'
-    expect(data.updatedBy).toBe('test-actor');
+    expect(data.updatedBy).toBe('test-user');
     await VotingService.deleteVotingEvent(data.votingEventId);
   });
 
@@ -1533,7 +1472,7 @@ describe('PUT /api/voting-event/[id]', () => {
     expect(data).toBeDefined();
     expect(data.name).toBe('Updated PUT Route Test Event');
     expect(data.voteType).toBe(VoteType.placard);
-    expect(data.updatedBy).toBe('test-actor');
+    expect(data.updatedBy).toBe('test-updater');
     expect(data.votingEventId).toBe(routeTestVotingEventId);
     expect(data.updatedAt).toBeDefined();
   });

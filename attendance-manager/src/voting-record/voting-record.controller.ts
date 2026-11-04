@@ -5,11 +5,9 @@ import { VotingRecordService } from './voting-record.service';
 import { z } from 'zod';
 
 // Define the expected structure of the request body using Zod
-// The voter is the signed-in user, never the body. userId and updatedBy are
-// still accepted so older clients keep working, but must name the voter.
 const createVotingRecordSchema = z.object({
   votingEventId: z.string().min(1),
-  userId: z.string().min(1).optional(),
+  userId: z.string().min(1),
   result: z.string().min(1),
   updatedBy: z.string().nullish(),
 });
@@ -36,17 +34,9 @@ function isValidVotingRecordResult(
 }
 
 export const VotingRecordController = {
-  // Secret-ballot records lose their userId: no one, record readers and vote hosts
-  // included, may see how a Senator voted in one (XV §2.2.1).
   async getAllVotingRecords() {
     const votingRecords = await VotingRecordService.getAllVotingRecords();
-    return NextResponse.json(
-      votingRecords.map((record) =>
-        record.votingEvent.voteType === VoteType.secretBallot
-          ? { ...record, userId: null, updatedBy: null }
-          : record,
-      ),
-    );
+    return NextResponse.json(votingRecords);
   },
 
   async getHasUserVoted(params: { votingEventId: string; userId: string }) {
@@ -96,12 +86,7 @@ export const VotingRecordController = {
     return NextResponse.json(votingRecords);
   },
 
-  /**
-   * Casts `voter`'s vote. The route has already checked that they hold a
-   * Senate seat (XIV §1.2); here the event must be open and the result one of
-   * its options.
-   */
-  async createVotingRecord(request: Request, voter: { userId: string }) {
+  async createVotingRecord(request: Request) {
     //Parse the request body as JSON and handle any parsing errors
     let body: unknown;
 
@@ -125,60 +110,13 @@ export const VotingRecordController = {
     }
 
     const { votingEventId, userId, result, updatedBy } = parsed.data;
-    if (
-      (userId && userId !== voter.userId) ||
-      (updatedBy && updatedBy !== voter.userId)
-    ) {
-      return NextResponse.json(
-        { error: 'You can only cast your own vote' },
-        { status: 403 },
-      );
-    }
-
-    const event = await prisma.votingEvent.findUnique({
-      where: { votingEventId },
-      include: { meeting: { select: { deletedAt: true } } },
-    });
-    if (!event || event.deletedAt || event.meeting.deletedAt) {
-      return NextResponse.json(
-        { error: 'Voting event not found' },
-        { status: 404 },
-      );
-    }
-    if (event.endedAt) {
-      return NextResponse.json(
-        { error: 'This vote has ended' },
-        { status: 400 },
-      );
-    }
-    const options = Array.isArray(event.options) ? event.options : [];
-    if (!isValidVotingRecordResult(event.voteType, options, result)) {
-      return NextResponse.json(
-        { error: 'Invalid result for this voting event type' },
-        { status: 400 },
-      );
-    }
-    // The same rule the voting popup applies: present at the meeting.
-    const attendance = await prisma.attendance.findUnique({
-      where: {
-        // eslint-disable-next-line
-        userId_meetingId: { userId: voter.userId, meetingId: event.meetingId },
-      },
-      select: { status: true },
-    });
-    if (attendance?.status !== 'PRESENT') {
-      return NextResponse.json(
-        { error: 'You must be signed in to this meeting to vote' },
-        { status: 403 },
-      );
-    }
 
     try {
       const newVotingRecord = await VotingRecordService.createVotingRecord({
         votingEventId,
-        userId: voter.userId,
+        userId,
         result,
-        updatedBy: voter.userId,
+        updatedBy: updatedBy ?? undefined,
       });
       return NextResponse.json(newVotingRecord, { status: 201 });
     } catch (error: any) {
@@ -192,11 +130,9 @@ export const VotingRecordController = {
     }
   },
 
-  /** A vote host's correction; `actorId` is recorded as updatedBy. */
   async updateVotingRecord(
     request: Request,
     params: { votingRecordId: string },
-    actorId: string,
   ) {
     let body: unknown;
     try {
@@ -216,7 +152,21 @@ export const VotingRecordController = {
       );
     }
 
-    const { result } = body as { result: string };
+    const { result, updatedBy } = body as {
+      result: string;
+      updatedBy?: unknown;
+    };
+
+    if (
+      updatedBy !== undefined &&
+      updatedBy !== null &&
+      typeof updatedBy !== 'string'
+    ) {
+      return NextResponse.json(
+        { error: 'updatedBy must be a string when provided' },
+        { status: 400 },
+      );
+    }
 
     const record = await prisma.votingRecord.findUnique({
       where: { votingRecordId: params.votingRecordId },
@@ -233,7 +183,7 @@ export const VotingRecordController = {
     }
 
     const event = record.votingEvent;
-    if (event.deletedAt || event.endedAt) {
+    if (event.deletedAt) {
       return NextResponse.json(
         { error: 'Cannot edit voting records for a completed voting event' },
         { status: 400 },
@@ -261,7 +211,7 @@ export const VotingRecordController = {
       const updated = await VotingRecordService.updateVotingRecord({
         votingRecordId: params.votingRecordId,
         result,
-        updatedBy: actorId,
+        ...(typeof updatedBy === 'string' ? { updatedBy } : {}),
       });
       return NextResponse.json(updated);
     } catch (error: unknown) {

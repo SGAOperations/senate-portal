@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AttendanceController } from '@/attendance/attendance.controller';
-import { requireSelfOr } from '@/utils/api-auth';
 
 /**
  * Get User Requests
@@ -13,10 +12,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> },
 ) {
-  const { userId } = await params;
-  const { error } = await requireSelfOr(userId, 'readRecords');
-  if (error) return error;
   try {
+    const { userId } = await params;
     const attendance = await AttendanceController.getRequestsByUser(userId);
     return NextResponse.json(attendance);
   } catch (error: any) {

@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { VotingEventApiData, VotingRecordApiData } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 import { VoteType, yesNoOptions } from '@/utils/consts';
 import { formatResultLabel } from './votingDisplayUtils';
 
@@ -26,6 +27,7 @@ const EditVotingRecordsModal: React.FC<EditVotingRecordsModalProps> = ({
   onClose,
   onSaved,
 }) => {
+  const { user } = useAuth();
   const [event, setEvent] = useState<VotingEventApiData | null>(null);
   const [rows, setRows] = useState<VotingRecordApiData[]>([]);
   const [initialResults, setInitialResults] = useState<Record<string, string>>(
@@ -84,8 +86,10 @@ const EditVotingRecordsModal: React.FC<EditVotingRecordsModalProps> = ({
       const res = await fetch(`/api/voting-record/${row.votingRecordId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        // The server records who made the correction.
-        body: JSON.stringify({ result: row.result }),
+        body: JSON.stringify({
+          result: row.result,
+          ...(user?.id ? { updatedBy: user.id } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

@@ -15,9 +15,6 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  // Full user rows, NUID included.
-  const { error } = await requireCapability('readRecords');
-  if (error) return error;
   const { id } = await params;
   return MeetingController.getUsers({ meetingId: id });
 }

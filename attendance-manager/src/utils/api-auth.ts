@@ -11,14 +11,6 @@ export function can(actor: Actor, capability: Capability): boolean {
   return actor.capabilities.has(capability);
 }
 
-/**
- * How an actor is recorded in updatedBy columns: their portal user id, or
- * their SGAuth id for staff without a profile. Never taken from a request body.
- */
-export function actorId(actor: Actor): string {
-  return actor.user?.userId ?? `sgauth:${actor.session.user.id}`;
-}
-
 export function forbidden() {
   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
@@ -53,35 +45,6 @@ export async function requireCapability(
   const auth = await requireAuth();
   if (auth.error) return auth;
   if (!can(auth.actor, capability)) return { error: forbidden() };
-  return auth;
-}
-
-/**
- * For routes about the signed-in person's own records: they need a portal
- * profile. 403 for staff without one, who have no records of their own.
- */
-export async function requireProfile(): Promise<
-  Guarded<{ actor: Actor; user: PortalUser }>
-> {
-  const auth = await requireAuth();
-  if (auth.error) return auth;
-  if (!auth.actor.user) return { error: forbidden() };
-  return { actor: auth.actor, user: auth.actor.user, error: null };
-}
-
-/**
- * For one member's records: 403 unless the actor is that member or holds
- * `capability`.
- */
-export async function requireSelfOr(
-  userId: string,
-  capability: Capability,
-): Promise<Guarded<{ actor: Actor }>> {
-  const auth = await requireAuth();
-  if (auth.error) return auth;
-  if (auth.actor.user?.userId !== userId && !can(auth.actor, capability)) {
-    return { error: forbidden() };
-  }
   return auth;
 }
 

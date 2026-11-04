@@ -98,8 +98,8 @@ export async function deleteTestGroup(groupId: string) {
 }
 
 /**
- * An Actor for stubbing route guards (requireAuth, requireCapability,
- * requireProfile) without SGAuth. `userId` null is staff without a profile.
+ * An Actor for stubbing route guards (requireAuth, requireCapability)
+ * without SGAuth. `userId` null is staff without a profile.
  */
 export function testActor({
   userId = 'test-actor',

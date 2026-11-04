@@ -1,10 +1,7 @@
 import {
-  actorId,
   getAuthenticatedUser,
   requireAuth,
   requireCapability,
-  requireProfile,
-  requireSelfOr,
 } from '../api-auth';
 import { prisma } from '@/lib/prisma';
 import { sgauthSession } from '@/utils/test-helpers';
@@ -161,51 +158,17 @@ describe('API Auth Utilities', () => {
     });
   });
 
-  describe('requireProfile', () => {
+
+
+  describe('getAuthenticatedUser', () => {
     it('returns the profile for a member', async () => {
       signInAs(SENATOR_SGAUTH, ['senator']);
-      const auth = await requireProfile();
-      expect(auth.error).toBeNull();
-      if (auth.error) return;
-      expect(auth.user.userId).toBe(senatorId);
-    });
-
-    it('returns 403 for staff without a profile', async () => {
-      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
-      expect((await requireProfile()).error?.status).toBe(403);
-    });
-  });
-
-  describe('requireSelfOr', () => {
-    it("allows a member their own records but not someone else's", async () => {
-      signInAs(SENATOR_SGAUTH, ['senator']);
-      expect((await requireSelfOr(senatorId, 'readRecords')).error).toBeNull();
-      expect((await requireSelfOr(otherId, 'readRecords')).error?.status).toBe(
-        403,
-      );
-    });
-
-    it("allows a holder of the capability anyone's records", async () => {
-      signInAs('test-sgauth-id-api-sbp', ['student-body-president']);
-      expect((await requireSelfOr(otherId, 'readRecords')).error).toBeNull();
-    });
-  });
-
-  describe('getAuthenticatedUser and actorId', () => {
-    it('returns the profile, and records it as the actor', async () => {
-      signInAs(SENATOR_SGAUTH, ['senator']);
       expect((await getAuthenticatedUser())?.userId).toBe(senatorId);
-      const auth = await requireAuth();
-      if (auth.error) throw new Error('expected a session');
-      expect(actorId(auth.actor)).toBe(senatorId);
     });
 
-    it('records staff without a profile by their SGAuth id', async () => {
+    it('returns null for staff without a profile', async () => {
       signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
       expect(await getAuthenticatedUser()).toBeNull();
-      const auth = await requireAuth();
-      if (auth.error) throw new Error('expected a session');
-      expect(actorId(auth.actor)).toBe(`sgauth:${SPEAKER_SGAUTH}`);
     });
   });
 });

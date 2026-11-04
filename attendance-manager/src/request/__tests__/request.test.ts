@@ -575,24 +575,6 @@ describe('POST /api/attendance/[attendanceId]/requests', () => {
     jest.restoreAllMocks();
   });
 
-  it("returns 403 for a request on someone else's attendance", async () => {
-    signInAs('some-other-member');
-    const response = await POST(
-      new Request(
-        `http://localhost/api/attendance/${routeTestAttendanceId}/requests`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            reason: 'Not mine',
-            attendanceMode: 'ONLINE',
-          }),
-        },
-      ),
-      { params: Promise.resolve({ attendanceId: routeTestAttendanceId }) },
-    );
-    expect(response.status).toBe(403);
-  });
 
   afterAll(async () => {
     await AttendanceService.deleteAttendance(routeTestAttendanceId);

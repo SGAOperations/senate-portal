@@ -190,15 +190,13 @@ const MeetingsPage: React.FC = () => {
   });
 
   useEffect(() => {
-    // manageAttendance only; anyone else gets 403 and keeps an empty list.
-    if (!isAdmin) return;
     fetch('/api/users')
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) setMembers(data);
+        setMembers(data);
       })
       .catch((err) => console.error(err));
-  }, [isAdmin]);
+  }, []);
 
   const senatorMembers = useMemo(
     () => members.filter((member) => member.isSenator),

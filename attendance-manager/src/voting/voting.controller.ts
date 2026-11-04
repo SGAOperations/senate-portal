@@ -85,8 +85,7 @@ export const VotingController = {
     return NextResponse.json(votingEvents);
   },
 
-  /** `actorId` is recorded as updatedBy, whatever the body says. */
-  async createVotingEvent(request: Request, actorId: string) {
+  async createVotingEvent(request: Request) {
     const parsed = createVotingEventSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json(
@@ -106,7 +105,7 @@ export const VotingController = {
           body.voteType,
           body.options,
         ),
-        updatedBy: actorId,
+        updatedBy: body.updatedBy,
       });
       return NextResponse.json(formatVotingEventForApi(newVotingEvent), {
         status: 201,
@@ -119,12 +118,7 @@ export const VotingController = {
     }
   },
 
-  /** `actorId` is recorded as updatedBy, whatever the body says. */
-  async updateVotingEvent(
-    request: Request,
-    params: { votingEventId: string },
-    actorId: string,
-  ) {
+  async updateVotingEvent(request: Request, params: { votingEventId: string }) {
     const parsed = updateVotingEventSchema.safeParse(
       await request.json().catch(() => null),
     );
@@ -134,8 +128,7 @@ export const VotingController = {
         { status: 400 },
       );
     }
-    const { end, ...rest } = parsed.data;
-    const updates = { ...rest, updatedBy: actorId };
+    const { end, ...updates } = parsed.data;
 
     // End voting event
     try {

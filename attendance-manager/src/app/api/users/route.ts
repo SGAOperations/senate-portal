@@ -1,18 +1,15 @@
 import { UsersController } from '@/users/users.controller';
-import { requireCapability } from '@/utils/api-auth';
 
 /**
  * @swagger
  * /api/users:
  *   get:
- *     summary: Returns the roster: members whose SGAuth positions put them on it.
+ *     summary: Returns a list of users.
  *     responses:
  *       200:
  *         description: A JSON array of user objects.
  */
 export async function GET() {
-  const { error } = await requireCapability('readRecords');
-  if (error) return error;
   return UsersController.listUsers();
 }
 
@@ -29,7 +26,5 @@ export async function GET() {
  *         description: Missing required fields.
  */
 export async function POST(request: Request) {
-  const { error } = await requireCapability('superadmin');
-  if (error) return error;
   return UsersController.createUser(request);
 }
