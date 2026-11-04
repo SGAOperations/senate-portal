@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { VotingController } from '@/voting/voting.controller';
-import { requireAuth } from '@/utils/api-auth';
+import { VotingController } from '@/server/modules/voting/voting.controller';
+import { requireAuth } from '@/server/auth/api-auth';
 
 /**
  * @swagger

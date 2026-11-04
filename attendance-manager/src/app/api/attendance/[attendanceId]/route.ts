@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AttendanceController } from '../../../../attendance/attendance.controller';
-import { requireAuth } from '@/utils/api-auth';
+import { AttendanceController } from '@/server/modules/attendance/attendance.controller';
+import { requireAuth } from '@/server/auth/api-auth';
 
 /**
  * Updates an Attendance

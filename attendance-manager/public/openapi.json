@@ -619,23 +619,6 @@
     }
   },
   "paths": {
-    "/{slug}": {
-      "get": {
-        "operationId": "get-{slug}",
-        "summary": "",
-        "description": "",
-        "tags": ["{slug}"],
-        "parameters": [],
-        "responses": {
-          "400": {
-            "$ref": "#/components/responses/400"
-          },
-          "500": {
-            "$ref": "#/components/responses/500"
-          }
-        }
-      }
-    },
     "/attendance": {
       "post": {
         "operationId": "post-attendance",

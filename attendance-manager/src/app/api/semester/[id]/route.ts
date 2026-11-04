@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/utils/api-auth';
-import { SemesterController } from '@/semester/semester.controller';
+import { requireAuth } from '@/server/auth/api-auth';
+import { SemesterController } from '@/server/modules/semester/semester.controller';
 
 export async function PUT(
   request: Request,

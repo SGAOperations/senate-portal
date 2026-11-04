@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { RequestController } from '@/request/request.controller';
-import { RequestService } from '@/request/request.service';
-import { toErrorResponse } from '@/utils/api-errors';
+import { RequestController } from '@/server/modules/request/request.controller';
+import { RequestService } from '@/server/modules/request/request.service';
+import { toErrorResponse } from '@/server/http/api-errors';
 
 // GET all requests (for admins)
 export async function GET() {
