@@ -1,5 +1,5 @@
-import { requireCapability } from '@/utils/api-auth';
-import { SemesterController } from '@/semester/semester.controller';
+import { requireCapability } from '@/server/auth/api-auth';
+import { SemesterController } from '@/server/modules/semester/semester.controller';
 
 export async function PUT(
   request: Request,

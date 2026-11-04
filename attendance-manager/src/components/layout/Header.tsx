@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/providers/AuthContext';
 import Link from 'next/link';
 import { UserRound } from 'lucide-react';
 

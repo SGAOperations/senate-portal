@@ -6,6 +6,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js'],
   roots: ['<rootDir>/src'],
   moduleNameMapper: {
+    '^server-only$': '<rootDir>/src/test/server-only-stub.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   // Run tests sequentially to prevent database foreign key constraint violations

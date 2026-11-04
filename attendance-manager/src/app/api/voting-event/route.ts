@@ -1,5 +1,5 @@
-import { VotingController } from '@/voting/voting.controller';
-import { requireCapability } from '@/utils/api-auth';
+import { VotingController } from '@/server/modules/voting/voting.controller';
+import { requireCapability } from '@/server/auth/api-auth';
 
 /**
  * @swagger

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { resolveActor } from '@/lib/sgauth';
+import { resolveActor } from '@/server/auth/sgauth';
 
 /**
  * The signed-in user and what they may do

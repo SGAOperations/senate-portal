@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
-import { resolveActor } from '@/lib/sgauth';
-import { toErrorResponse } from '@/utils/api-errors';
+import { prisma } from '@/server/db/prisma';
+import { resolveActor } from '@/server/auth/sgauth';
+import { toErrorResponse } from '@/server/http/api-errors';
 
 const RegisterSchema = z.strictObject({
   nuid: z.string().regex(/^\d{9}$/),
