@@ -37,7 +37,8 @@ src/
 ├── types/          Shared TypeScript types and Zod schemas.
 ├── test/           Test helpers.
 ├── generated/      Prisma client — generated, gitignored, never edit.
-└── middleware.ts   Next.js middleware (refreshes the Supabase session).
+├── middleware.ts   Next.js middleware (refreshes the Supabase session).
+└── __tests__/      Tests for middleware.ts.
 ```
 
 ## Folder by folder
