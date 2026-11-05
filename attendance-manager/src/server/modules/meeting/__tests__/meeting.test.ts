@@ -5,11 +5,15 @@ import {
   createTestGroup,
   deleteTestGroup,
   semesterIdFor,
+  uniqueUserFields,
 } from '@/test/helpers';
 import { MeetingType } from '@/generated/prisma';
 import { UsersService } from '@/server/modules/users/users.service';
 import { AttendanceService } from '@/server/modules/attendance/attendance.service';
-import { formatMeetingDateInput, parseMeetingDate } from '@/lib/datetime/meeting-date-time';
+import {
+  formatMeetingDateInput,
+  parseMeetingDate,
+} from '@/lib/datetime/meeting-date-time';
 
 jest.setTimeout(20000);
 
@@ -582,10 +586,7 @@ describe('MeetingController', () => {
     const role = await createTestGroup();
     const user = await prisma.user.create({
       data: {
-        userId: 'test-attendance-user-1',
-        sgauthUserId: 'test-sgauth-id-1',
-        nuid: '001234569',
-        email: 'testuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test',
         lastName: 'User',
         positionKeys: [role.roleId],
@@ -594,10 +595,7 @@ describe('MeetingController', () => {
 
     const user2 = await prisma.user.create({
       data: {
-        userId: 'test-attendance-user-2',
-        sgauthUserId: 'test-sgauth-id-2',
-        nuid: '001234570',
-        email: 'testuser2@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test2',
         lastName: 'User2',
         positionKeys: [role.roleId],
@@ -640,10 +638,7 @@ describe('MeetingController', () => {
     const role = await createTestGroup();
     const user = await prisma.user.create({
       data: {
-        userId: 'test-attendance-user-1',
-        sgauthUserId: 'test-sgauth-id-1',
-        nuid: '001234569',
-        email: 'testuser@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test',
         lastName: 'User',
         positionKeys: [role.roleId],
@@ -652,10 +647,7 @@ describe('MeetingController', () => {
 
     const user2 = await prisma.user.create({
       data: {
-        userId: 'test-attendance-user-2',
-        sgauthUserId: 'test-sgauth-id-2',
-        nuid: '001234570',
-        email: 'testuser2@example.com',
+        ...uniqueUserFields(),
         firstName: 'Test2',
         lastName: 'User2',
         positionKeys: [role.roleId],
@@ -682,8 +674,9 @@ describe('MeetingController', () => {
     });
     const responseData = await response.json();
     expect(responseData).toHaveLength(2);
-    expect(responseData[0].userId).toBe(user.userId);
-    expect(responseData[1].userId).toBe(user2.userId);
+    expect(
+      responseData.map((u: { userId: string }) => u.userId).sort(),
+    ).toEqual([user.userId, user2.userId].sort());
     await AttendanceService.deleteAttendance(attendance.attendanceId);
     await AttendanceService.deleteAttendance(attendance2?.attendanceId);
     await prisma.user.delete({ where: { userId: user.userId } });

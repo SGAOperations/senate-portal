@@ -1,5 +1,5 @@
+import { randomInt, randomUUID } from 'node:crypto';
 import { prisma } from '@/server/db/prisma';
-import { randomUUID } from 'node:crypto';
 import { SemesterService } from '@/server/modules/semester/semester.service';
 import type { Capability } from '@/lib/permissions';
 import * as sgauth from '@/server/auth/sgauth';
@@ -28,6 +28,19 @@ export async function cleanupTestData() {
   await prisma.user.deleteMany();
   await prisma.meeting.deleteMany();
   await prisma.semester.deleteMany();
+}
+
+/**
+ * Unique fields for a test user. CI shares one database across runs, so fixed
+ * values collide with rows left by an earlier run that died before cleanup.
+ */
+export function uniqueUserFields() {
+  const id = randomUUID();
+  return {
+    sgauthUserId: `test-sgauth-${id}`,
+    nuid: String(randomInt(100_000_000, 1_000_000_000)),
+    email: `test-${id}@example.com`,
+  };
 }
 
 /**
