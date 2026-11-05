@@ -57,7 +57,6 @@ export interface UserApiData {
   nuid: string;
   attendance: AttendanceApiData[];
   attendanceId?: string;
-  positionKeys: string[];
   // Holds a Senate seat (from /api/users); otherwise an officer on the roster
   isSenator?: boolean;
 }

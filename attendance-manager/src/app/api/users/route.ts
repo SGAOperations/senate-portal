@@ -1,16 +1,20 @@
 import { UsersController } from '@/server/modules/users/users.controller';
-import { requireCapability } from '@/server/auth/api-auth';
+import { requireAuth, requireCapability } from '@/server/auth/api-auth';
 
 /**
  * @swagger
  * /api/users:
  *   get:
- *     summary: Returns a list of users.
+ *     summary: Returns the roster. Signed-in users only.
  *     responses:
  *       200:
  *         description: A JSON array of user objects.
+ *       401:
+ *         description: Signed out.
  */
 export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
   return UsersController.listUsers();
 }
 

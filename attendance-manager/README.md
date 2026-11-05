@@ -106,9 +106,13 @@ The portal has no roles of its own. What someone may do comes from their SGAuth 
 | Read attendance and non-secret votes | `speaker-of-the-senate`, `senate-operations-coordinator`, `vice-president-of-operational-affairs`, `student-body-president`, `executive-vice-president` |
 | Superadmin (all of the above but voting and the roster, plus editing member profiles) | `digital-innovation-manager`, `digital-innovation-senateportal-team-lead`, `vice-president-of-operational-affairs`, `senate-operations-coordinator` |
 
-> **Not every route enforces this table yet.** The routes that checked for E-Board before SGAuth now check the matching capability. Read routes, member lookups, profile edits, excusal requests, attendance updates and vote casting are still open to any caller until the security follow-up tickets land.
+> **Not every route enforces this table yet.** The routes that checked for E-Board before SGAuth now check the matching capability. Read routes, member lookups, excusal requests, attendance updates and vote casting are still open to any caller until the security follow-up tickets land.
 
 Only people on the roster have a portal profile (and give an NUID). Staff who only administer the portal sign in without one. The roster is read from the positions recorded at each member's last sign-in, so a position change shows on the roster once that person next signs in; members who have not signed in since the move to SGAuth stay on it until they do.
+
+**Departed members stay on the roster until someone removes them.** The portal only learns about a position change when that person signs in, so a Senator who graduates or loses their seat and never signs in again keeps their seat on the roster and keeps getting marked absent. When someone leaves, the Senate Operations Coordinator removes them from the Attendance page. An automatic resync from SGAuth is tracked as a follow-up.
+
+A removed member who signs in again while SGAuth still puts them on the roster (for example after being re-elected) gets their profile back automatically. Anyone else who was removed signs in without a profile, like staff, or sees the no-access screen if no position gives them access.
 
 Next, start the application
 

@@ -146,6 +146,73 @@ describe('SGAuth sign-in flow', () => {
     expect((await response.json()).status).toBe('no-access');
   });
 
+  describe('a removed (soft-deleted) profile', () => {
+    const REMOVED_SGAUTH = 'test-sgauth-id-flow-removed';
+    const REMOVED_EMAIL = 'flow-removed@example.com';
+    const REMOVED_NUID = '009876544';
+
+    beforeEach(async () => {
+      await prisma.user.deleteMany({ where: { nuid: REMOVED_NUID } });
+    });
+
+    afterAll(async () => {
+      await prisma.user.deleteMany({ where: { nuid: REMOVED_NUID } });
+    });
+
+    const removedProfile = (linked: boolean) =>
+      prisma.user.create({
+        data: {
+          sgauthUserId: linked ? REMOVED_SGAUTH : null,
+          nuid: REMOVED_NUID,
+          email: REMOVED_EMAIL,
+          firstName: 'Removed',
+          lastName: 'Member',
+          deletedAt: new Date(),
+        },
+      });
+
+    it('comes back when SGAuth still puts them on the roster', async () => {
+      const { userId } = await removedProfile(true);
+      signInAs(REMOVED_SGAUTH, ['senator'], REMOVED_EMAIL);
+
+      const response = await me();
+      expect(response.status).toBe(200);
+      expect((await response.json()).user.userId).toBe(userId);
+      const stored = await prisma.user.findUnique({ where: { userId } });
+      expect(stored?.deletedAt).toBeNull();
+    });
+
+    it('comes back on first SGAuth sign-in too, linked by email', async () => {
+      const { userId } = await removedProfile(false);
+      signInAs(REMOVED_SGAUTH, ['senator'], REMOVED_EMAIL.toUpperCase());
+
+      expect((await (await me()).json()).user.userId).toBe(userId);
+      const stored = await prisma.user.findUnique({ where: { userId } });
+      expect(stored?.sgauthUserId).toBe(REMOVED_SGAUTH);
+      expect(stored?.deletedAt).toBeNull();
+    });
+
+    it('stays removed for staff, who sign in without it', async () => {
+      const { userId } = await removedProfile(true);
+      signInAs(REMOVED_SGAUTH, ['speaker-of-the-senate'], REMOVED_EMAIL);
+
+      const response = await me();
+      expect(response.status).toBe(200);
+      expect((await response.json()).user.userId).toBeNull();
+      const stored = await prisma.user.findUnique({ where: { userId } });
+      expect(stored?.deletedAt).not.toBeNull();
+    });
+
+    it('stays removed, with no access, for someone no position covers', async () => {
+      const { userId } = await removedProfile(true);
+      signInAs(REMOVED_SGAUTH, [], REMOVED_EMAIL);
+
+      expect((await me()).status).toBe(403);
+      const stored = await prisma.user.findUnique({ where: { userId } });
+      expect(stored?.deletedAt).not.toBeNull();
+    });
+  });
+
   it('rejects an invalid NUID', async () => {
     signInAs('test-sgauth-id-flow-2', ['senator'], 'flow2@example.com');
     const response = await register({

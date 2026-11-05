@@ -732,6 +732,31 @@ describe('signed-in user routes', () => {
     });
   });
 
+  describe('GET /api/users', () => {
+    const list = async () => {
+      const { GET } = await import('@/app/api/users/route');
+      return GET();
+    };
+
+    it('returns 401 when signed out', async () => {
+      signOut();
+      expect((await list()).status).toBe(401);
+    });
+
+    it('marks senators and keeps SGAuth internals server-side', async () => {
+      signInAs(MEMBER_SGAUTH, 'member-route@example.com', ['senator']);
+      const response = await list();
+      expect(response.status).toBe(200);
+      const roster = await response.json();
+      expect(roster.length).toBeGreaterThan(0);
+      for (const member of roster) {
+        expect(member).not.toHaveProperty('sgauthUserId');
+        expect(member).not.toHaveProperty('positionKeys');
+        expect(typeof member.isSenator).toBe('boolean');
+      }
+    });
+  });
+
   describe('POST /api/users', () => {
     const post = async (body: unknown) => {
       const { POST } = await import('@/app/api/users/route');

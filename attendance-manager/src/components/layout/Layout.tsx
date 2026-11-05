@@ -24,7 +24,8 @@ const Layout: React.FC = () => {
   const [dismissedVoteId, setDismissedVoteId] = useState<string | null>(null);
 
   const userId = user?.id;
-  // Only Senators vote; the server checks this too.
+  // Only Senators vote. This only hides the prompt: POST /api/voting-record
+  // does not check the seat yet (tracked as a follow-up security ticket).
   const userCanVote = userCan(user, 'vote');
   const votingEventId = activeEvent?.votingEventId;
   const meetingId = activeEvent?.meetingId;

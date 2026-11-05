@@ -15,7 +15,7 @@ const CreateUserSchema = z.strictObject({
 });
 
 // The only fields an update may touch. sgauthUserId and positionKeys come from
-// SGAuth and are set by src/lib/sgauth.ts alone; strictObject rejects them, and
+// SGAuth and are set by src/server/auth/sgauth.ts alone; strictObject rejects them, and
 // anything else unknown, instead of passing it through to Prisma.
 const UpdateUserSchema = z
   .strictObject({
@@ -45,14 +45,21 @@ function invalidBody(error: z.ZodError) {
 }
 
 export const UsersController = {
-  /** The roster, each member marked with whether they hold a Senate seat. */
+  /**
+   * The roster, each member marked with whether they hold a Senate seat.
+   * sgauthUserId and positionKeys stay server-side; isSenator is all the
+   * pages need.
+   */
   async listUsers() {
     const users = await UsersService.getRoster();
     return NextResponse.json(
-      users.map((user) => ({
-        ...user,
-        isSenator: user.positionKeys.includes(SENATOR_POSITION),
-      })),
+      users.map(
+        // eslint-disable-next-line no-unused-vars
+        ({ sgauthUserId: _sgauthUserId, positionKeys, ...user }) => ({
+          ...user,
+          isSenator: positionKeys.includes(SENATOR_POSITION),
+        }),
+      ),
     );
   },
 

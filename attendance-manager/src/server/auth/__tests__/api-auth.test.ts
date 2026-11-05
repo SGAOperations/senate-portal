@@ -109,14 +109,37 @@ describe('API Auth Utilities', () => {
       expect((await requireAuth()).error?.status).toBe(403);
     });
 
-    it('returns 401 for a soft-deleted profile', async () => {
+    it('restores a removed profile while SGAuth keeps them on the roster', async () => {
       await prisma.user.update({
         where: { userId: otherId },
         data: { deletedAt: new Date() },
       });
       try {
         signInAs(OTHER_SGAUTH, ['senator']);
-        expect((await requireAuth()).error?.status).toBe(401);
+        const auth = await requireAuth();
+        expect(auth.error).toBeNull();
+        if (auth.error) return;
+        expect(auth.actor.user?.userId).toBe(otherId);
+      } finally {
+        await prisma.user.update({
+          where: { userId: otherId },
+          data: { deletedAt: null },
+        });
+      }
+    });
+
+    it('keeps a removed profile removed for someone off the roster', async () => {
+      await prisma.user.update({
+        where: { userId: otherId },
+        data: { deletedAt: new Date() },
+      });
+      try {
+        signInAs(OTHER_SGAUTH, []);
+        expect((await requireAuth()).error?.status).toBe(403);
+        const stored = await prisma.user.findUnique({
+          where: { userId: otherId },
+        });
+        expect(stored?.deletedAt).not.toBeNull();
       } finally {
         await prisma.user.update({
           where: { userId: otherId },

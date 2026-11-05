@@ -16,7 +16,7 @@ model User {
   email      String       @unique
   firstName  String
   lastName   String
-  // SGAuth position keys as of their last sign-in (src/lib/sgauth.ts). Only
+  // SGAuth position keys as of their last sign-in (src/server/auth/sgauth.ts). Only
   // used to find who is on the roster; permissions come from the live session.
   positionKeys      String[]  @default([])
   positionsSyncedAt DateTime?

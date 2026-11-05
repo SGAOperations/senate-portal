@@ -7,7 +7,7 @@ import { createSgaProxy } from '@nusgaops/sgauth/proxy';
  *
  * The SGAuth redirect only checks that the cookie is present -- it never calls
  * SGAuth -- so it is a redirect for people, not a lock. Every API route checks
- * the session itself (src/utils/api-auth.ts), and that is what refuses a bad
+ * the session itself (src/server/auth/api-auth.ts), and that is what refuses a bad
  * cookie.
  *
  * Public paths:

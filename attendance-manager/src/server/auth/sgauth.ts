@@ -64,7 +64,8 @@ function sameKeys(a: readonly string[], b: readonly string[]) {
 /**
  * The portal profile behind this session, linking a pre-SGAuth row by email
  * on first sign-in. Linking never moves an SGAuth id from one row to another,
- * and nothing a client sends can set it.
+ * and nothing a client sends can set it. A removed (soft-deleted) row links
+ * too, so resolveActor can decide whether to restore it.
  */
 async function findOrLinkUser(session: SgaSession) {
   const sgauthUserId = session.user.id;
@@ -75,7 +76,6 @@ async function findOrLinkUser(session: SgaSession) {
       where: {
         email: { equals: session.user.email.trim(), mode: 'insensitive' },
         sgauthUserId: null,
-        deletedAt: null,
       },
       data: { sgauthUserId },
     });
@@ -89,7 +89,12 @@ async function findOrLinkUser(session: SgaSession) {
 /**
  * The actor behind this request's SGAuth session. Their position keys are
  * copied onto their profile when they change, which is how the roster knows
- * who holds a seat. A soft-deleted profile is treated as signed out.
+ * who holds a seat.
+ *
+ * A removed (soft-deleted) profile comes back when SGAuth still puts its owner
+ * on the roster, e.g. a member re-elected after being removed. Otherwise it
+ * stays removed and they are treated as having no profile: staff positions
+ * still work, and anyone else gets the no-access screen.
  */
 export const resolveActor = cache(async (): Promise<ActorResult> => {
   const session = await getSgauthSession();
@@ -98,7 +103,14 @@ export const resolveActor = cache(async (): Promise<ActorResult> => {
   const positionKeys = session.positions.map(({ key }) => key).sort();
   const capabilities = new Set(capabilitiesFor(positionKeys));
   let user = await findOrLinkUser(session);
-  if (user?.deletedAt) return { status: 'none' };
+  if (user?.deletedAt) {
+    user = capabilities.has('roster')
+      ? await prisma.user.update({
+          where: { userId: user.userId },
+          data: { deletedAt: null },
+        })
+      : null;
+  }
 
   if (
     user &&
