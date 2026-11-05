@@ -1,3 +1,4 @@
+import { userCan } from '@/types';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   MeetingApiData,
@@ -76,9 +77,9 @@ const MeetingsPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<MeetingType | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
-  // Check if user is admin (EBOARD)
-  const isAdmin = user?.role === 'EBOARD';
-  const isMember = user?.role === 'MEMBER';
+  // From SGAuth positions: who runs meetings, and who files excusal requests
+  const isAdmin = userCan(user, 'manageAttendance');
+  const isMember = userCan(user, 'roster') && Boolean(user?.id);
   const [remainingAbsences, setRemainingAbsences] =
     useState<RemainingAbsences | null>(null);
 
@@ -184,7 +185,7 @@ const MeetingsPage: React.FC = () => {
 
   const [members, setMembers] = useState<z.infer<typeof UserSchema>[]>([]);
   const [bulkSelectionActive, setBulkSelectionActive] = useState({
-    nonEboard: false,
+    senators: false,
     allMembers: false,
   });
 
@@ -197,13 +198,13 @@ const MeetingsPage: React.FC = () => {
       .catch((err) => console.error(err));
   }, []);
 
-  const nonEboardMembers = useMemo(
-    () => members.filter((member) => member.role.roleType !== 'EBOARD'),
+  const senatorMembers = useMemo(
+    () => members.filter((member) => member.isSenator),
     [members],
   );
-  const nonEboardMemberIds = useMemo(
-    () => nonEboardMembers.map((member) => member.userId),
-    [nonEboardMembers],
+  const senatorIds = useMemo(
+    () => senatorMembers.map((member) => member.userId),
+    [senatorMembers],
   );
   const allMemberIds = useMemo(
     () => members.map((member) => member.userId),
@@ -221,21 +222,21 @@ const MeetingsPage: React.FC = () => {
         : 'text-gray-700 border-gray-300 hover:bg-gray-100'
     }`;
 
-  const toggleNonEboardSelection = () => {
-    if (bulkSelectionActive.nonEboard) {
+  const toggleSenatorSelection = () => {
+    if (bulkSelectionActive.senators) {
       setNewMeeting((prev) => ({
         ...prev,
         selectedAttendees: prev.selectedAttendees.filter(
-          (id) => !nonEboardMemberIds.includes(id),
+          (id) => !senatorIds.includes(id),
         ),
       }));
-      setBulkSelectionActive((prev) => ({ ...prev, nonEboard: false }));
+      setBulkSelectionActive((prev) => ({ ...prev, senators: false }));
     } else {
       setNewMeeting((prev) => ({
         ...prev,
-        selectedAttendees: nonEboardMemberIds,
+        selectedAttendees: senatorIds,
       }));
-      setBulkSelectionActive({ nonEboard: true, allMembers: false });
+      setBulkSelectionActive({ senators: true, allMembers: false });
     }
   };
 
@@ -245,19 +246,19 @@ const MeetingsPage: React.FC = () => {
       setBulkSelectionActive((prev) => ({ ...prev, allMembers: false }));
     } else {
       setNewMeeting((prev) => ({ ...prev, selectedAttendees: allMemberIds }));
-      setBulkSelectionActive({ nonEboard: false, allMembers: true });
+      setBulkSelectionActive({ senators: false, allMembers: true });
     }
   };
 
   useEffect(() => {
-    if (!bulkSelectionActive.nonEboard) return;
+    if (!bulkSelectionActive.senators) return;
     const allSelected =
-      nonEboardMemberIds.length > 0 &&
-      nonEboardMemberIds.every((id) => selectedAttendeeSet.has(id));
+      senatorIds.length > 0 &&
+      senatorIds.every((id) => selectedAttendeeSet.has(id));
     if (!allSelected) {
-      setBulkSelectionActive((prev) => ({ ...prev, nonEboard: false }));
+      setBulkSelectionActive((prev) => ({ ...prev, senators: false }));
     }
-  }, [bulkSelectionActive.nonEboard, nonEboardMemberIds, selectedAttendeeSet]);
+  }, [bulkSelectionActive.senators, senatorIds, selectedAttendeeSet]);
 
   useEffect(() => {
     if (!bulkSelectionActive.allMembers) return;
@@ -587,7 +588,7 @@ const MeetingsPage: React.FC = () => {
           setNewMeeting={setNewMeeting}
           members={members}
           toggleAllMembersSelection={toggleAllMembersSelection}
-          toggleNonEboardSelection={toggleNonEboardSelection}
+          toggleSenatorSelection={toggleSenatorSelection}
           bulkSelectButtonClasses={bulkSelectButtonClasses}
           bulkSelectionActive={bulkSelectionActive}
           setMeetings={setMeetings}

@@ -1,3 +1,4 @@
+import { userCan } from '@/types';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/providers/AuthContext';
 import AttendanceMeetingSelect from './AttendanceMeetingSelect';
@@ -75,8 +76,8 @@ const AttendancePage: React.FC = () => {
   );
   const [declinedRequestIds, setDeclinedRequestIds] = useState<string[]>([]);
 
-  // Check if user is admin (EBOARD)
-  const isAdmin = user?.role === 'EBOARD';
+  // Taking and editing attendance: manageAttendance (SGAuth positions)
+  const isAdmin = userCan(user, 'manageAttendance');
   useEffect(() => {
     const loadMeetings = async () => {
       const allMeetings = await meetingAPI.getAllMeetings();
@@ -374,8 +375,9 @@ const AttendancePage: React.FC = () => {
     setShowEditAttendanceModal(true);
   };
 
-  const eboardMembers = users.filter((m) => m.role.roleType === 'EBOARD');
-  const regularMembers = users.filter((m) => m.role.roleType === 'MEMBER');
+  // Senators, and the officers who are on the roster without a vote
+  const officerMembers = users.filter((m) => !m.isSenator);
+  const senatorMembers = users.filter((m) => m.isSenator);
 
   return (
     <div className='flex-1 p-6 bg-gray-50'>
@@ -456,8 +458,8 @@ const AttendancePage: React.FC = () => {
       {activeTab === 'members' ? (
         /* SGA Members Section */
         <AttendanceMembers
-          eboardMembers={eboardMembers}
-          regularMembers={regularMembers}
+          officerMembers={officerMembers}
+          senatorMembers={senatorMembers}
           loading={isLoadingMembers}
           setDeleteUser={setDeleteUser}
         />
@@ -490,15 +492,6 @@ const AttendancePage: React.FC = () => {
                   accept='.csv'
                   className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C8102E]'
                 />
-              </div>
-              <div>
-                <label className='block text-sm font-medium text-gray-700 mb-1'>
-                  Role
-                </label>
-                <select className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C8102E]'>
-                  <option value='member'>Member</option>
-                  <option value='eboard'>Eboard</option>
-                </select>
               </div>
               <div className='text-sm text-gray-500'>
                 <p>CSV format: Name, Email</p>

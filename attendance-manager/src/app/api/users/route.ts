@@ -1,15 +1,20 @@
 import { UsersController } from '@/server/modules/users/users.controller';
+import { requireAuth, requireCapability } from '@/server/auth/api-auth';
 
 /**
  * @swagger
  * /api/users:
  *   get:
- *     summary: Returns a list of users.
+ *     summary: Returns the roster. Signed-in users only.
  *     responses:
  *       200:
  *         description: A JSON array of user objects.
+ *       401:
+ *         description: Signed out.
  */
 export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
   return UsersController.listUsers();
 }
 
@@ -25,6 +30,9 @@ export async function GET() {
  *       400:
  *         description: Missing required fields.
  */
+// Superadmin only; members create their own profile through /api/auth/register.
 export async function POST(request: Request) {
+  const { error } = await requireCapability('superadmin');
+  if (error) return error;
   return UsersController.createUser(request);
 }

@@ -17,22 +17,18 @@ export const TimeAdjustment = z
 export const MeetingTypeEnum = z.enum(['REGULAR', 'FULL_BODY']);
 
 // Schemas
-export const RoleSchema = z.object({
-  roleId: z.string().describe('Role ID'),
-  roleType: z.string().describe('Role Type'),
-});
-
-// User schema
 export const UserSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
     userId: z.string().describe('User ID'),
-    role: RoleSchema.describe('Role'),
-    supabaseAuthId: z.string().nullable().describe('Supabase Auth ID'),
+    sgauthUserId: z.string().nullable().describe('SGAuth user ID'),
+    positionKeys: z
+      .array(z.string())
+      .describe('SGAuth position keys as of their last sign-in'),
+    isSenator: z.boolean().optional().describe('Holds a Senate seat'),
     nuid: z.string().describe('NUID'),
     email: z.string().describe('Email address'),
     firstName: z.string().describe('First name'),
     lastName: z.string().describe('Last name'),
-    password: z.string().nullable().describe('Password'),
     createdAt: z.date().describe('Creation timestamp'),
     updatedAt: z.date().describe('Last updated timestamp'),
     deletedAt: z.date().nullable().describe('Deletion timestamp, if deleted'),

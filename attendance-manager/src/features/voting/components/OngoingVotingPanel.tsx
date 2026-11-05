@@ -1,5 +1,6 @@
 'use client';
 
+import { userCan } from '@/types';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/providers/AuthContext';
 import { VoteType } from '@/lib/constants';
@@ -30,7 +31,7 @@ const OngoingVotingPanel: React.FC<OngoingVotingPanelProps> = ({
     void refresh();
   }, [refreshTrigger, refresh]);
 
-  if (!user || user.role !== 'EBOARD') {
+  if (!userCan(user, 'hostVotes')) {
     return null;
   }
 

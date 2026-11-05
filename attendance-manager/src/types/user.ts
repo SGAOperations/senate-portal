@@ -1,29 +1,43 @@
+import type { Capability } from '@/lib/permissions';
 import type { AttendanceApiData } from './attendance';
 
+export type { Capability };
+
 export interface User {
-  id: string;
+  // Portal profile id; null for staff whose positions need no profile.
+  id: string | null;
   email: string;
   name: string;
-  role: 'MEMBER' | 'EBOARD';
+  // SGAuth position names, for display.
+  positions: string[];
+  // What their SGAuth positions let them do (src/lib/permissions.ts). The
+  // server checks every one again; this only decides what to show.
+  capabilities: Capability[];
   avatar?: string;
 }
 
-export interface LoginCredentials {
+export function userCan(
+  user: User | null | undefined,
+  capability: Capability,
+): boolean {
+  return user?.capabilities.includes(capability) ?? false;
+}
+
+// Signed in to SGAuth, but no portal profile yet: they still owe an NUID.
+export interface PendingRegistration {
   email: string;
-  password: string;
+  name: string;
 }
 
 export interface AuthContextType {
   user: User | null;
-
-  login: (credentials: LoginCredentials) => Promise<void>;
+  pendingRegistration: PendingRegistration | null;
+  // Signed in to SGAuth, but no position gives them access to the portal.
+  noAccess: PendingRegistration | null;
+  login: () => void;
   logout: () => void;
+  refresh: () => Promise<void>;
   isLoading: boolean;
-}
-
-export interface RoleData {
-  roleId: string;
-  roleType: string;
 }
 
 export interface UserData {
@@ -33,8 +47,6 @@ export interface UserData {
   email: string;
   firstName: string;
   lastName: string;
-  role: RoleData;
-  password: string;
 }
 
 export interface UserApiData {
@@ -45,5 +57,6 @@ export interface UserApiData {
   nuid: string;
   attendance: AttendanceApiData[];
   attendanceId?: string;
-  role: RoleData;
+  // Holds a Senate seat (from /api/users); otherwise an officer on the roster
+  isSenator?: boolean;
 }
