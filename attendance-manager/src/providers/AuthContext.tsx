@@ -35,10 +35,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [pendingRegistration, setPendingRegistration] =
     useState<PendingRegistration | null>(null);
   const [noAccess, setNoAccess] = useState<PendingRegistration | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch('/api/users/me', { cache: 'no-store' });
       const body = await res.json().catch(() => null);
@@ -62,11 +64,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setPendingRegistration({ email: body.email, name: body.name });
       } else if (res.status === 403 && body?.status === 'no-access') {
         setNoAccess({ email: body.email, name: body.name });
+      } else if (res.status !== 401) {
+        // 401 means signed out; anything else unexpected is a failed load.
+        setLoadError(true);
       }
     } catch {
       setUser(null);
       setPendingRegistration(null);
       setNoAccess(null);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -91,6 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     pendingRegistration,
     noAccess,
+    loadError,
     login,
     logout,
     refresh,

@@ -45,6 +45,7 @@ const LoginPage: React.FC = () => {
     user,
     pendingRegistration,
     noAccess,
+    loadError,
     login,
     logout,
     refresh,
@@ -132,6 +133,20 @@ const LoginPage: React.FC = () => {
             {isLoading || user ? (
               <div className='flex justify-center'>
                 <LoaderCircle className='animate-spin h-6 w-6 text-white' />
+              </div>
+            ) : loadError ? (
+              <div className='space-y-6'>
+                <p className='text-sm text-gray-300'>
+                  We couldn&apos;t load your account. This is a problem on our
+                  side, not with your SGA sign-in.
+                </p>
+                <button
+                  type='button'
+                  onClick={() => void refresh()}
+                  className={BUTTON_CLASS}
+                >
+                  Try again
+                </button>
               </div>
             ) : noAccess ? (
               <div className='space-y-6'>

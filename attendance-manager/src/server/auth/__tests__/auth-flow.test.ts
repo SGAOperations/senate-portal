@@ -146,6 +146,30 @@ describe('SGAuth sign-in flow', () => {
     expect((await response.json()).status).toBe('no-access');
   });
 
+  it('sends a profile with no SGAuth positions to the no-access screen', async () => {
+    const NOPOS_SGAUTH = 'test-sgauth-id-flow-nopositions';
+    const NOPOS_NUID = '009876545';
+    await prisma.user.deleteMany({ where: { nuid: NOPOS_NUID } });
+    await prisma.user.create({
+      data: {
+        sgauthUserId: NOPOS_SGAUTH,
+        nuid: NOPOS_NUID,
+        email: 'flow-nopositions@example.com',
+        firstName: 'No',
+        lastName: 'Positions',
+      },
+    });
+    try {
+      signInAs(NOPOS_SGAUTH, [], 'flow-nopositions@example.com');
+      const response = await me();
+      expect(response.status).toBe(403);
+      expect((await response.json()).status).toBe('no-access');
+      expect((await requireAuth()).error?.status).toBe(403);
+    } finally {
+      await prisma.user.deleteMany({ where: { nuid: NOPOS_NUID } });
+    }
+  });
+
   describe('a removed (soft-deleted) profile', () => {
     const REMOVED_SGAUTH = 'test-sgauth-id-flow-removed';
     const REMOVED_EMAIL = 'flow-removed@example.com';

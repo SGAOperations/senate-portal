@@ -34,6 +34,8 @@ export interface AuthContextType {
   pendingRegistration: PendingRegistration | null;
   // Signed in to SGAuth, but no position gives them access to the portal.
   noAccess: PendingRegistration | null;
+  // /api/users/me failed (5xx, network). Signing in again won't help; retry.
+  loadError: boolean;
   login: () => void;
   logout: () => void;
   refresh: () => Promise<void>;

@@ -123,8 +123,10 @@ export const resolveActor = cache(async (): Promise<ActorResult> => {
   }
 
   const actor: Actor = { session, capabilities, user };
+  // Access comes from positions alone: a profile with none sees the no-access
+  // screen ("ask for your position to be updated"), not an empty portal.
+  if (capabilities.size === 0) return { status: 'no-access', session };
   if (user) return { status: 'ok', actor };
   if (capabilities.has('roster')) return { status: 'unregistered', actor };
-  if (capabilities.size > 0) return { status: 'ok', actor };
-  return { status: 'no-access', session };
+  return { status: 'ok', actor };
 });
