@@ -585,7 +585,6 @@ describe('MeetingController', () => {
         firstName: 'Test',
         lastName: 'User',
         roleId: role.roleId,
-        password: null,
       },
     });
 
@@ -595,7 +594,6 @@ describe('MeetingController', () => {
         firstName: 'Test2',
         lastName: 'User2',
         roleId: role.roleId,
-        password: null,
       },
     });
     const attendance = await prisma.attendance.create({
@@ -639,7 +637,6 @@ describe('MeetingController', () => {
         firstName: 'Test',
         lastName: 'User',
         roleId: role.roleId,
-        password: null,
       },
     });
 
@@ -649,7 +646,6 @@ describe('MeetingController', () => {
         firstName: 'Test2',
         lastName: 'User2',
         roleId: role.roleId,
-        password: null,
       },
     });
     const attendance = await prisma.attendance.create({

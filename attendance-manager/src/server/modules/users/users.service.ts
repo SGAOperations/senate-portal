@@ -55,14 +55,8 @@ export const UsersService = {
     firstName: string;
     lastName: string;
     roleId: string;
-    password?: string | null;
   }) {
-    return prisma.user.create({
-      data: {
-        ...data,
-        password: data.password ?? null,
-      },
-    });
+    return prisma.user.create({ data });
   },
 
   async createRole(data: { roleType: RoleType }) {
@@ -105,7 +99,20 @@ export const UsersService = {
     return prisma.role.findMany();
   },
 
+  async countUsersWithRole(roleId: string) {
+    return prisma.user.count({ where: { roleId } });
+  },
+
+  /**
+   * Deletes a role and every user that holds it. Tests use this for cleanup.
+   * The API refuses to delete a role that still has users (see the controller).
+   */
   async deleteRole(roleId: string) {
+    // Prisma treats `roleId: undefined` as "no filter", which would make the
+    // deleteMany below delete every user.
+    if (!roleId) {
+      throw new Error('deleteRole requires a roleId');
+    }
     await prisma.user.deleteMany({
       where: { roleId },
     });
@@ -120,13 +127,11 @@ export const UsersService = {
     });
   },
 
-  async getUsersByRole(roleId: string) {
+  async getUsersByRole(roleType: RoleType) {
     return prisma.user.findMany({
       where: {
         deletedAt: null,
-        role: {
-          roleType: roleId as RoleType,
-        },
+        role: { roleType },
       },
       include: {
         role: true,

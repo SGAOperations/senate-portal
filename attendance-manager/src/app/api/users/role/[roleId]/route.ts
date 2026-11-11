@@ -5,7 +5,7 @@ import { UsersController } from '@/server/modules/users/users.controller';
  * Deletes a role by its ID.
  * @param {Request} request - The incoming request object.
  * @param {object} context.params - Contains route parameters like roleId.
- * @returns {Response} - 200 if deleted, 404 if role not found.
+ * @returns {Response} - 200 if deleted, 404 if role not found, 409 if users still hold it.
  */
 export async function DELETE(
   request: Request,

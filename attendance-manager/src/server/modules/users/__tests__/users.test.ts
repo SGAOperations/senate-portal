@@ -122,7 +122,6 @@ describe('UsersService', () => {
       firstName: 'John',
       lastName: 'Doe',
       roleId: testRoleId,
-      password: null,
     });
   });
 
@@ -324,29 +323,14 @@ describe('UsersController.createUser', () => {
 
   // --- password ----------------------------------------------------------
 
-  it('preserves a password when one is supplied', async () => {
+  it('ignores a password field (Supabase handles passwords)', async () => {
     const response = await postCreateUser(
       validBody({ password: 'a-supplied-password' }),
     );
 
     expect(response.status).toBe(201);
     const data = await response.json();
-    expect(data.password).toBe('a-supplied-password');
-
-    const stored = await prisma.user.findUnique({
-      where: { userId: data.userId },
-    });
-    expect(stored?.password).toBe('a-supplied-password');
-  });
-
-  it.each([
-    ['omitted', {}],
-    ['explicitly null', { password: null }],
-  ])('stores a null password when it is %s', async (_label, passwordField) => {
-    const response = await postCreateUser(validBody({ ...passwordField }));
-
-    expect(response.status).toBe(201);
-    expect((await response.json()).password).toBeNull();
+    expect(data).not.toHaveProperty('password');
   });
 
   // --- happy path --------------------------------------------------------
@@ -391,7 +375,6 @@ describe('UsersController.validateNuid', () => {
       firstName: 'John',
       lastName: 'Doe',
       roleId: testRoleId,
-      password: null,
     });
     testUserId = user.userId;
   });
@@ -510,7 +493,6 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
         firstName: 'Route',
         lastName: 'User',
         roleId: routeTestRoleId,
-        password: null,
       },
     });
     routeTestUserId = user.userId;
@@ -583,7 +565,6 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
         firstName: 'Eboard',
         lastName: 'Route',
         roleId: eboardRole.roleId,
-        password: null,
       },
     });
 
@@ -601,6 +582,128 @@ describe('GET /api/users/by-supabase-id/[supabaseAuthId]', () => {
     expect(data.role).toBeDefined();
     expect(data.role.roleId).toBe(eboardRole.roleId);
     expect(data.role.roleType).toBe('EBOARD');
+  });
+});
+
+describe('UsersController mutations', () => {
+  let roleId: string;
+
+  const jsonRequest = (body: unknown) =>
+    new Request('http://localhost/api/users', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  const makeUser = (i: number) =>
+    UsersService.createUser({
+      userId: `mutation-test-user-${i}`,
+      nuid: USERS_TEST_NUIDS[i],
+      email: `mutation-${i}@northeastern.edu`,
+      firstName: 'Mutation',
+      lastName: 'Test',
+      roleId,
+    });
+
+  beforeAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await cleanupUsersBySupabaseAuthIds(USERS_TEST_SUPABASE_IDS);
+    roleId = (await prisma.role.create({ data: { roleType: 'MEMBER' } }))
+      .roleId;
+  });
+
+  afterAll(async () => {
+    await cleanupUsersAndAttendanceByNuids(USERS_TEST_NUIDS);
+    await UsersService.deleteRole(roleId);
+  });
+
+  it('deleteUser returns 204 with no body and soft-deletes', async () => {
+    const user = await makeUser(4);
+    const response = await UsersController.deleteUser({ userId: user.userId });
+
+    expect(response.status).toBe(204);
+    expect(await response.text()).toBe('');
+    expect(await UsersService.getUserById(user.userId)).toBeNull();
+  });
+
+  it('deleteUser returns 404 for an unknown user', async () => {
+    const response = await UsersController.deleteUser({
+      userId: 'no-such-user',
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it('updateUser only changes allowed fields', async () => {
+    const user = await makeUser(5);
+    const response = await UsersController.updateUser(
+      jsonRequest({
+        firstName: 'Renamed',
+        supabaseAuthId: 'hijacked',
+        deletedAt: new Date().toISOString(),
+      }),
+      { userId: user.userId },
+    );
+
+    expect(response.status).toBe(200);
+    const stored = await prisma.user.findUnique({
+      where: { userId: user.userId },
+    });
+    expect(stored?.firstName).toBe('Renamed');
+    expect(stored?.supabaseAuthId).toBeNull();
+    expect(stored?.deletedAt).toBeNull();
+  });
+
+  it('updateUser rejects an invalid nuid', async () => {
+    const user = await makeUser(6);
+    const response = await UsersController.updateUser(
+      jsonRequest({ nuid: '123' }),
+      { userId: user.userId },
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('updateUser returns 404 for an unknown user', async () => {
+    const response = await UsersController.updateUser(
+      jsonRequest({ firstName: 'Nobody' }),
+      { userId: 'no-such-user' },
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it('deleteRole refuses while users still hold the role', async () => {
+    await makeUser(7);
+    const response = await UsersController.deleteRole({ roleId });
+
+    expect(response.status).toBe(409);
+    expect(await prisma.role.findUnique({ where: { roleId } })).not.toBeNull();
+    expect(await UsersService.countUsersWithRole(roleId)).toBeGreaterThan(0);
+  });
+
+  it('deleteRole rejects a missing roleId', async () => {
+    const response = await UsersController.deleteRole({
+      roleId: undefined as unknown as string,
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it('deleteRole returns 404 for an unknown role', async () => {
+    const response = await UsersController.deleteRole({
+      roleId: 'no-such-role',
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it('UsersService.deleteRole throws without a roleId', async () => {
+    await expect(
+      UsersService.deleteRole(undefined as unknown as string),
+    ).rejects.toThrow('deleteRole requires a roleId');
+  });
+
+  it('updateAttendence rejects a status that is not an AttendanceStatus', async () => {
+    const response = await UsersController.updateAttendence(
+      jsonRequest({ userId: 'u', meetingId: 'm', status: 'PENDING_ABSENCE' }),
+    );
+    expect(response.status).toBe(400);
   });
 });
 
@@ -836,5 +939,31 @@ describe('POST /api/auth/signup', () => {
     expect(UsersService.getRoleIdByRoleType).toHaveBeenCalledWith(
       RoleType.MEMBER,
     );
+  });
+
+  it('rejects an invalid NUID before creating a Supabase account', async () => {
+    const { POST } = await import('@/app/api/auth/signup/route');
+    const signUp = jest.fn();
+    (createServerSupabaseClient as jest.Mock).mockResolvedValue({
+      auth: { signUp },
+    });
+
+    const response = await POST(
+      new Request('http://localhost/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'badnuid@example.com',
+          password: 'password123',
+          firstName: 'Bad',
+          lastName: 'Nuid',
+          nuid: '12345',
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe('NUID must be exactly 9 digits');
+    expect(signUp).not.toHaveBeenCalled();
   });
 });
