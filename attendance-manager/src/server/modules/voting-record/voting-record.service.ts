@@ -33,6 +33,29 @@ export const VotingRecordService = {
     return existing !== null;
   },
 
+  async votingEventExists(votingEventId: string) {
+    const event = await prisma.votingEvent.findUnique({
+      where: { votingEventId },
+      select: { votingEventId: true },
+    });
+    return event !== null;
+  },
+
+  async getVotingEventVoteType(votingEventId: string) {
+    const event = await prisma.votingEvent.findUnique({
+      where: { votingEventId },
+      select: { voteType: true },
+    });
+    return event?.voteType ?? null;
+  },
+
+  async getVotingRecordWithEvent(votingRecordId: string) {
+    return prisma.votingRecord.findUnique({
+      where: { votingRecordId },
+      include: { votingEvent: true },
+    });
+  },
+
   async createVotingRecord(data: {
     votingEventId: string;
     userId: string;
