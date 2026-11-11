@@ -34,7 +34,6 @@ describe('VotingRecordService', () => {
         firstName: 'Test',
         lastName: 'User',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUserId = user.userId;
@@ -46,7 +45,6 @@ describe('VotingRecordService', () => {
         firstName: 'Test1b',
         lastName: 'User1b',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUserId2 = user2.userId;
@@ -203,7 +201,6 @@ describe('VotingRecordController', () => {
         firstName: 'Test2',
         lastName: 'User2',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUserId = user.userId;
@@ -215,7 +212,6 @@ describe('VotingRecordController', () => {
         firstName: 'Test2b',
         lastName: 'User2b',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUserId2 = user2.userId;
@@ -545,7 +541,6 @@ describe('GET /api/voting-record', () => {
         firstName: 'Test3',
         lastName: 'User3',
         roleId: role.roleId,
-        password: null,
       },
     });
     routeTestUserId = user.userId;
@@ -626,7 +621,6 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
         firstName: 'Test4',
         lastName: 'User4',
         roleId: role.roleId,
-        password: null,
       },
     });
     routeTestUserId = user.userId;
@@ -638,7 +632,6 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
         firstName: 'Test4b',
         lastName: 'User4b',
         roleId: role.roleId,
-        password: null,
       },
     });
     routeTestUserId2 = user2.userId;
@@ -798,7 +791,6 @@ describe('POST /api/voting-record', () => {
         firstName: 'Test5',
         lastName: 'User5',
         roleId: role.roleId,
-        password: null,
       },
     });
     routeTestUserId = user.userId;
@@ -939,7 +931,6 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
         firstName: 'Patch',
         lastName: 'Route',
         roleId: role.roleId,
-        password: null,
       },
     });
     patchUserId = user.userId;

@@ -15,6 +15,13 @@ export const TimeAdjustment = z
   .enum(['ARRIVING_LATE', 'LEAVING_EARLY'])
   .optional();
 export const MeetingTypeEnum = z.enum(['REGULAR', 'FULL_BODY']);
+export const RoleTypeEnum = z.enum(['EBOARD', 'MEMBER']);
+
+// Northeastern ID: exactly 9 digits, kept as a string so leading zeros survive.
+export const Nuid = z
+  .string()
+  .regex(/^\d{9}$/, 'NUID must be exactly 9 digits')
+  .describe('NUID (9 digits)');
 
 // Schemas
 export const RoleSchema = z.object({
@@ -32,13 +39,40 @@ export const UserSchema: z.ZodType<any> = z.lazy(() =>
     email: z.string().describe('Email address'),
     firstName: z.string().describe('First name'),
     lastName: z.string().describe('Last name'),
-    password: z.string().nullable().describe('Password'),
     createdAt: z.date().describe('Creation timestamp'),
-    updatedAt: z.date().describe('Last updated timestamp'),
     deletedAt: z.date().nullable().describe('Deletion timestamp, if deleted'),
     attendance: z.array(AttendanceSchema).describe('Attendances'),
   }),
 );
+
+// Request body for POST /api/auth/signup
+export const SignupSchema = z.object({
+  email: z.email('Invalid email address').describe('Email address'),
+  password: z.string().min(1).describe('Password (sent to Supabase only)'),
+  firstName: z.string().min(1).describe('First name'),
+  lastName: z.string().min(1).describe('Last name'),
+  nuid: Nuid,
+});
+
+// Request body for POST /api/users
+export const CreateUserSchema = z.object({
+  userId: z.string().min(1).describe('User ID'),
+  nuid: Nuid,
+  email: z.email().describe('Email address'),
+  firstName: z.string().min(1).describe('First name'),
+  lastName: z.string().min(1).describe('Last name'),
+});
+
+// Request body for PUT /api/users/:id. Only these fields can be changed;
+// anything else in the body (supabaseAuthId, deletedAt, userId, ...) is dropped.
+export const UpdateUserSchema = CreateUserSchema.omit({ userId: true })
+  .extend({ roleId: z.string().min(1).describe('Role ID') })
+  .partial();
+
+// Request body for POST /api/users/role
+export const CreateRoleSchema = z.object({
+  roleType: RoleTypeEnum.describe('Role Type'),
+});
 
 // Request schema
 export const RequestSchema: z.ZodType<any> = z.lazy(

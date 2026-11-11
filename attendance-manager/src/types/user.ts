@@ -34,7 +34,6 @@ export interface UserData {
   firstName: string;
   lastName: string;
   role: RoleData;
-  password: string;
 }
 
 export interface UserApiData {

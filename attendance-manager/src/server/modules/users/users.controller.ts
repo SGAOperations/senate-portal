@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import { UsersService } from './users.service';
-import { RoleType } from '@/generated/prisma';
+import { Prisma, RoleType } from '@/generated/prisma';
 import { AttendanceService } from '@/server/modules/attendance/attendance.service';
 import { z } from 'zod';
+import {
+  CreateRoleSchema,
+  CreateUserSchema,
+  PostAttendanceParams,
+  UpdateUserSchema,
+} from '@/types/schemas';
 
-const CreateUserSchema = z.object({
-  userId: z.string().min(1),
-  nuid: z.string().regex(/^\d{9}$/),
-  password: z.string().nullish(),
-  email: z.email(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-});
+const isNotFound = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === 'P2025';
 
 export const UsersController = {
   async listUsers() {
@@ -25,6 +26,24 @@ export const UsersController = {
   },
 
   async deleteRole(params: { roleId: string }) {
+    if (!params.roleId) {
+      return NextResponse.json(
+        { error: 'roleId is required' },
+        { status: 400 },
+      );
+    }
+    const role = await UsersService.getRolesByRoleId(params.roleId);
+    if (!role) {
+      return NextResponse.json({ error: 'Role not found' }, { status: 404 });
+    }
+    // The service would delete every user holding the role. Never do that
+    // from the API.
+    if ((await UsersService.countUsersWithRole(params.roleId)) > 0) {
+      return NextResponse.json(
+        { error: 'Role is still assigned to users' },
+        { status: 409 },
+      );
+    }
     await UsersService.deleteRole(params.roleId);
     return NextResponse.json(
       { message: 'Role deleted successfully' },
@@ -114,23 +133,56 @@ export const UsersController = {
   },
 
   async createRole(request: Request) {
-    const body = await request.json();
-    const newRole = await UsersService.createRole(body);
+    const result = CreateRoleSchema.safeParse(await request.json());
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid request body',
+          details: z.flattenError(result.error).fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+    const newRole = await UsersService.createRole(result.data);
     return NextResponse.json(newRole, { status: 201 });
   },
 
   async updateUser(request: Request, params: { userId: string }) {
-    const updates = await request.json();
-    const updatedUser = await UsersService.updateUser(params.userId, updates);
-    return NextResponse.json(updatedUser);
+    const result = UpdateUserSchema.safeParse(await request.json());
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid request body',
+          details: z.flattenError(result.error).fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+    try {
+      const updatedUser = await UsersService.updateUser(
+        params.userId,
+        result.data,
+      );
+      return NextResponse.json(updatedUser);
+    } catch (error) {
+      if (isNotFound(error)) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      throw error;
+    }
   },
 
   async deleteUser(params: { userId: string }) {
-    await UsersService.deleteUser(params.userId);
-    return NextResponse.json(
-      { message: 'User deleted successfully' },
-      { status: 204 },
-    );
+    try {
+      await UsersService.deleteUser(params.userId);
+    } catch (error) {
+      if (isNotFound(error)) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      throw error;
+    }
+    // A 204 response must not have a body (NextResponse.json throws on it).
+    return new NextResponse(null, { status: 204 });
   },
 
   async validateNuid(params: {
@@ -215,31 +267,22 @@ export const UsersController = {
 
   async updateAttendence(request: Request) {
     const body = await request.json();
-    if (!body.userId || !body.meetingId || body.status === undefined) {
+    if (!body?.userId || !body?.meetingId || body?.status === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 },
       );
     }
-    const validStatuses = [
-      'PENDING',
-      'PRESENT',
-      'PENDING_ABSENCE',
-      'EXCUSED_ABSENCE',
-      'UNEXCUSED_ABSENCE',
-    ];
-    if (!validStatuses.includes(body.status)) {
+    const result = PostAttendanceParams.safeParse(body);
+    if (!result.success) {
       return NextResponse.json(
         { error: 'Invalid attendance value' },
         { status: 400 },
       );
     }
+    const { userId, meetingId, status } = result.data;
 
-    await AttendanceService.upsertAttendance(
-      body.userId,
-      body.meetingId,
-      body.status,
-    );
+    await AttendanceService.upsertAttendance(userId, meetingId, status);
     return NextResponse.json({
       success: true,
       message: 'Attendance updated successfully',

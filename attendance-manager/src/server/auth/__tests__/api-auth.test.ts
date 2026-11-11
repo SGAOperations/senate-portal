@@ -34,7 +34,6 @@ describe('API Auth Utilities', () => {
         firstName: 'API',
         lastName: 'Test',
         roleId: testRoleId,
-        password: null,
       },
     });
     testUserId = user.userId;

@@ -783,7 +783,6 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
         firstName: 'Roll',
         lastName: 'CallOne',
         roleId: testRoleId,
-        password: null,
       },
     });
     user1Id = user1.userId;
@@ -797,7 +796,6 @@ describe('Per-voter voting results include voter names (non-secret ballot)', () 
         firstName: 'Roll',
         lastName: 'CallTwo',
         roleId: testRoleId,
-        password: null,
       },
     });
     user2Id = user2.userId;
@@ -1019,7 +1017,6 @@ describe('Secret ballot results (aggregates only)', () => {
         firstName: 'Secret',
         lastName: 'VoterOne',
         roleId: testRoleId,
-        password: null,
       },
     });
     user1Id = u1.userId;
@@ -1033,7 +1030,6 @@ describe('Secret ballot results (aggregates only)', () => {
         firstName: 'Secret',
         lastName: 'VoterTwo',
         roleId: testRoleId,
-        password: null,
       },
     });
     user2Id = u2.userId;
@@ -1047,7 +1043,6 @@ describe('Secret ballot results (aggregates only)', () => {
         firstName: 'Secret',
         lastName: 'VoterThree',
         roleId: testRoleId,
-        password: null,
       },
     });
     user3Id = u3.userId;

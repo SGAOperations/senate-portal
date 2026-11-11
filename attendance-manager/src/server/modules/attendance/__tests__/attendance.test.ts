@@ -37,7 +37,6 @@ describe('AttendanceController', () => {
         firstName: 'Test',
         lastName: 'User',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUserId = user.userId;
@@ -48,7 +47,6 @@ describe('AttendanceController', () => {
         firstName: 'Test2',
         lastName: 'User2',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUser2Id = user2.userId;
@@ -99,7 +97,6 @@ describe('AttendanceController', () => {
         firstName: 'Test3',
         lastName: 'User3',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUser3Id = user3.userId;
@@ -476,7 +473,6 @@ describe('getRemainingUnexcusedAbsences', () => {
         firstName: 'Test4',
         lastName: 'User4',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUser4Id = user4.userId;
@@ -487,7 +483,6 @@ describe('getRemainingUnexcusedAbsences', () => {
         firstName: 'Test5',
         lastName: 'User5',
         roleId: role.roleId,
-        password: null,
       },
     });
     testUser5Id = user5.userId;

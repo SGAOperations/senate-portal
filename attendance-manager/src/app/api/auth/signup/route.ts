@@ -4,19 +4,40 @@ import { prisma } from '@/server/db/prisma';
 import { UsersService } from '@/server/modules/users/users.service';
 import { RoleType } from '@/generated/prisma';
 import { toErrorResponse } from '@/server/http/api-errors';
+import { z } from 'zod';
+import { SignupSchema } from '@/types/schemas';
 
 export async function POST(request: Request) {
   try {
-    const { email, password, firstName, lastName, nuid, roleId } =
-      await request.json();
+    const body = await request.json();
 
     // Validate required fields
-    if (!email || !password || !firstName || !lastName || !nuid) {
+    if (
+      !body?.email ||
+      !body?.password ||
+      !body?.firstName ||
+      !body?.lastName ||
+      !body?.nuid
+    ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 },
       );
     }
+
+    const parsed = SignupSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          // shown to the user by the signup form
+          error: parsed.error.issues[0]?.message ?? 'Invalid request body',
+          details: z.flattenError(parsed.error).fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+    const { email, password, firstName, lastName, nuid } = parsed.data;
+    const roleId: string | undefined = body.roleId;
 
     const supabase = await createServerSupabaseClient();
 
@@ -75,7 +96,6 @@ export async function POST(request: Request) {
           lastName,
           nuid,
           roleId: finalRoleId,
-          password: undefined, // Optional - Supabase handles authentication
         },
         include: {
           role: true,
