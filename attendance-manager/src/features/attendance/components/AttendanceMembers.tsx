@@ -5,7 +5,8 @@ interface AttendanceMembersProps {
   officerMembers: UserApiData[];
   senatorMembers: UserApiData[];
   loading?: boolean;
-
+  // manageAttendance only: DELETE /api/users/[id] refuses everyone else.
+  canDelete: boolean;
   setDeleteUser: (userId: UserApiData | null) => void;
 }
 
@@ -13,6 +14,7 @@ const AttendanceMembers: React.FC<AttendanceMembersProps> = ({
   officerMembers,
   senatorMembers,
   loading = false,
+  canDelete,
   setDeleteUser,
 }) => {
   // Loading screen
@@ -51,12 +53,14 @@ const AttendanceMembers: React.FC<AttendanceMembersProps> = ({
                 </p>
                 <p className='text-xs text-gray-500'>{member.email}</p>
               </div>
-              <button
-                onClick={() => setDeleteUser(member)}
-                className='text-red-400 hover:text-red-600 text-xs font-medium'
-              >
-                Delete
-              </button>
+              {canDelete && (
+                <button
+                  onClick={() => setDeleteUser(member)}
+                  className='text-red-400 hover:text-red-600 text-xs font-medium'
+                >
+                  Delete
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -82,12 +86,14 @@ const AttendanceMembers: React.FC<AttendanceMembersProps> = ({
                 </p>
                 <p className='text-xs text-gray-500'>{member.email}</p>
               </div>
-              <button
-                onClick={() => setDeleteUser(member)}
-                className='text-red-400 hover:text-red-600 text-xs font-medium'
-              >
-                Delete
-              </button>
+              {canDelete && (
+                <button
+                  onClick={() => setDeleteUser(member)}
+                  className='text-red-400 hover:text-red-600 text-xs font-medium'
+                >
+                  Delete
+                </button>
+              )}
             </div>
           ))}
         </div>

@@ -20,10 +20,6 @@ export const MeetingTypeEnum = z.enum(['REGULAR', 'FULL_BODY']);
 export const UserSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
     userId: z.string().describe('User ID'),
-    sgauthUserId: z.string().nullable().describe('SGAuth user ID'),
-    positionKeys: z
-      .array(z.string())
-      .describe('SGAuth position keys as of their last sign-in'),
     isSenator: z.boolean().optional().describe('Holds a Senate seat'),
     nuid: z.string().describe('NUID'),
     email: z.string().describe('Email address'),

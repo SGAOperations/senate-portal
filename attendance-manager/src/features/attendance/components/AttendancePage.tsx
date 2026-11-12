@@ -461,6 +461,7 @@ const AttendancePage: React.FC = () => {
           officerMembers={officerMembers}
           senatorMembers={senatorMembers}
           loading={isLoadingMembers}
+          canDelete={isAdmin}
           setDeleteUser={setDeleteUser}
         />
       ) : (
