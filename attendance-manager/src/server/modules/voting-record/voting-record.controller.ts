@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/server/db/prisma';
 import { VoteType, yesNoOptions } from '@/lib/constants';
 import { VotingRecordService } from './voting-record.service';
 import { z } from 'zod';
@@ -40,37 +39,30 @@ export const VotingRecordController = {
   },
 
   async getHasUserVoted(params: { votingEventId: string; userId: string }) {
-    const votingEvent = await prisma.votingEvent.findUnique({
-      where: { votingEventId: params.votingEventId },
-      select: { votingEventId: true },
-    });
+    const eventExists = await VotingRecordService.votingEventExists(
+      params.votingEventId,
+    );
 
-    if (!votingEvent) {
+    if (!eventExists) {
       return NextResponse.json({ hasVoted: false });
     }
 
-    const record = await prisma.votingRecord.findFirst({
-      where: {
-        votingEventId: params.votingEventId,
-        userId: params.userId,
-      },
-      select: { userId: true },
-    });
+    const hasVoted = await VotingRecordService.hasUserVotedForEvent(
+      params.userId,
+      params.votingEventId,
+    );
 
-    return NextResponse.json({
-      hasVoted: !!record,
-    });
+    return NextResponse.json({ hasVoted });
   },
 
   async getVotingRecordsByVotingEvent(params: { votingEventId: string }) {
-    const votingEvent = await prisma.votingEvent.findUnique({
-      where: { votingEventId: params.votingEventId },
-      select: { voteType: true },
-    });
-    if (!votingEvent) {
+    const voteType = await VotingRecordService.getVotingEventVoteType(
+      params.votingEventId,
+    );
+    if (voteType === null) {
       return NextResponse.json([]);
     }
-    if (votingEvent.voteType === VoteType.secretBallot) {
+    if (voteType === VoteType.secretBallot) {
       return NextResponse.json(
         {
           error:
@@ -168,12 +160,9 @@ export const VotingRecordController = {
       );
     }
 
-    const record = await prisma.votingRecord.findUnique({
-      where: { votingRecordId: params.votingRecordId },
-      include: {
-        votingEvent: true,
-      },
-    });
+    const record = await VotingRecordService.getVotingRecordWithEvent(
+      params.votingRecordId,
+    );
 
     if (!record || record.deletedAt) {
       return NextResponse.json(
