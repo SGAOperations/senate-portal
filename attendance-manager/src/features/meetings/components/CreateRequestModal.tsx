@@ -115,8 +115,8 @@ const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               <p className='text-xs text-amber-800 mt-1'>
                 Requests made {LATE_REQUEST_WINDOW_HOURS} hours or less before a
                 meeting are still submitted, but they are flagged as late so the
-                E-board can review them. Late for:{' '}
-                {lateMeetings.map((meeting) => meeting.name).join(', ')}.
+                Speaker and Senate Operations Coordinator can review them. Late
+                for: {lateMeetings.map((meeting) => meeting.name).join(', ')}.
               </p>
             </div>
           )}

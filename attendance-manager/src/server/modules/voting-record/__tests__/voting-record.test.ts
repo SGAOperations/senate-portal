@@ -1,7 +1,12 @@
-import { VotingRecordService } from '@/server/modules/voting-record/voting-record.service';
-import { VotingRecordController } from '@/server/modules/voting-record/voting-record.controller';
+import { VotingRecordService } from '../voting-record.service';
+import { VotingRecordController } from '../voting-record.controller';
 import { prisma } from '@/server/db/prisma';
-import { semesterIdFor, uniqueUserFields } from '@/test/helpers';
+import {
+  createTestGroup,
+  deleteTestGroup,
+  semesterIdFor,
+  uniqueUserFields,
+} from '@/test/helpers';
 import { VotingService } from '@/server/modules/voting/voting.service';
 import { MeetingService } from '@/server/modules/meeting/meeting.service';
 import { UsersService } from '@/server/modules/users/users.service';
@@ -22,9 +27,7 @@ describe('VotingRecordService', () => {
 
   beforeAll(async () => {
     // Create test role
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     testRoleId = role.roleId;
 
     // Create test user
@@ -33,8 +36,7 @@ describe('VotingRecordService', () => {
         ...uniqueUserFields(),
         firstName: 'Test',
         lastName: 'User',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUserId = user.userId;
@@ -45,8 +47,7 @@ describe('VotingRecordService', () => {
         ...uniqueUserFields(),
         firstName: 'Test1b',
         lastName: 'User1b',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUserId2 = user2.userId;
@@ -93,7 +94,7 @@ describe('VotingRecordService', () => {
     await MeetingService.deleteMeeting(testMeetingId);
     await UsersService.deleteUser(testUserId2);
     await UsersService.deleteUser(testUserId);
-    await UsersService.deleteRole(testRoleId);
+    await deleteTestGroup(testRoleId);
   });
 
   it('should create a new voting record', async () => {
@@ -191,9 +192,7 @@ describe('VotingRecordController', () => {
 
   beforeAll(async () => {
     // Create test role
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     testRoleId = role.roleId;
 
     // Create test user
@@ -202,8 +201,7 @@ describe('VotingRecordController', () => {
         ...uniqueUserFields(),
         firstName: 'Test2',
         lastName: 'User2',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUserId = user.userId;
@@ -214,8 +212,7 @@ describe('VotingRecordController', () => {
         ...uniqueUserFields(),
         firstName: 'Test2b',
         lastName: 'User2b',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     testUserId2 = user2.userId;
@@ -259,7 +256,7 @@ describe('VotingRecordController', () => {
     await MeetingService.deleteMeeting(testMeetingId);
     await UsersService.deleteUser(testUserId2);
     await UsersService.deleteUser(testUserId);
-    await UsersService.deleteRole(testRoleId);
+    await deleteTestGroup(testRoleId);
   });
 
   describe('GET ALL', () => {
@@ -533,9 +530,7 @@ describe('GET /api/voting-record', () => {
 
   beforeAll(async () => {
     // Create test role
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     routeRoleId = role.roleId;
 
     // Create test user
@@ -544,8 +539,7 @@ describe('GET /api/voting-record', () => {
         ...uniqueUserFields(),
         firstName: 'Test3',
         lastName: 'User3',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     routeTestUserId = user.userId;
@@ -588,7 +582,7 @@ describe('GET /api/voting-record', () => {
     await VotingService.deleteVotingEvent(routeTestVotingEventId);
     await MeetingService.deleteMeeting(routeTestMeetingId);
     await UsersService.deleteUser(routeTestUserId);
-    await UsersService.deleteRole(routeRoleId);
+    await deleteTestGroup(routeRoleId);
   });
 
   it('should fetch all voting records successfully', async () => {
@@ -615,9 +609,7 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
 
   beforeAll(async () => {
     // Create test role
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     routeTestRoleId = role.roleId;
     // Create test user
     const user = await prisma.user.create({
@@ -625,8 +617,7 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
         ...uniqueUserFields(),
         firstName: 'Test4',
         lastName: 'User4',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     routeTestUserId = user.userId;
@@ -637,8 +628,7 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
         ...uniqueUserFields(),
         firstName: 'Test4b',
         lastName: 'User4b',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     routeTestUserId2 = user2.userId;
@@ -700,7 +690,7 @@ describe('GET /api/voting-record/by-voting-event/[votingEventId]', () => {
     await MeetingService.deleteMeeting(routeTestMeetingId);
     await UsersService.deleteUser(routeTestUserId2);
     await UsersService.deleteUser(routeTestUserId);
-    await UsersService.deleteRole(routeTestRoleId);
+    await deleteTestGroup(routeTestRoleId);
   });
 
   it('should fetch voting records by voting event successfully', async () => {
@@ -786,9 +776,7 @@ describe('POST /api/voting-record', () => {
 
   beforeAll(async () => {
     // Create test role
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     routeTestRoleId = role.roleId;
 
     // Create test user
@@ -797,8 +785,7 @@ describe('POST /api/voting-record', () => {
         ...uniqueUserFields(),
         firstName: 'Test5',
         lastName: 'User5',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     routeTestUserId = user.userId;
@@ -845,9 +832,7 @@ describe('POST /api/voting-record', () => {
       where: { userId: routeTestUserId },
     });
 
-    await prisma.role.deleteMany({
-      where: { roleId: routeTestRoleId },
-    });
+    await deleteTestGroup(routeTestRoleId);
   });
 
   it('should create a new voting record successfully', async () => {
@@ -928,9 +913,7 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
   let patchRoleId: string;
 
   beforeAll(async () => {
-    const role = await prisma.role.create({
-      data: { roleType: 'MEMBER' },
-    });
+    const role = await createTestGroup();
     patchRoleId = role.roleId;
 
     const user = await prisma.user.create({
@@ -938,8 +921,7 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
         ...uniqueUserFields(),
         firstName: 'Patch',
         lastName: 'Route',
-        roleId: role.roleId,
-        password: null,
+        positionKeys: [role.roleId],
       },
     });
     patchUserId = user.userId;
@@ -979,7 +961,7 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
     await VotingService.deleteVotingEvent(patchEventId);
     await MeetingService.deleteMeeting(patchMeetingId);
     await UsersService.deleteUser(patchUserId);
-    await UsersService.deleteRole(patchRoleId);
+    await deleteTestGroup(patchRoleId);
   });
 
   it('should update a voting record', async () => {

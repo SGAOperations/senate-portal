@@ -1,80 +1,67 @@
-import { RoleType } from '@/generated/prisma';
 import { prisma } from '@/server/db/prisma';
+import { isRosterPosition } from '@/lib/permissions';
+
+/**
+ * Whether a user is on the roster, from the SGAuth positions recorded at
+ * their last sign-in. Someone who has not signed in since the move to SGAuth
+ * (positionsSyncedAt null) stays on it until they do, so the roster is not
+ * emptied by the cutover.
+ */
+export function isOnRoster(user: {
+  positionKeys: string[];
+  positionsSyncedAt: Date | null;
+}): boolean {
+  return (
+    user.positionsSyncedAt === null || user.positionKeys.some(isRosterPosition)
+  );
+}
 
 export const UsersService = {
   async getAllUsers() {
     return prisma.user.findMany({
       where: { deletedAt: null },
-      include: { role: true, attendance: true },
+      include: { attendance: true },
     });
   },
 
-  async getAllRoles() {
-    return prisma.role.findMany({
-      include: {},
-    });
+  /** Everyone on the roster (isOnRoster), with their attendance. */
+  async getRoster() {
+    const users = await this.getAllUsers();
+    return users.filter(isOnRoster);
   },
 
   async getUserByNUID(nuid: string) {
-    const user = await prisma.user.findUnique({
-      where: { nuid },
-      include: { role: true },
-    });
+    const user = await prisma.user.findUnique({ where: { nuid } });
     return user?.deletedAt ? null : user;
   },
 
   async getUserById(userId: string) {
     const user = await prisma.user.findUnique({
       where: { userId },
-      include: { role: true, attendance: true },
+      include: { attendance: true },
     });
     return user?.deletedAt ? null : user;
   },
 
   async getUserByEmail(userEmail: string) {
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-      include: { role: true },
-    });
+    const user = await prisma.user.findUnique({ where: { email: userEmail } });
     return user?.deletedAt ? null : user;
   },
 
   async getUserByNuid(nuid: string) {
-    const user = await prisma.user.findUnique({
-      where: { nuid },
-      include: { role: true },
-    });
+    const user = await prisma.user.findUnique({ where: { nuid } });
     return user?.deletedAt ? null : user;
   },
 
   async createUser(data: {
-    userId: string;
-    supabaseAuthId?: string;
+    userId?: string;
     nuid: string;
     email: string;
     firstName: string;
     lastName: string;
-    roleId: string;
-    password?: string | null;
+    positionKeys?: string[];
   }) {
-    return prisma.user.create({
-      data: {
-        ...data,
-        password: data.password ?? null,
-      },
-    });
-  },
-
-  async createRole(data: { roleType: RoleType }) {
-    return prisma.role.create({ data });
-  },
-
-  async getRoleIdByRoleType(roleType: RoleType) {
-    const role = await prisma.role.findFirst({
-      where: { roleType },
-      select: { roleId: true },
-    });
-    return role?.roleId;
+    return prisma.user.create({ data });
   },
 
   async updateUser(
@@ -84,7 +71,6 @@ export const UsersService = {
       email: string;
       firstName: string;
       lastName: string;
-      roleId: string;
     }>,
   ) {
     return prisma.user.update({
@@ -99,46 +85,5 @@ export const UsersService = {
       where: { userId },
       data: { deletedAt: new Date() },
     });
-  },
-
-  async getRoles() {
-    return prisma.role.findMany();
-  },
-
-  async deleteRole(roleId: string) {
-    await prisma.user.deleteMany({
-      where: { roleId },
-    });
-    return prisma.role.delete({
-      where: { roleId },
-    });
-  },
-
-  async getRolesByRoleId(roleId: string) {
-    return prisma.role.findUnique({
-      where: { roleId: roleId },
-    });
-  },
-
-  async getUsersByRole(roleId: string) {
-    return prisma.user.findMany({
-      where: {
-        deletedAt: null,
-        role: {
-          roleType: roleId as RoleType,
-        },
-      },
-      include: {
-        role: true,
-      },
-    });
-  },
-
-  async getUserBySupabaseId(supabaseAuthId: string) {
-    const user = await prisma.user.findUnique({
-      where: { supabaseAuthId },
-      include: { role: true },
-    });
-    return user?.deletedAt ? null : user;
   },
 };

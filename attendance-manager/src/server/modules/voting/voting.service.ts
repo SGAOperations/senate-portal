@@ -192,13 +192,13 @@ export const VotingService = {
     return events.map((e) => formatVotingEventForApi(e)!);
   },
 
-  async getAllVotingEvents({ isEboard }: { isEboard: boolean }) {
+  async getAllVotingEvents({ includeRecent }: { includeRecent: boolean }) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const events = await prisma.votingEvent.findMany({
       where: {
         // skip votes on soft-deleted meetings
         meeting: { deletedAt: null },
-        ...(isEboard ? {} : { endedAt: { lte: oneHourAgo } }),
+        ...(includeRecent ? {} : { endedAt: { lte: oneHourAgo } }),
       },
       include: {
         meeting: true,

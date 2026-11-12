@@ -1,3 +1,4 @@
+import { userCan } from '@/types';
 import React, { useState } from 'react';
 import { MeetingApiData } from '@/types';
 import { useAuth } from '@/providers/AuthContext';
@@ -23,7 +24,7 @@ const VotingAdminPanel: React.FC<VotingAdminPanelProps> = ({
     refresh: refreshActiveEvent,
   } = useActiveVotingEvent();
 
-  if (!user || user.role !== 'EBOARD') return null;
+  if (!userCan(user, 'hostVotes')) return null;
 
   const meetingEligibleCount = (meetingId: string) =>
     meetings.find((m) => m.meetingId === meetingId)?.eligibleCount ?? 0;
@@ -34,7 +35,10 @@ const VotingAdminPanel: React.FC<VotingAdminPanelProps> = ({
       const res = await fetch(`/api/voting-event/${votingEventId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ end: true, updatedBy: user.id }),
+        body: JSON.stringify({
+          end: true,
+          ...(user?.id ? { updatedBy: user.id } : {}),
+        }),
       });
       if (!res.ok) throw new Error();
       await refreshActiveEvent();
@@ -82,7 +86,7 @@ const VotingAdminPanel: React.FC<VotingAdminPanelProps> = ({
       {!activeEventLoading && activeEvents.length === 0 && (
         <CreateVoteForm
           meetings={meetings}
-          userId={user.id}
+          userId={user?.id ?? undefined}
           onCreated={refreshActiveEvent}
         />
       )}
