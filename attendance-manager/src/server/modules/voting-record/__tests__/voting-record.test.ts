@@ -1,6 +1,7 @@
 import { VotingRecordService } from '@/server/modules/voting-record/voting-record.service';
 import { VotingRecordController } from '@/server/modules/voting-record/voting-record.controller';
 import { prisma } from '@/server/db/prisma';
+import { randomUUID } from 'crypto';
 import { semesterIdFor, uniqueUserFields } from '@/test/helpers';
 import { VotingService } from '@/server/modules/voting/voting.service';
 import { MeetingService } from '@/server/modules/meeting/meeting.service';
@@ -1016,5 +1017,224 @@ describe('PATCH /api/voting-record/[votingRecordId]', () => {
       { votingRecordId: patchRecordId },
     );
     expect(restoreRes.status).toBe(200);
+  });
+});
+describe('VotingRecordService query helpers', () => {
+  let roleId: string;
+  let userId: string;
+  let otherUserId: string;
+  let meetingId: string;
+  let yesNoEventId: string;
+  let secretEventId: string;
+  let otherEventId: string;
+  let recordId: string;
+
+  beforeAll(async () => {
+    const role = await prisma.role.create({ data: { roleType: 'MEMBER' } });
+    roleId = role.roleId;
+
+    const user = await prisma.user.create({
+      data: {
+        ...uniqueUserFields(),
+        firstName: 'Helper',
+        lastName: 'Voter',
+        roleId,
+        password: null,
+      },
+    });
+    userId = user.userId;
+
+    const otherUser = await prisma.user.create({
+      data: {
+        ...uniqueUserFields(),
+        firstName: 'Helper',
+        lastName: 'NonVoter',
+        roleId,
+        password: null,
+      },
+    });
+    otherUserId = otherUser.userId;
+
+    const meeting = await prisma.meeting.create({
+      data: {
+        name: 'Query Helpers Meeting',
+        date: parseMeetingDate('2025-08-04'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-08-04')),
+        startTime: parseMeetingDateTime('2025-08-04', '10:00'),
+        endTime: parseMeetingDateTime('2025-08-04', '11:00'),
+        notes: 'Test notes',
+        type: 'REGULAR',
+      },
+    });
+    meetingId = meeting.meetingId;
+
+    const yesNoEvent = await prisma.votingEvent.create({
+      data: { meetingId, name: 'Helpers Yes/No', voteType: 'YES_NO' },
+    });
+    yesNoEventId = yesNoEvent.votingEventId;
+
+    const secretEvent = await prisma.votingEvent.create({
+      data: {
+        meetingId,
+        name: 'Helpers Secret',
+        voteType: 'SECRET_BALLOT',
+        options: ['Yes', 'No'],
+      },
+    });
+    secretEventId = secretEvent.votingEventId;
+
+    const otherEvent = await prisma.votingEvent.create({
+      data: { meetingId, name: 'Helpers Other', voteType: 'YES_NO' },
+    });
+    otherEventId = otherEvent.votingEventId;
+
+    const record = await prisma.votingRecord.create({
+      data: { votingEventId: yesNoEventId, userId, result: 'YES' },
+    });
+    recordId = record.votingRecordId;
+  });
+
+  afterAll(async () => {
+    await prisma.votingRecord.deleteMany({
+      where: { votingEvent: { meetingId } },
+    });
+    await prisma.votingEvent.deleteMany({ where: { meetingId } });
+    await prisma.meeting.delete({ where: { meetingId } });
+    await prisma.user.deleteMany({
+      where: { userId: { in: [userId, otherUserId] } },
+    });
+    await prisma.role.delete({ where: { roleId } });
+  });
+
+  describe('hasUserVotedForEvent', () => {
+    it('returns true when the user has a record for the event', async () => {
+      expect(
+        await VotingRecordService.hasUserVotedForEvent(userId, yesNoEventId),
+      ).toBe(true);
+    });
+
+    it('returns false when the user has not voted', async () => {
+      expect(
+        await VotingRecordService.hasUserVotedForEvent(
+          otherUserId,
+          yesNoEventId,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false for a different event', async () => {
+      expect(
+        await VotingRecordService.hasUserVotedForEvent(userId, otherEventId),
+      ).toBe(false);
+    });
+  });
+
+  describe('votingEventExists', () => {
+    it('returns true for an existing event', async () => {
+      expect(await VotingRecordService.votingEventExists(yesNoEventId)).toBe(
+        true,
+      );
+    });
+
+    it('returns false for a non-existent event', async () => {
+      expect(await VotingRecordService.votingEventExists(randomUUID())).toBe(
+        false,
+      );
+    });
+
+    it('still returns true for a soft-deleted event', async () => {
+      const deleted = await prisma.votingEvent.create({
+        data: {
+          meetingId,
+          name: 'Helpers Soft Deleted',
+          voteType: 'YES_NO',
+          deletedAt: new Date(),
+        },
+      });
+      expect(
+        await VotingRecordService.votingEventExists(deleted.votingEventId),
+      ).toBe(true);
+    });
+  });
+
+  describe('getVotingEventVoteType', () => {
+    it('returns the vote type of a yes/no event', async () => {
+      expect(
+        await VotingRecordService.getVotingEventVoteType(yesNoEventId),
+      ).toBe('YES_NO');
+    });
+
+    it('returns the vote type of a secret ballot event', async () => {
+      expect(
+        await VotingRecordService.getVotingEventVoteType(secretEventId),
+      ).toBe('SECRET_BALLOT');
+    });
+
+    it('returns null for a non-existent event', async () => {
+      expect(
+        await VotingRecordService.getVotingEventVoteType(randomUUID()),
+      ).toBeNull();
+    });
+  });
+
+  describe('getVotingRecordWithEvent', () => {
+    it('returns the record with its voting event included', async () => {
+      const result =
+        await VotingRecordService.getVotingRecordWithEvent(recordId);
+      expect(result).not.toBeNull();
+      expect(result?.votingRecordId).toBe(recordId);
+      expect(result?.votingEvent.votingEventId).toBe(yesNoEventId);
+    });
+
+    it('returns null for a non-existent record', async () => {
+      expect(
+        await VotingRecordService.getVotingRecordWithEvent(randomUUID()),
+      ).toBeNull();
+    });
+
+    it('still returns a soft-deleted record', async () => {
+      const deleted = await prisma.votingRecord.create({
+        data: {
+          votingEventId: otherEventId,
+          userId: otherUserId,
+          result: 'NO',
+          deletedAt: new Date(),
+        },
+      });
+      const result = await VotingRecordService.getVotingRecordWithEvent(
+        deleted.votingRecordId,
+      );
+      expect(result).not.toBeNull();
+      expect(result?.deletedAt).not.toBeNull();
+    });
+  });
+
+  describe('VotingRecordController.getHasUserVoted', () => {
+    it('returns hasVoted true when the user has voted', async () => {
+      const response = await VotingRecordController.getHasUserVoted({
+        votingEventId: yesNoEventId,
+        userId,
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ hasVoted: true });
+    });
+
+    it('returns hasVoted false when the user has not voted', async () => {
+      const response = await VotingRecordController.getHasUserVoted({
+        votingEventId: secretEventId,
+        userId,
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ hasVoted: false });
+    });
+
+    it('returns hasVoted false for a non-existent event', async () => {
+      const response = await VotingRecordController.getHasUserVoted({
+        votingEventId: randomUUID(),
+        userId,
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ hasVoted: false });
+    });
   });
 });
