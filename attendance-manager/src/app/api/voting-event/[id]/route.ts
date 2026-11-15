@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { VotingController } from '@/server/modules/voting/voting.controller';
-import { requireAuth } from '@/server/auth/api-auth';
+import { requireCapability } from '@/server/auth/api-auth';
 
 /**
  * @swagger
@@ -56,11 +55,8 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, error } = await requireAuth();
+  const { error } = await requireCapability('hostVotes');
   if (error) return error;
-  if (user.role.roleType !== 'EBOARD') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
   const { id } = await params;
   return VotingController.updateVotingEvent(request, { votingEventId: id });
 }

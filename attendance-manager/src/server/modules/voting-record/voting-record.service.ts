@@ -1,8 +1,11 @@
 import { prisma } from '@/server/db/prisma';
+import { VoteType } from '@/lib/constants';
 
 export const VotingRecordService = {
+  // Secret ballot records are left out: who voted what stays secret.
   async getAllVotingRecords() {
     return await prisma.votingRecord.findMany({
+      where: { votingEvent: { voteType: { not: VoteType.secretBallot } } },
       include: {
         votingEvent: {
           include: {

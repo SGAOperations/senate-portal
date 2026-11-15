@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { VotingService, formatVotingEventForApi } from './voting.service';
+import {
+  RESULTS_DELAY_MS,
+  VotingService,
+  formatVotingEventForApi,
+} from './voting.service';
 import { VoteType } from '@/lib/constants';
-import { requireAuth } from '@/server/auth/api-auth';
+import { can, requireAuth } from '@/server/auth/api-auth';
+import type { Actor } from '@/server/auth/sgauth';
 
 const createVotingEventSchema = z.object({
   meetingId: z.string().min(1),
@@ -22,6 +27,33 @@ const updateVotingEventSchema = createVotingEventSchema
     error: 'No valid fields to update',
   });
 const REQUIRED_SECRET_BALLOT_OPTIONS = ['No Confidence', 'Abstain'] as const;
+
+// Hosts and record readers see votes as they happen; others an hour after.
+function canSeeLiveResults(actor: Actor): boolean {
+  return can(actor, 'readRecords') || can(actor, 'hostVotes');
+}
+
+function resultsArePublic(event: { endedAt?: Date | string | null }) {
+  return (
+    event.endedAt != null &&
+    new Date(event.endedAt).getTime() <= Date.now() - RESULTS_DELAY_MS
+  );
+}
+
+/** The event without anything that shows how people voted. */
+function withoutResults<T extends object>(event: T) {
+  const {
+    /* eslint-disable no-unused-vars */
+    votingRecords: _votingRecords,
+    resultCounts: _resultCounts,
+    votePassed: _votePassed,
+    winningResult: _winningResult,
+    secretBallotOutcomeKind: _secretBallotOutcomeKind,
+    /* eslint-enable no-unused-vars */
+    ...rest
+  } = event as Record<string, unknown>;
+  return rest;
+}
 
 function formatZodError(error: z.ZodError): string {
   return error.issues
@@ -49,19 +81,29 @@ function normalizeCreateOptionsForSecretBallot(
 
 export const VotingController = {
   async getActiveVotingEvents() {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
     const votingEvents = await VotingService.getActiveVotingEvents();
-    return NextResponse.json(votingEvents);
+    // The vote popup needs the event, not how everyone else has voted so far.
+    return NextResponse.json(
+      canSeeLiveResults(auth.actor)
+        ? votingEvents
+        : votingEvents.map(withoutResults),
+    );
   },
 
   async getAllVotingEvents() {
-    const { user, error } = await requireAuth();
-    if (error) return error;
-    const isEboard = user!.role.roleType === 'EBOARD';
-    const votingEvents = await VotingService.getAllVotingEvents({ isEboard });
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+    const votingEvents = await VotingService.getAllVotingEvents({
+      includeRecent: canSeeLiveResults(auth.actor),
+    });
     return NextResponse.json(votingEvents);
   },
 
   async getVotingEvent(params: { votingEventId: string }) {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
     const votingEvent = await VotingService.getVotingEventById(
       params.votingEventId,
     );
@@ -71,12 +113,18 @@ export const VotingController = {
         { status: 404 },
       );
     }
+    if (!canSeeLiveResults(auth.actor) && !resultsArePublic(votingEvent)) {
+      return NextResponse.json(withoutResults(votingEvent));
+    }
     return NextResponse.json(votingEvent);
   },
 
   async getVotingEventsByVoteType(params: { voteType: string }) {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
     const votingEvents = await VotingService.getVotingEventsByVoteType(
       params.voteType,
+      { includeRecent: canSeeLiveResults(auth.actor) },
     );
     return NextResponse.json(votingEvents);
   },

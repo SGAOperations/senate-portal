@@ -24,11 +24,11 @@ interface CreateMeetingModalProps {
     selectedAttendees: string[];
   }) => void;
   members: z.infer<typeof UserSchema>[];
-  toggleNonEboardSelection: () => void;
+  toggleSenatorSelection: () => void;
 
   bulkSelectButtonClasses: (active: boolean) => string;
   bulkSelectionActive: {
-    nonEboard: boolean;
+    senators: boolean;
     allMembers: boolean;
   };
   toggleAllMembersSelection: () => void;
@@ -42,7 +42,7 @@ const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   newMeeting,
   setNewMeeting,
   members,
-  toggleNonEboardSelection,
+  toggleSenatorSelection,
   bulkSelectButtonClasses,
   bulkSelectionActive,
   toggleAllMembersSelection,
@@ -186,12 +186,12 @@ const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             <div className='flex flex-wrap gap-2 mb-4'>
               <button
                 type='button'
-                onClick={toggleNonEboardSelection}
+                onClick={toggleSenatorSelection}
                 className={bulkSelectButtonClasses(
-                  bulkSelectionActive.nonEboard,
+                  bulkSelectionActive.senators,
                 )}
               >
-                Select All Members (Non-Eboard)
+                Select All Senators
               </button>
               <button
                 type='button'
@@ -200,7 +200,7 @@ const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                   bulkSelectionActive.allMembers,
                 )}
               >
-                Select Everyone (Eboard + Members)
+                Select Everyone (Senators + Officers)
               </button>
             </div>
             <div className='max-h-48 overflow-y-auto border border-gray-300 rounded-xl p-4 space-y-3'>
@@ -251,12 +251,12 @@ const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                     <p className='text-xs text-gray-500'>{member.email}</p>
                     <span
                       className={`inline-block px-2 py-1 text-xs rounded-full ${
-                        member.role.roleType === 'EBOARD'
+                        !member.isSenator
                           ? 'bg-[#A4804A] text-white'
                           : 'bg-gray-100 text-gray-600'
                       }`}
                     >
-                      {member.role.roleType === 'EBOARD' ? 'Eboard' : 'Member'}
+                      {member.isSenator ? 'Senator' : 'Officer'}
                     </span>
                   </div>
                 </label>

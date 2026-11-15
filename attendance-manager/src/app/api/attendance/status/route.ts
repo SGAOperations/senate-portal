@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AttendanceController } from '@/server/modules/attendance/attendance.controller';
+import { requireCapability } from '@/server/auth/api-auth';
 
 /**
  * Updates an Attendance Status based on request
- * @description Updates an Attendance Record's Status by attendanceId
+ * @description Updates an Attendance Record's Status by attendanceId. Requires manageAttendance.
  * @body UpdateAttendanceRequestParams
  * @response AttendanceResponse
  * @openapi
  */
 export async function PUT(req: NextRequest) {
+  const { error } = await requireCapability('manageAttendance');
+  if (error) return error;
   try {
     const { requestId, status } = await req.json();
 

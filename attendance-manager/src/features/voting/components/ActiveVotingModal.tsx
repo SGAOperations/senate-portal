@@ -21,7 +21,7 @@ const ActiveVotingModal: React.FC<ActiveVotingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
 
-  if (!user || hasVoted) {
+  if (!user?.id || hasVoted) {
     return null;
   }
 
