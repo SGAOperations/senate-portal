@@ -73,14 +73,21 @@ export const UsersController = {
     return NextResponse.json(user);
   },
 
-  async listUsersSantizied() {
+  /**
+   * The roster by name, for pickers and lists any member may see. NUIDs are
+   * only included for whoever takes attendance (the check-in member list).
+   */
+  async listUsersSantizied({ includeNuid }: { includeNuid: boolean }) {
     const users = await UsersService.getRoster();
-    const sanitizedUsers = users.map((user) => {
-      // eslint-disable-next-line no-unused-vars
-      const { email: _email, ...safeUser } = user;
-      return safeUser;
-    });
-    return NextResponse.json(sanitizedUsers);
+    return NextResponse.json(
+      users.map((user) => ({
+        userId: user.userId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isSenator: user.positionKeys.includes(SENATOR_POSITION),
+        ...(includeNuid ? { nuid: user.nuid } : {}),
+      })),
+    );
   },
 
   async getUser(params: { userId: string }) {
@@ -88,7 +95,13 @@ export const UsersController = {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    return NextResponse.json(user);
+    // sgauthUserId and positionKeys stay server-side, as in listUsers
+    // eslint-disable-next-line no-unused-vars
+    const { sgauthUserId: _sgauthUserId, positionKeys, ...profile } = user;
+    return NextResponse.json({
+      ...profile,
+      isSenator: positionKeys.includes(SENATOR_POSITION),
+    });
   },
 
   async checkUserExists(params: { userEmail: string }) {

@@ -1,11 +1,21 @@
 import { UsersController } from '@/server/modules/users/users.controller';
-import { requireCapability } from '@/server/auth/api-auth';
+import {
+  requireCapability,
+  requireSelfOrCapability,
+} from '@/server/auth/api-auth';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  // A profile includes its attendance: the member themselves, or staff.
+  const { error } = await requireSelfOrCapability(
+    id,
+    'manageAttendance',
+    'readRecords',
+  );
+  if (error) return error;
   return UsersController.getUser({ userId: id });
 }
 
