@@ -4,12 +4,12 @@ import { VoteType, yesNoOptions } from '@/lib/constants';
 import { VotingRecordService } from './voting-record.service';
 import { z } from 'zod';
 
-// Define the expected structure of the request body using Zod
+// Define the expected structure of the request body using Zod. The voter comes
+// from the session (the route passes it in), so a userId or updatedBy in the
+// body is dropped rather than trusted.
 const createVotingRecordSchema = z.object({
   votingEventId: z.string().min(1),
-  userId: z.string().min(1),
   result: z.string().min(1),
-  updatedBy: z.string().nullish(),
 });
 
 const rollCallStyleResults = new Set<string>([
@@ -86,7 +86,7 @@ export const VotingRecordController = {
     return NextResponse.json(votingRecords);
   },
 
-  async createVotingRecord(request: Request) {
+  async createVotingRecord(request: Request, voter: { userId: string }) {
     //Parse the request body as JSON and handle any parsing errors
     let body: unknown;
 
@@ -109,14 +109,38 @@ export const VotingRecordController = {
       );
     }
 
-    const { votingEventId, userId, result, updatedBy } = parsed.data;
+    const { votingEventId, result } = parsed.data;
+
+    const event = await prisma.votingEvent.findUnique({
+      where: { votingEventId },
+      include: { meeting: { select: { deletedAt: true } } },
+    });
+    if (!event || event.deletedAt || event.meeting.deletedAt) {
+      return NextResponse.json(
+        { error: 'Voting event not found' },
+        { status: 404 },
+      );
+    }
+    if (event.endedAt) {
+      return NextResponse.json(
+        { error: 'This vote has ended' },
+        { status: 409 },
+      );
+    }
+    const options = Array.isArray(event.options) ? event.options : [];
+    if (!isValidVotingRecordResult(event.voteType, options, result)) {
+      return NextResponse.json(
+        { error: 'Invalid result for this voting event type' },
+        { status: 400 },
+      );
+    }
 
     try {
       const newVotingRecord = await VotingRecordService.createVotingRecord({
         votingEventId,
-        userId,
+        userId: voter.userId,
         result,
-        updatedBy: updatedBy ?? undefined,
+        updatedBy: voter.userId,
       });
       return NextResponse.json(newVotingRecord, { status: 201 });
     } catch (error: any) {
@@ -133,6 +157,7 @@ export const VotingRecordController = {
   async updateVotingRecord(
     request: Request,
     params: { votingRecordId: string },
+    editor: { updatedBy: string },
   ) {
     let body: unknown;
     try {
@@ -152,21 +177,8 @@ export const VotingRecordController = {
       );
     }
 
-    const { result, updatedBy } = body as {
-      result: string;
-      updatedBy?: unknown;
-    };
-
-    if (
-      updatedBy !== undefined &&
-      updatedBy !== null &&
-      typeof updatedBy !== 'string'
-    ) {
-      return NextResponse.json(
-        { error: 'updatedBy must be a string when provided' },
-        { status: 400 },
-      );
-    }
+    // updatedBy is the signed-in host (passed in by the route), never the body
+    const { result } = body as { result: string };
 
     const record = await prisma.votingRecord.findUnique({
       where: { votingRecordId: params.votingRecordId },
@@ -211,7 +223,7 @@ export const VotingRecordController = {
       const updated = await VotingRecordService.updateVotingRecord({
         votingRecordId: params.votingRecordId,
         result,
-        ...(typeof updatedBy === 'string' ? { updatedBy } : {}),
+        updatedBy: editor.updatedBy,
       });
       return NextResponse.json(updated);
     } catch (error: unknown) {

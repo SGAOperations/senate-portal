@@ -1,10 +1,11 @@
 import { VotingRecordController } from '@/server/modules/voting-record/voting-record.controller';
+import { requireCapability } from '@/server/auth/api-auth';
 
 /**
  * @swagger
  * /api/voting-record/{votingRecordId}:
  *   patch:
- *     summary: Updates an existing voting record (e.g. admin corrects a vote while the event is ongoing).
+ *     summary: Corrects an existing voting record. Requires hostVotes; updatedBy is the signed-in host.
  *     parameters:
  *       - in: path
  *         name: votingRecordId
@@ -22,8 +23,6 @@ import { VotingRecordController } from '@/server/modules/voting-record/voting-re
  *             properties:
  *               result:
  *                 type: string
- *               updatedBy:
- *                 type: string
  *     responses:
  *       200:
  *         description: Updated voting record.
@@ -38,8 +37,13 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ votingRecordId: string }> },
 ) {
+  // Hosts correct votes (OngoingVotingPanel); voters cannot change their own.
+  const auth = await requireCapability('hostVotes');
+  if (auth.error) return auth.error;
   const { votingRecordId } = await params;
-  return VotingRecordController.updateVotingRecord(request, {
-    votingRecordId,
-  });
+  return VotingRecordController.updateVotingRecord(
+    request,
+    { votingRecordId },
+    { updatedBy: auth.actor.user?.userId ?? auth.actor.session.user.id },
+  );
 }
