@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { RequestController } from '@/server/modules/request/request.controller';
 import { toErrorResponse } from '@/server/http/api-errors';
+import {
+  guardChangeRequest,
+  guardReadRequest,
+} from '@/server/modules/request/request.guards';
+
+// GET: the request's owner, or manageAttendance or readRecords.
+// PUT and DELETE: the owner while the request is pending, or manageAttendance.
 
 export async function GET(
   _req: Request,
@@ -8,6 +15,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const denied = await guardReadRequest(id);
+    if (denied) return denied;
     const request = await RequestController.getRequest(id);
     return NextResponse.json(request);
   } catch (error) {
@@ -21,6 +30,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const denied = await guardChangeRequest(id);
+    if (denied) return denied;
     const data = await req.json();
     const updated = await RequestController.updateRequest(id, data);
     return NextResponse.json(updated);
@@ -35,6 +46,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const denied = await guardChangeRequest(id);
+    if (denied) return denied;
     await RequestController.deleteRequest(id);
     return NextResponse.json({ message: 'Request deleted' });
   } catch (error) {
