@@ -8,7 +8,8 @@ const FIXED_OPTIONS = ['Abstain', 'No Confidence'] as const;
 
 interface CreateVoteFormProps {
   meetings: MeetingApiData[];
-  userId: string;
+  // null/undefined for staff without a portal profile
+  userId?: string;
   onCreated: () => Promise<void>;
 }
 

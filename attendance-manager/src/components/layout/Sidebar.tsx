@@ -1,3 +1,4 @@
+import { userCan } from '@/types';
 import React from 'react';
 import {
   LayoutDashboard,
@@ -20,7 +21,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'EBOARD';
+  // Everyone's attendance and the roster: readRecords only
+  const isAdmin = userCan(user, 'readRecords');
   const { currentSemester, isLoading: isSemesterLoading } =
     useCurrentSemester();
 

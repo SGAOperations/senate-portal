@@ -37,9 +37,9 @@
                 "$ref": "#/components/schemas/AttendanceMode"
               }
             ],
-            "description": "Attendance Mode, online or in-person"
+            "description": "Attendance Mode, online, in-person, or absent"
           },
-          "TimeAdjustment": {
+          "timeAdjustment": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/TimeAdjustment"
@@ -52,7 +52,7 @@
           "attendanceId",
           "reason",
           "attendanceMode",
-          "TimeAdjustment"
+          "timeAdjustment"
         ]
       },
       "CreateAttendanceRequestResponse": {
@@ -76,9 +76,9 @@
                 "$ref": "#/components/schemas/AttendanceMode"
               }
             ],
-            "description": "Attendance Mode, online or in-person"
+            "description": "Attendance Mode, online, in-person, or absent"
           },
-          "TimeAdjustment": {
+          "timeAdjustment": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/TimeAdjustment"
@@ -96,7 +96,7 @@
           "requestId",
           "reason",
           "attendanceMode",
-          "TimeAdjustment",
+          "timeAdjustment",
           "isLate"
         ]
       },
@@ -108,7 +108,9 @@
             "description": "Attendance Id"
           }
         },
-        "required": ["attendanceId"]
+        "required": [
+          "attendanceId"
+        ]
       },
       "AttendanceResponse": {
         "type": "object",
@@ -134,7 +136,12 @@
             "description": "Status of the attendance"
           }
         },
-        "required": ["attendanceId", "userId", "meetingId", "status"]
+        "required": [
+          "attendanceId",
+          "userId",
+          "meetingId",
+          "status"
+        ]
       },
       "GetAttendanceMeetingParams": {
         "type": "object",
@@ -144,7 +151,9 @@
             "description": "Meeting Id"
           }
         },
-        "required": ["meetingId"]
+        "required": [
+          "meetingId"
+        ]
       },
       "GetMeetingAttendanceResponse": {
         "type": "array",
@@ -173,7 +182,11 @@
             "description": "Status of the attendance"
           }
         },
-        "required": ["userId", "meetingId", "status"]
+        "required": [
+          "userId",
+          "meetingId",
+          "status"
+        ]
       },
       "UpdateAttendanceRequestParams": {
         "type": "object",
@@ -191,7 +204,10 @@
             "description": "Status of the attendance"
           }
         },
-        "required": ["requestId", "status"]
+        "required": [
+          "requestId",
+          "status"
+        ]
       },
       "GetUserAttendanceParams": {
         "type": "object",
@@ -201,7 +217,9 @@
             "description": "User Id"
           }
         },
-        "required": ["userId"]
+        "required": [
+          "userId"
+        ]
       },
       "GetRemainingAbscencesResponse": {
         "type": "object",
@@ -222,7 +240,11 @@
                 "description": "Number of regular absences remaining"
               }
             },
-            "required": ["used", "allowed", "remaining"]
+            "required": [
+              "used",
+              "allowed",
+              "remaining"
+            ]
           },
           "fullBody": {
             "type": "object",
@@ -240,12 +262,18 @@
                 "description": "Number of full body absences remaining"
               }
             },
-            "required": ["used", "allowed", "remaining"]
+            "required": [
+              "used",
+              "allowed",
+              "remaining"
+            ]
           }
         },
-        "required": ["regular", "fullBody"]
+        "required": [
+          "regular",
+          "fullBody"
+        ]
       },
-      "GetUserMeetingParams": {},
       "GetUserAttendanceResponse": {
         "type": "array",
         "items": {
@@ -276,7 +304,7 @@
                   "$ref": "#/components/schemas/AttendanceMode"
                 }
               ],
-              "description": "Attendance mode: online or in-person"
+              "description": "Attendance mode: online, in-person, or absent"
             },
             "isLate": {
               "type": "boolean",
@@ -313,33 +341,34 @@
       },
       "AttendanceStatus": {
         "type": "string",
-        "enum": ["PRESENT", "UNEXCUSED_ABSENCE", "EXCUSED_ABSENCE", "PENDING"]
+        "enum": [
+          "PRESENT",
+          "UNEXCUSED_ABSENCE",
+          "EXCUSED_ABSENCE",
+          "PENDING"
+        ]
       },
       "AttendanceMode": {
         "type": "string",
-        "enum": ["ONLINE", "IN_PERSON"]
+        "enum": [
+          "ONLINE",
+          "IN_PERSON",
+          "ABSENT"
+        ]
       },
       "TimeAdjustment": {
         "type": "string",
-        "enum": ["ARRIVING_LATE", "LEAVING_EARLY"]
+        "enum": [
+          "ARRIVING_LATE",
+          "LEAVING_EARLY"
+        ]
       },
       "MeetingTypeEnum": {
         "type": "string",
-        "enum": ["REGULAR", "FULL_BODY"]
-      },
-      "RoleSchema": {
-        "type": "object",
-        "properties": {
-          "roleId": {
-            "type": "string",
-            "description": "Role ID"
-          },
-          "roleType": {
-            "type": "string",
-            "description": "Role Type"
-          }
-        },
-        "required": ["roleId", "roleType"]
+        "enum": [
+          "REGULAR",
+          "FULL_BODY"
+        ]
       },
       "UserSchema": {
         "type": "string"
@@ -445,6 +474,63 @@
           "attendance"
         ]
       },
+      "CreateMeetingSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Name"
+          },
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Date"
+          },
+          "startTime": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Start Time"
+          },
+          "endTime": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting End Time"
+          },
+          "notes": {
+            "type": "string",
+            "default": "",
+            "description": "Meeting Notes"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingTypeEnum"
+              }
+            ],
+            "description": "Meeting Type"
+          },
+          "attendeeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User IDs to create attendance records for"
+          }
+        },
+        "required": [
+          "name",
+          "date",
+          "startTime",
+          "endTime",
+          "notes",
+          "type",
+          "attendeeIds"
+        ]
+      },
+      "RegisterSchema": {
+        "type": "string"
+      },
       "AttendanceType": {
         "type": "object",
         "properties": {
@@ -493,6 +579,200 @@
           "user",
           "request"
         ]
+      },
+      "CreateUserSchema": {
+        "type": "string"
+      },
+      "UpdateUserSchema": {
+        "type": "string"
+      },
+      "createVotingEventSchema": {
+        "type": "object",
+        "properties": {
+          "meetingId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "voteType": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedBy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "meetingId",
+          "name",
+          "voteType"
+        ]
+      },
+      "createVotingRecordSchema": {
+        "type": "object",
+        "properties": {
+          "votingEventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "result": {
+            "type": "string",
+            "minLength": 1
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "votingEventId",
+          "userId",
+          "result"
+        ]
+      },
+      "CreateMeetingInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Name"
+          },
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Date"
+          },
+          "startTime": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Start Time"
+          },
+          "endTime": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting End Time"
+          },
+          "notes": {
+            "type": "string",
+            "default": "",
+            "description": "Meeting Notes"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingTypeEnum"
+              }
+            ],
+            "description": "Meeting Type"
+          },
+          "attendeeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "User IDs to create attendance records for"
+          }
+        },
+        "required": [
+          "name",
+          "date",
+          "startTime",
+          "endTime",
+          "notes",
+          "type",
+          "attendeeIds"
+        ]
+      },
+      "UpdateMeetingSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Name"
+          },
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Date"
+          },
+          "startTime": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Start Time"
+          },
+          "endTime": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting End Time"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Meeting Notes"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingTypeEnum"
+              }
+            ],
+            "description": "Meeting Type"
+          }
+        }
+      },
+      "UpdateMeetingInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Name"
+          },
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Date"
+          },
+          "startTime": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting Start Time"
+          },
+          "endTime": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Meeting End Time"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Meeting Notes"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingTypeEnum"
+              }
+            ],
+            "description": "Meeting Type"
+          }
+        }
       }
     },
     "responses": {
@@ -624,7 +904,9 @@
         "operationId": "post-attendance",
         "summary": "Posts an Attendance",
         "description": "Creates a new Attendance Record with params",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "requestBody": {
           "content": {
@@ -660,7 +942,9 @@
         "operationId": "patch-attendance-{attendanceId}",
         "summary": "Updates an Attendance",
         "description": "Updates an Attendance Record by attendanceId",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "requestBody": {
           "content": {
@@ -694,7 +978,9 @@
         "operationId": "delete-attendance-{attendanceId}",
         "summary": "Deletes an Attendance",
         "description": "Deletes an Attendance Record by attendanceId",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "responses": {
           "204": {
@@ -714,7 +1000,9 @@
         "operationId": "put-attendance-status",
         "summary": "Updates an Attendance Status based on request",
         "description": "Updates an Attendance Record's Status by attendanceId",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "requestBody": {
           "content": {
@@ -750,7 +1038,9 @@
         "operationId": "post-attendance-{attendanceId}-requests",
         "summary": "Create a new Request",
         "description": "Creates a new Request for specific attendanceId",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "requestBody": {
           "content": {
@@ -786,7 +1076,9 @@
         "operationId": "get-attendance-meeting-{meetingId}",
         "summary": "Get Meeting Attendance",
         "description": "Gets all attendances associated with a meeting",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "responses": {
           "200": {
@@ -813,7 +1105,9 @@
         "operationId": "get-attendance-user-{userId}",
         "summary": "Get User Attendance",
         "description": "Gets all attendances associated with a user",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "responses": {
           "200": {
@@ -840,7 +1134,9 @@
         "operationId": "get-attendance-user-{userId}-remaining-absences",
         "summary": "Get Remaining Abscences",
         "description": "Gets remaining abscences for a user",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "responses": {
           "200": {
@@ -867,7 +1163,9 @@
         "operationId": "get-attendance-user-requests-{userId}",
         "summary": "Get User Requests",
         "description": "Gets requests associated with a user",
-        "tags": ["Attendance"],
+        "tags": [
+          "Attendance"
+        ],
         "parameters": [],
         "responses": {
           "200": {
@@ -889,12 +1187,14 @@
         }
       }
     },
-    "/auth/signup": {
+    "/auth/register": {
       "post": {
-        "operationId": "post-auth-signup",
-        "summary": "",
-        "description": "",
-        "tags": ["Auth"],
+        "operationId": "post-auth-register",
+        "summary": "Create the portal profile for a first SGAuth sign-in",
+        "description": "Replaces the old Supabase signup. Identity and email come from",
+        "tags": [
+          "Auth"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -911,7 +1211,9 @@
         "operationId": "get-meeting",
         "summary": "",
         "description": "",
-        "tags": ["Meeting"],
+        "tags": [
+          "Meeting"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -926,7 +1228,9 @@
         "operationId": "post-meeting",
         "summary": "",
         "description": "",
-        "tags": ["Meeting"],
+        "tags": [
+          "Meeting"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -943,7 +1247,9 @@
         "operationId": "get-meeting-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Meeting"],
+        "tags": [
+          "Meeting"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -958,7 +1264,9 @@
         "operationId": "put-meeting-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Meeting"],
+        "tags": [
+          "Meeting"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -973,7 +1281,9 @@
         "operationId": "delete-meeting-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Meeting"],
+        "tags": [
+          "Meeting"
+        ],
         "parameters": [],
         "responses": {
           "204": {
@@ -993,7 +1303,28 @@
         "operationId": "get-meeting-by-date",
         "summary": "",
         "description": "",
-        "tags": ["Meeting"],
+        "tags": [
+          "Meeting"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/meeting/upcoming": {
+      "get": {
+        "operationId": "get-meeting-upcoming",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Meeting"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1010,7 +1341,9 @@
         "operationId": "get-meeting-{id}-users",
         "summary": "",
         "description": "",
-        "tags": ["Meeting"],
+        "tags": [
+          "Meeting"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1025,7 +1358,26 @@
         "operationId": "put-meeting-{id}-users",
         "summary": "",
         "description": "",
-        "tags": ["Meeting"],
+        "tags": [
+          "Meeting"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-meeting-{id}-users",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Meeting"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1042,7 +1394,9 @@
         "operationId": "get-requests",
         "summary": "GET all requests (for admins)",
         "description": "",
-        "tags": ["Requests"],
+        "tags": [
+          "Requests"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1057,7 +1411,9 @@
         "operationId": "post-requests",
         "summary": "POST create new request",
         "description": "",
-        "tags": ["Requests"],
+        "tags": [
+          "Requests"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1074,7 +1430,9 @@
         "operationId": "get-requests-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Requests"],
+        "tags": [
+          "Requests"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1089,7 +1447,9 @@
         "operationId": "put-requests-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Requests"],
+        "tags": [
+          "Requests"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1104,7 +1464,9 @@
         "operationId": "delete-requests-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Requests"],
+        "tags": [
+          "Requests"
+        ],
         "parameters": [],
         "responses": {
           "204": {
@@ -1119,12 +1481,52 @@
         }
       }
     },
+    "/semester/{id}": {
+      "put": {
+        "operationId": "put-semester-{id}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Semester"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/semester/current": {
+      "get": {
+        "operationId": "get-semester-current",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Semester"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
     "/users": {
       "get": {
         "operationId": "get-users",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1137,9 +1539,11 @@
       },
       "post": {
         "operationId": "post-users",
-        "summary": "",
+        "summary": "Superadmin only; members create their own profile through /api/auth/register.",
         "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1156,7 +1560,9 @@
         "operationId": "get-users-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1171,7 +1577,9 @@
         "operationId": "put-users-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1186,7 +1594,9 @@
         "operationId": "delete-users-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "204": {
@@ -1206,7 +1616,28 @@
         "operationId": "put-users-attendance_update",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "operationId": "get-users-me",
+        "summary": "The signed-in user and what they may do",
+        "description": "200 with their capabilities (from SGAuth positions) and their",
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1223,39 +1654,9 @@
         "operationId": "get-users-only-name",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
-        "parameters": [],
-        "responses": {
-          "400": {
-            "$ref": "#/components/responses/400"
-          },
-          "500": {
-            "$ref": "#/components/responses/500"
-          }
-        }
-      }
-    },
-    "/users/role": {
-      "post": {
-        "operationId": "post-users-role",
-        "summary": "",
-        "description": "",
-        "tags": ["Users"],
-        "parameters": [],
-        "responses": {
-          "400": {
-            "$ref": "#/components/responses/400"
-          },
-          "500": {
-            "$ref": "#/components/responses/500"
-          }
-        }
-      },
-      "get": {
-        "operationId": "get-users-role",
-        "summary": "",
-        "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1272,24 +1673,9 @@
         "operationId": "get-users-validate-nuid",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
-        "parameters": [],
-        "responses": {
-          "400": {
-            "$ref": "#/components/responses/400"
-          },
-          "500": {
-            "$ref": "#/components/responses/500"
-          }
-        }
-      }
-    },
-    "/users/by-supabase-id/{supabaseAuthId}": {
-      "get": {
-        "operationId": "get-users-by-supabase-id-{supabaseAuthId}",
-        "summary": "",
-        "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1306,7 +1692,9 @@
         "operationId": "get-users-get-user-by-email-{email}",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1323,29 +1711,11 @@
         "operationId": "get-users-get-user-by-nuid-{nuid}",
         "summary": "",
         "description": "",
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "parameters": [],
         "responses": {
-          "400": {
-            "$ref": "#/components/responses/400"
-          },
-          "500": {
-            "$ref": "#/components/responses/500"
-          }
-        }
-      }
-    },
-    "/users/role/roleId": {
-      "delete": {
-        "operationId": "delete-users-role-roleId",
-        "summary": "DELETE /api/user/role/:roleId",
-        "description": "",
-        "tags": ["Users"],
-        "parameters": [],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
           "400": {
             "$ref": "#/components/responses/400"
           },
@@ -1360,7 +1730,9 @@
         "operationId": "get-voting-event",
         "summary": "",
         "description": "",
-        "tags": ["Voting-event"],
+        "tags": [
+          "Voting-event"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1375,7 +1747,9 @@
         "operationId": "post-voting-event",
         "summary": "",
         "description": "",
-        "tags": ["Voting-event"],
+        "tags": [
+          "Voting-event"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1392,7 +1766,9 @@
         "operationId": "get-voting-event-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Voting-event"],
+        "tags": [
+          "Voting-event"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1407,7 +1783,28 @@
         "operationId": "put-voting-event-{id}",
         "summary": "",
         "description": "",
-        "tags": ["Voting-event"],
+        "tags": [
+          "Voting-event"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/voting-event/active": {
+      "get": {
+        "operationId": "get-voting-event-active",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Voting-event"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1424,7 +1821,9 @@
         "operationId": "get-voting-event-by-type-{voteType}",
         "summary": "",
         "description": "",
-        "tags": ["Voting-event"],
+        "tags": [
+          "Voting-event"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1441,7 +1840,9 @@
         "operationId": "get-voting-record",
         "summary": "",
         "description": "",
-        "tags": ["Voting-record"],
+        "tags": [
+          "Voting-record"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1456,7 +1857,28 @@
         "operationId": "post-voting-record",
         "summary": "",
         "description": "",
-        "tags": ["Voting-record"],
+        "tags": [
+          "Voting-record"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/voting-record/{votingRecordId}": {
+      "patch": {
+        "operationId": "patch-voting-record-{votingRecordId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Voting-record"
+        ],
         "parameters": [],
         "responses": {
           "400": {
@@ -1473,7 +1895,28 @@
         "operationId": "get-voting-record-by-voting-event-{votingEventId}",
         "summary": "",
         "description": "",
-        "tags": ["Voting-record"],
+        "tags": [
+          "Voting-record"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/voting-record/has-voted/{votingEventId}": {
+      "get": {
+        "operationId": "get-voting-record-has-voted-{votingEventId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Voting-record"
+        ],
         "parameters": [],
         "responses": {
           "400": {

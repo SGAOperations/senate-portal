@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { VotingService, formatVotingEventForApi } from './voting.service';
 import { VoteType } from '@/lib/constants';
-import { requireAuth } from '@/server/auth/api-auth';
+import { can, requireAuth } from '@/server/auth/api-auth';
 
 const createVotingEventSchema = z.object({
   meetingId: z.string().min(1),
@@ -54,10 +54,14 @@ export const VotingController = {
   },
 
   async getAllVotingEvents() {
-    const { user, error } = await requireAuth();
-    if (error) return error;
-    const isEboard = user!.role.roleType === 'EBOARD';
-    const votingEvents = await VotingService.getAllVotingEvents({ isEboard });
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+    // Hosts and record readers see votes as they happen; others an hour after.
+    const includeRecent =
+      can(auth.actor, 'readRecords') || can(auth.actor, 'hostVotes');
+    const votingEvents = await VotingService.getAllVotingEvents({
+      includeRecent,
+    });
     return NextResponse.json(votingEvents);
   },
 

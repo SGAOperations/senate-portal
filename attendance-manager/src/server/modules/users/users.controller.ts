@@ -1,40 +1,71 @@
 import { NextResponse } from 'next/server';
 import { UsersService } from './users.service';
-import { RoleType } from '@/generated/prisma';
-import { AttendanceService } from '@/server/modules/attendance/attendance.service';
+import { SENATOR_POSITION } from '@/lib/permissions';
+import { AttendanceService } from '../attendance/attendance.service';
 import { z } from 'zod';
 
-const CreateUserSchema = z.object({
+// strictObject: sgauthUserId and positionKeys come from SGAuth alone, so a
+// body that tries to set them (or anything else unknown) is rejected.
+const CreateUserSchema = z.strictObject({
   userId: z.string().min(1),
   nuid: z.string().regex(/^\d{9}$/),
-  password: z.string().nullish(),
   email: z.email(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  firstName: z.string().trim().min(1).max(100),
+  lastName: z.string().trim().min(1).max(100),
 });
 
+// The only fields an update may touch. sgauthUserId and positionKeys come from
+// SGAuth and are set by src/server/auth/sgauth.ts alone; strictObject rejects them, and
+// anything else unknown, instead of passing it through to Prisma.
+const UpdateUserSchema = z
+  .strictObject({
+    nuid: z.string().regex(/^\d{9}$/),
+    email: z.email(),
+    firstName: z.string().trim().min(1).max(100),
+    lastName: z.string().trim().min(1).max(100),
+  })
+  .partial();
+
+async function readJson(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    return undefined;
+  }
+}
+
+function invalidBody(error: z.ZodError) {
+  return NextResponse.json(
+    {
+      error: 'Invalid request body',
+      details: z.flattenError(error).fieldErrors,
+    },
+    { status: 400 },
+  );
+}
+
 export const UsersController = {
+  /**
+   * The roster, each member marked with whether they hold a Senate seat.
+   * sgauthUserId and positionKeys stay server-side; isSenator is all the
+   * pages need.
+   */
   async listUsers() {
-    const users = await UsersService.getAllUsers();
-    return NextResponse.json(users);
-  },
-
-  async listRoles() {
-    const roles = await UsersService.getAllRoles();
-    return NextResponse.json(roles);
-  },
-
-  async deleteRole(params: { roleId: string }) {
-    await UsersService.deleteRole(params.roleId);
+    const users = await UsersService.getRoster();
     return NextResponse.json(
-      { message: 'Role deleted successfully' },
-      { status: 200 },
+      users.map(
+        // eslint-disable-next-line no-unused-vars
+        ({ sgauthUserId: _sgauthUserId, positionKeys, ...user }) => ({
+          ...user,
+          isSenator: positionKeys.includes(SENATOR_POSITION),
+        }),
+      ),
     );
   },
 
   async getUserByNUID(params: { nuid: string }) {
-    const roles = await UsersService.getUserByNUID(params.nuid);
-    return NextResponse.json(roles);
+    const user = await UsersService.getUserByNUID(params.nuid);
+    return NextResponse.json(user);
   },
 
   async getUserByEmail(params: { email: string }) {
@@ -43,7 +74,7 @@ export const UsersController = {
   },
 
   async listUsersSantizied() {
-    const users = await UsersService.getAllUsers();
+    const users = await UsersService.getRoster();
     const sanitizedUsers = users.map((user) => {
       // eslint-disable-next-line no-unused-vars
       const { email: _email, ...safeUser } = user;
@@ -60,14 +91,6 @@ export const UsersController = {
     return NextResponse.json(user);
   },
 
-  async getRoleId(params: { role: RoleType }) {
-    const roleId = await UsersService.getRoleIdByRoleType(params.role);
-    if (!roleId) {
-      return NextResponse.json({ error: 'Role not found' }, { status: 404 });
-    }
-    return roleId;
-  },
-
   async checkUserExists(params: { userEmail: string }) {
     const user = await UsersService.getUserByEmail(params.userEmail);
     if (!user) {
@@ -77,59 +100,36 @@ export const UsersController = {
       });
     }
 
-    // eslint-disable-next-line no-unused-vars
-    const { roleId: _roleId, ...userData } = user;
     return NextResponse.json({
       exists: true,
-      user: userData,
+      user,
     });
   },
 
   async createUser(request: Request) {
-    const body = await request.json();
-
-    // zod parse
-    const result = CreateUserSchema.safeParse(body);
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          error: 'Invalid request body',
-          details: z.flattenError(result.error).fieldErrors,
-        },
-        { status: 400 },
-      );
-    }
-    const roleId = await UsersService.getRoleIdByRoleType(RoleType.MEMBER);
-    if (!roleId) {
-      return NextResponse.json(
-        { error: 'Member role does not exist' },
-        { status: 500 },
-      );
-    }
-    const newUser = await UsersService.createUser({
-      ...result.data,
-      roleId,
-    });
+    const result = CreateUserSchema.safeParse(await readJson(request));
+    if (!result.success) return invalidBody(result.error);
+    const newUser = await UsersService.createUser(result.data);
     return NextResponse.json(newUser, { status: 201 });
   },
 
-  async createRole(request: Request) {
-    const body = await request.json();
-    const newRole = await UsersService.createRole(body);
-    return NextResponse.json(newRole, { status: 201 });
-  },
-
   async updateUser(request: Request, params: { userId: string }) {
-    const updates = await request.json();
-    const updatedUser = await UsersService.updateUser(params.userId, updates);
+    const result = UpdateUserSchema.safeParse(await readJson(request));
+    if (!result.success) return invalidBody(result.error);
+    const updatedUser = await UsersService.updateUser(
+      params.userId,
+      result.data,
+    );
     return NextResponse.json(updatedUser);
   },
 
   async deleteUser(params: { userId: string }) {
     await UsersService.deleteUser(params.userId);
+    // 200, not 204: a 204 response cannot carry this JSON body, and
+    // NextResponse.json throws on one, turning a successful delete into a 500.
     return NextResponse.json(
       { message: 'User deleted successfully' },
-      { status: 204 },
+      { status: 200 },
     );
   },
 

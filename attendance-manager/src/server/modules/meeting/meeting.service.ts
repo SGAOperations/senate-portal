@@ -100,6 +100,9 @@ export const MeetingService = {
           some: { meetingId },
         },
       },
+      // Without an order, Postgres returns rows in whatever order it finds
+      // them, which changes as rows are updated.
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { userId: 'asc' }],
     });
     return attendance;
   },

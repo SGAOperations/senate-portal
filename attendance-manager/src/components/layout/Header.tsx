@@ -11,17 +11,10 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onProfileClick, onLogoClick }) => {
   const { user } = useAuth();
 
-  /* Maps enum value to appropriate plain text */
-  const rolePlainText = (role?: string) => {
-    switch (role) {
-      case 'EBOARD':
-        return 'E-Board';
-      case 'MEMBER':
-        return 'Member';
-      default:
-        return role;
-    }
-  };
+  // SGA positions come from SGAuth; the portal has no roles of its own.
+  const positionsText = user?.positions.length
+    ? user.positions.join(', ')
+    : 'SGA';
 
   return (
     <header className='bg-white shadow-lg border-b border-gray-200 w-full'>
@@ -43,9 +36,7 @@ const Header: React.FC<HeaderProps> = ({ onProfileClick, onLogoClick }) => {
                 <p className='text-sm font-medium text-gray-900'>
                   {user?.name}
                 </p>
-                <p className='text-xs text-gray-500 capitalize'>
-                  {rolePlainText(user?.role)} Account
-                </p>
+                <p className='text-xs text-gray-500'>{positionsText}</p>
               </div>
               <div className='relative'>
                 <button

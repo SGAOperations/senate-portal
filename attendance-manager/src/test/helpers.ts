@@ -1,6 +1,9 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { prisma } from '@/server/db/prisma';
 import { SemesterService } from '@/server/modules/semester/semester.service';
+import type { Capability } from '@/lib/permissions';
+import * as sgauth from '@/server/auth/sgauth';
+import type { Actor } from '@/server/auth/sgauth';
 
 /**
  * Cleans up all test data in the correct order to respect foreign key constraints.
@@ -25,7 +28,6 @@ export async function cleanupTestData() {
   await prisma.user.deleteMany();
   await prisma.meeting.deleteMany();
   await prisma.semester.deleteMany();
-  await prisma.role.deleteMany();
 }
 
 /**
@@ -35,7 +37,7 @@ export async function cleanupTestData() {
 export function uniqueUserFields() {
   const id = randomUUID();
   return {
-    supabaseAuthId: `test-supabase-${id}`,
+    sgauthUserId: `test-sgauth-${id}`,
     nuid: String(randomInt(100_000_000, 1_000_000_000)),
     email: `test-${id}@example.com`,
   };
@@ -48,3 +50,106 @@ export function uniqueUserFields() {
 export function semesterIdFor(date: Date): Promise<string> {
   return SemesterService.getOrCreateSemesterIdForDate(date);
 }
+
+/**
+ * An SGAuth session for tests. Pair it with this in the test file (jest.mock
+ * is hoisted, so it cannot live here):
+ *
+ *   const mockGetSession = jest.fn();
+ *   jest.mock('@nusgaops/sgauth', () => ({
+ *     ...jest.requireActual('@nusgaops/sgauth'),
+ *     createSgauthClient: () => ({ getSession: () => mockGetSession() }),
+ *   }));
+ *   jest.mock('next/headers', () => ({ headers: async () => new Headers() }));
+ *
+ * then `mockGetSession.mockResolvedValue(sgauthSession({ ... }))`.
+ */
+export function sgauthSession({
+  id,
+  email,
+  name = 'Test User',
+  positions = [],
+}: {
+  id: string;
+  email: string;
+  name?: string;
+  positions?: string[];
+}) {
+  const now = new Date();
+  const later = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+  return {
+    user: {
+      id,
+      email,
+      name,
+      preferredName: null,
+      isAdmin: false,
+      isPrimaryAdmin: false,
+    },
+    positions: positions.map((key) => ({ key, name: key })),
+    session: {
+      id: `session-${id}`,
+      expiresAt: later,
+      absoluteExpiresAt: later,
+      createdAt: now.toISOString(),
+    },
+  };
+}
+
+/**
+ * Stands in for the Role rows fixtures used to make: a tag stored as a
+ * position key on each fixture user (`positionKeys: [group.roleId]`), so a
+ * test can delete the users it made with deleteTestGroup. It grants nothing.
+ */
+export async function createTestGroup() {
+  return { roleId: `test-group-${randomUUID()}` };
+}
+
+/** Hard-deletes every user tagged with this group. */
+export async function deleteTestGroup(groupId: string) {
+  await prisma.user.deleteMany({ where: { positionKeys: { has: groupId } } });
+}
+
+/**
+ * An Actor for stubbing route guards (requireAuth, requireCapability)
+ * without SGAuth. `userId` null is staff without a profile.
+ */
+export function testActor({
+  userId = 'test-actor',
+  capabilities = [],
+  sgauthUserId = 'test-actor-sgauth',
+}: {
+  userId?: string | null;
+  capabilities?: Capability[];
+  sgauthUserId?: string;
+} = {}): Actor {
+  return {
+    session: sgauthSession({
+      id: sgauthUserId,
+      email: `${sgauthUserId}@example.com`,
+    }) as Actor['session'],
+    capabilities: new Set(capabilities),
+    user: userId ? ({ userId } as Actor['user']) : null,
+  };
+}
+
+/**
+ * Signs a test in as `actor` (or out, with null) for every route guard, by
+ * stubbing the one place they all resolve the session. Undo with
+ * jest.restoreAllMocks() or the returned spy's mockRestore().
+ */
+export function signInAsActor(actor: Actor | null) {
+  // only ever called from tests, where jest is a global
+  // eslint-disable-next-line no-undef
+  return jest
+    .spyOn(sgauth, 'resolveActor')
+    .mockResolvedValue(actor ? { status: 'ok', actor } : { status: 'none' });
+}
+
+/** The capabilities the old EBOARD role stood for, for tests written against it. */
+export const STAFF_CAPABILITIES: Capability[] = [
+  'manageAttendance',
+  'hostVotes',
+  'manageSemesters',
+  'readRecords',
+];

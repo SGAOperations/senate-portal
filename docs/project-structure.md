@@ -33,12 +33,12 @@ src/
 ├── features/       Browser UI, grouped by feature (voting, meetings, ...).
 ├── components/     UI shared by every page (header, sidebar, layout).
 ├── providers/      React context providers (auth, current semester).
-├── lib/            Code used by BOTH server and browser (dates, constants).
+├── lib/            Code used by BOTH server and browser (dates, constants, permissions).
 ├── types/          Shared TypeScript types and Zod schemas.
 ├── test/           Test helpers.
 ├── generated/      Prisma client — generated, gitignored, never edit.
-├── middleware.ts   Next.js middleware (refreshes the Supabase session).
-└── __tests__/      Tests for middleware.ts.
+├── proxy.ts        Next.js proxy: SGAuth sign-in redirect, refuses cross-origin API writes.
+└── __tests__/      Tests for proxy.ts.
 ```
 
 ## Folder by folder
@@ -66,11 +66,9 @@ An API route checks auth and calls a controller:
 ```ts
 // app/api/meeting/route.ts
 export async function POST(request: Request) {
-  const { user, error } = await requireAuth();
+  // 401 when signed out, 403 without the capability (src/lib/permissions.ts)
+  const { error } = await requireCapability('manageAttendance');
   if (error) return error;
-  if (user.role.roleType !== 'EBOARD') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
   return MeetingController.createMeeting(request);
 }
 ```
@@ -88,10 +86,10 @@ server/
 │   │   ├── attendance.service.ts
 │   │   └── __tests__/
 │   ├── meeting/  request/  semester/  users/  voting/  voting-record/
-├── auth/api-auth.ts         requireAuth(), getAuthenticatedUser()
+├── auth/api-auth.ts         requireAuth(), requireCapability(), getAuthenticatedUser()
+├── auth/sgauth.ts           SGAuth session → Actor (positions, capabilities, profile)
 ├── db/prisma.ts             The shared Prisma client
-├── http/api-errors.ts       UserFacingError + toErrorResponse()
-└── supabase-server.ts       Supabase client for server code (reads cookies)
+└── http/api-errors.ts       UserFacingError + toErrorResponse()
 ```
 
 Each module has two layers:
@@ -110,8 +108,8 @@ message is safe to show users. Turn any error into a response with
 and replaced with the fallback, so Prisma output and stack traces never
 reach the browser.
 
-**The `server-only` guard:** `db/prisma.ts` and `supabase-server.ts`
-start with `import 'server-only'`. Every service imports Prisma, so if a
+**The `server-only` guard:** `db/prisma.ts` starts with
+`import 'server-only'`. Every service imports Prisma, so if a
 browser component imports anything from `server/` (directly or
 indirectly), **the build fails**. That's on purpose: it stops database
 code and secrets from ending up in the browser bundle.
@@ -163,7 +161,7 @@ current semester). Read them with their hooks, such as `useAuth()` and
 lib/
 ├── datetime/            Meeting date/time parsing + formatting, late-request rules
 ├── constants.ts         VoteType, yesNoOptions, ...
-└── supabase-client.ts   Supabase client for browser code
+└── permissions.ts       SGAuth position → capability map (UI hides controls; the server re-checks)
 ```
 
 Code here gets bundled into **both** the server and the browser, so it
@@ -194,19 +192,19 @@ types/
 
 ## How a request flows
 
-Here's what happens when an e-board member creates a meeting:
+Here's what happens when the Speaker creates a meeting:
 
 ```
 features/meetings/components/CreateMeetingModal.tsx
    │  fetch('/api/meeting', { method: 'POST', body })
    ▼
-app/api/meeting/route.ts                       ← requireAuth(), role check
+app/api/meeting/route.ts                       ← requireCapability('manageAttendance')
    ▼
 server/modules/meeting/meeting.controller.ts   ← validate body with CreateMeetingSchema
    ▼
 server/modules/meeting/meeting.service.ts      ← business rules, prisma.meeting.create(...)
    ▼
-server/db/prisma.ts → PostgreSQL (Supabase)
+server/db/prisma.ts → PostgreSQL
 ```
 
 ## Where does my code go?

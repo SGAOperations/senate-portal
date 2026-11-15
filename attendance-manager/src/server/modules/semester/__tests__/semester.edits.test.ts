@@ -1,10 +1,11 @@
+import { deleteTestGroup } from '@/test/helpers';
 import { prisma } from '@/server/db/prisma';
 import {
   SemesterDateRangeError,
   SemesterNotFoundError,
   SemesterOverlapError,
   SemesterService,
-} from '@/server/modules/semester/semester.service';
+} from '../semester.service';
 import { AttendanceService } from '@/server/modules/attendance/attendance.service';
 import {
   parseMeetingDate,
@@ -30,21 +31,20 @@ async function cleanup() {
   });
   await prisma.semester.deleteMany({ where: { year: TEST_YEARS } });
   await prisma.user.deleteMany({ where: { userId: USER_ID } });
-  await prisma.role.deleteMany({ where: { roleId: ROLE_ID } });
+  await deleteTestGroup(ROLE_ID);
 }
 
 beforeAll(async () => {
   await cleanup();
-  await prisma.role.create({ data: { roleId: ROLE_ID, roleType: 'MEMBER' } });
   await prisma.user.create({
     data: {
       userId: USER_ID,
-      supabaseAuthId: 'semester-edits-auth',
+      sgauthUserId: 'semester-edits-auth',
       nuid: '009999002',
       email: 'semester-edits@example.com',
       firstName: 'Semester',
       lastName: 'Edits',
-      roleId: ROLE_ID,
+      positionKeys: [ROLE_ID],
     },
   });
   const fall = await prisma.semester.create({

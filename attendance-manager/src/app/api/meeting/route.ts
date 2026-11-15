@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { MeetingController } from '@/server/modules/meeting/meeting.controller';
-import { requireAuth } from '@/server/auth/api-auth';
+import { requireCapability } from '@/server/auth/api-auth';
 /**
  * @swagger
  * /api/users:
@@ -27,10 +26,7 @@ export async function GET() {
  *         description: Missing required fields.
  */
 export async function POST(request: Request) {
-  const { user, error } = await requireAuth();
+  const { error } = await requireCapability('manageAttendance');
   if (error) return error;
-  if (user.role.roleType !== 'EBOARD') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
   return MeetingController.createMeeting(request);
 }
