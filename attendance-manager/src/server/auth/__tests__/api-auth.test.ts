@@ -1,7 +1,9 @@
 import {
   getAuthenticatedUser,
+  requireAnyCapability,
   requireAuth,
   requireCapability,
+  requireSelfOrCapability,
 } from '../api-auth';
 import { prisma } from '@/server/db/prisma';
 import { sgauthSession } from '@/test/helpers';
@@ -181,7 +183,59 @@ describe('API Auth Utilities', () => {
     });
   });
 
+  describe('requireAnyCapability', () => {
+    it('allows a holder of any listed capability', async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      expect(
+        (await requireAnyCapability('vote', 'manageAttendance')).error,
+      ).toBeNull();
+    });
 
+    it('returns 403 without any of them', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect(
+        (await requireAnyCapability('manageAttendance', 'readRecords')).error
+          ?.status,
+      ).toBe(403);
+    });
+
+    it('returns 401 when signed out', async () => {
+      mockGetSession.mockResolvedValue(null);
+      expect((await requireAnyCapability('vote')).error?.status).toBe(401);
+    });
+  });
+
+  describe('requireSelfOrCapability', () => {
+    it('allows a member their own record', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect(
+        (await requireSelfOrCapability(senatorId, 'manageAttendance')).error,
+      ).toBeNull();
+    });
+
+    it("returns 403 for someone else's record", async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect(
+        (await requireSelfOrCapability(otherId, 'manageAttendance')).error
+          ?.status,
+      ).toBe(403);
+    });
+
+    it("allows staff with the capability anyone's record", async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      expect(
+        (await requireSelfOrCapability(otherId, 'manageAttendance')).error,
+      ).toBeNull();
+    });
+
+    it('returns 401 when signed out', async () => {
+      mockGetSession.mockResolvedValue(null);
+      expect(
+        (await requireSelfOrCapability(senatorId, 'manageAttendance')).error
+          ?.status,
+      ).toBe(401);
+    });
+  });
 
   describe('getAuthenticatedUser', () => {
     it('returns the profile for a member', async () => {

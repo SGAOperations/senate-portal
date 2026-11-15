@@ -15,6 +15,19 @@ export function can(actor: Actor, capability: Capability): boolean {
   return actor.capabilities.has(capability);
 }
 
+/** Whether the actor holds at least one of `capabilities`. */
+export function canAny(
+  actor: Actor,
+  ...capabilities: readonly Capability[]
+): boolean {
+  return capabilities.some((capability) => can(actor, capability));
+}
+
+/** Whether `userId` is the actor's own portal profile. */
+export function isSelf(actor: Actor, userId: string): boolean {
+  return actor.user !== null && actor.user.userId === userId;
+}
+
 export function forbidden() {
   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
@@ -49,6 +62,33 @@ export async function requireCapability(
   const auth = await requireAuth();
   if (auth.error) return auth;
   if (!can(auth.actor, capability)) return { error: forbidden() };
+  return auth;
+}
+
+/** Like requireAuth, but answers 403 without at least one of `capabilities`. */
+export async function requireAnyCapability(
+  ...capabilities: readonly Capability[]
+): Promise<Guarded<{ actor: Actor }>> {
+  const auth = await requireAuth();
+  if (auth.error) return auth;
+  if (!canAny(auth.actor, ...capabilities)) return { error: forbidden() };
+  return auth;
+}
+
+/**
+ * Like requireAuth, but answers 403 unless `userId` is the actor's own
+ * profile or they hold one of `capabilities`. For per-member records:
+ * members see their own, staff see everyone's.
+ */
+export async function requireSelfOrCapability(
+  userId: string,
+  ...capabilities: readonly Capability[]
+): Promise<Guarded<{ actor: Actor }>> {
+  const auth = await requireAuth();
+  if (auth.error) return auth;
+  if (!isSelf(auth.actor, userId) && !canAny(auth.actor, ...capabilities)) {
+    return { error: forbidden() };
+  }
   return auth;
 }
 
