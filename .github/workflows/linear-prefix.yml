@@ -13,9 +13,16 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
           BRANCH: ${{ github.head_ref }}
         run: |
-          if [[ "$TITLE" =~ ^ATM-[0-9]+ ]] || [[ "$BRANCH" =~ (^|/)[Aa][Tt][Mm]-[0-9]+ ]]; then
-            echo "Linear ID found"
-          else
-            echo "PR title or branch name must include a Linear ID (e.g. ATM-123)"
-            exit 1
+          failed=0
+          if ! [[ "$TITLE" =~ ^SNP-[0-9]+ ]]; then
+            echo "PR title must start with a Linear ID (e.g. SNP-123: Add retry logic)"
+            failed=1
           fi
+          if ! [[ "$BRANCH" =~ (^|/)[Ss][Nn][Pp]-[0-9]+ ]]; then
+            echo "Branch name must contain a Linear ID (e.g. snp-123-add-retry)"
+            failed=1
+          fi
+          if [ "$failed" -eq 0 ]; then
+            echo "Linear ID found in title and branch"
+          fi
+          exit $failed
