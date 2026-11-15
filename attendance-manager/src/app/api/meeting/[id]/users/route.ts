@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { MeetingController } from '@/server/modules/meeting/meeting.controller';
 import { AttendanceController } from '@/server/modules/attendance/attendance.controller';
-import { requireCapability } from '@/server/auth/api-auth';
+import {
+  requireAnyCapability,
+  requireCapability,
+} from '@/server/auth/api-auth';
 /**
  * @swagger
  * /api/users:
@@ -15,6 +18,11 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { error } = await requireAnyCapability(
+    'manageAttendance',
+    'readRecords',
+  );
+  if (error) return error;
   const { id } = await params;
   return MeetingController.getUsers({ meetingId: id });
 }
