@@ -181,8 +181,10 @@ describe('VotingService', () => {
       voteType: 'YES_NO',
     });
 
-    const votingEvents =
-      await VotingService.getVotingEventsByVoteType('YES_NO');
+    const votingEvents = await VotingService.getVotingEventsByVoteType(
+      'YES_NO',
+      { includeRecent: true },
+    );
     expect(Array.isArray(votingEvents)).toBe(true);
     expect(votingEvents.length).toBeGreaterThanOrEqual(2);
     votingEvents.forEach((event) => {
@@ -1663,9 +1665,140 @@ describe('Votes on soft-deleted meetings', () => {
 
   it('should leave votes on a deleted meeting out of getVotingEventsByVoteType', async () => {
     const byType = ids(
-      await VotingService.getVotingEventsByVoteType(VoteType.rollCall),
+      await VotingService.getVotingEventsByVoteType(VoteType.rollCall, {
+        includeRecent: true,
+      }),
     );
     expect(byType).not.toContain(deletedMeetingVoteId);
     expect(byType).toContain(keptMeetingVoteId);
+  });
+});
+
+describe('voting-event GETs for members (results an hour after the vote)', () => {
+  let meetingId: string;
+  let openVoteId: string;
+  let recentVoteId: string;
+  let oldVoteId: string;
+
+  const member = () =>
+    signInAsActor(
+      testActor({
+        userId: 'voting-test-member',
+        capabilities: ['vote', 'roster'],
+      }),
+    );
+
+  beforeAll(async () => {
+    const meeting = await prisma.meeting.create({
+      data: {
+        name: 'Member visibility meeting',
+        date: parseMeetingDate('2025-10-10'),
+        semesterId: await semesterIdFor(parseMeetingDate('2025-10-10')),
+        startTime: parseMeetingDateTime('2025-10-10', '10:00'),
+        endTime: parseMeetingDateTime('2025-10-10', '11:00'),
+        notes: '',
+        type: 'REGULAR',
+      },
+    });
+    meetingId = meeting.meetingId;
+
+    const create = async (name: string, endedAt: Date | null) => {
+      const event = await prisma.votingEvent.create({
+        data: { meetingId, name, voteType: VoteType.rollCall, endedAt },
+      });
+      await prisma.votingRecord.create({
+        data: {
+          votingEventId: event.votingEventId,
+          userId: 'someone',
+          result: 'YES',
+        },
+      });
+      return event.votingEventId;
+    };
+    openVoteId = await create('Open vote', null);
+    recentVoteId = await create(
+      'Ended ten minutes ago',
+      new Date(Date.now() - 10 * 60 * 1000),
+    );
+    oldVoteId = await create(
+      'Ended two hours ago',
+      new Date(Date.now() - 2 * 60 * 60 * 1000),
+    );
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  afterAll(async () => {
+    const votingEventId = { in: [openVoteId, recentVoteId, oldVoteId] };
+    await prisma.votingRecord.deleteMany({ where: { votingEventId } });
+    await prisma.votingEvent.deleteMany({ where: { votingEventId } });
+    await prisma.meeting.delete({ where: { meetingId } });
+  });
+
+  const getById = async (id: string) => {
+    const { GET } = await import('@/app/api/voting-event/[id]/route');
+    return GET(new Request(`http://localhost/api/voting-event/${id}`), {
+      params: Promise.resolve({ id }),
+    });
+  };
+
+  it('returns 401 from each GET when signed out', async () => {
+    signInAsActor(null);
+    const active = await import('@/app/api/voting-event/active/route');
+    const byType =
+      await import('@/app/api/voting-event/by-type/[voteType]/route');
+    expect((await active.GET()).status).toBe(401);
+    expect((await getById(openVoteId)).status).toBe(401);
+    expect(
+      (
+        await byType.GET(new Request('http://localhost/x'), {
+          params: Promise.resolve({ voteType: VoteType.rollCall }),
+        })
+      ).status,
+    ).toBe(401);
+  });
+
+  it("hides other members' votes on the active vote", async () => {
+    member();
+    const { GET } = await import('@/app/api/voting-event/active/route');
+    const events = await (await GET()).json();
+    const open = events.find((e: any) => e.votingEventId === openVoteId);
+    expect(open).toBeDefined();
+    expect(open.name).toBe('Open vote');
+    expect(open.votingRecords).toBeUndefined();
+  });
+
+  it('still shows a host the live votes', async () => {
+    signInAsActor(testActor({ capabilities: ['hostVotes'] }));
+    const { GET } = await import('@/app/api/voting-event/active/route');
+    const events = await (await GET()).json();
+    const open = events.find((e: any) => e.votingEventId === openVoteId);
+    expect(open.votingRecords).toHaveLength(1);
+  });
+
+  it('hides results by id until an hour after the vote ends', async () => {
+    member();
+    for (const id of [openVoteId, recentVoteId]) {
+      const response = await getById(id);
+      expect(response.status).toBe(200);
+      expect((await response.json()).votingRecords).toBeUndefined();
+    }
+    const old = await (await getById(oldVoteId)).json();
+    expect(old.votingRecords).toHaveLength(1);
+  });
+
+  it('leaves votes from the last hour out of by-type for members', async () => {
+    member();
+    const { GET } =
+      await import('@/app/api/voting-event/by-type/[voteType]/route');
+    const events = await (
+      await GET(new Request('http://localhost/x'), {
+        params: Promise.resolve({ voteType: VoteType.rollCall }),
+      })
+    ).json();
+    const ids = events.map((e: any) => e.votingEventId);
+    expect(ids).toContain(oldVoteId);
+    expect(ids).not.toContain(openVoteId);
+    expect(ids).not.toContain(recentVoteId);
   });
 });

@@ -178,6 +178,9 @@ async function attachVoterNamesToVotingEvent<
   };
 }
 
+/** How long after a vote ends its results reach people who are not hosts or record readers. */
+export const RESULTS_DELAY_MS = 60 * 60 * 1000;
+
 export const VotingService = {
   async getActiveVotingEvents() {
     const events = await prisma.votingEvent.findMany({
@@ -193,12 +196,12 @@ export const VotingService = {
   },
 
   async getAllVotingEvents({ includeRecent }: { includeRecent: boolean }) {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const resultsCutoff = new Date(Date.now() - RESULTS_DELAY_MS);
     const events = await prisma.votingEvent.findMany({
       where: {
         // skip votes on soft-deleted meetings
         meeting: { deletedAt: null },
-        ...(includeRecent ? {} : { endedAt: { lte: oneHourAgo } }),
+        ...(includeRecent ? {} : { endedAt: { lte: resultsCutoff } }),
       },
       include: {
         meeting: true,
@@ -229,9 +232,17 @@ export const VotingService = {
     return formatVotingEventForApi(withUsers);
   },
 
-  async getVotingEventsByVoteType(voteType: string) {
+  async getVotingEventsByVoteType(
+    voteType: string,
+    { includeRecent }: { includeRecent: boolean },
+  ) {
+    const resultsCutoff = new Date(Date.now() - RESULTS_DELAY_MS);
     const events = await prisma.votingEvent.findMany({
-      where: { voteType, meeting: { deletedAt: null } },
+      where: {
+        voteType,
+        meeting: { deletedAt: null },
+        ...(includeRecent ? {} : { endedAt: { lte: resultsCutoff } }),
+      },
       include: { meeting: true, votingRecords: true },
     });
 
