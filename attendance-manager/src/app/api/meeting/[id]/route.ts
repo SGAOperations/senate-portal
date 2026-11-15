@@ -1,10 +1,12 @@
 import { MeetingController } from '@/server/modules/meeting/meeting.controller';
-import { requireCapability } from '@/server/auth/api-auth';
+import { requireAuth, requireCapability } from '@/server/auth/api-auth';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { error } = await requireAuth();
+  if (error) return error;
   const { id } = await params;
   return MeetingController.getMeeting({ meetingId: id });
 }

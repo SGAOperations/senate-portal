@@ -1,5 +1,5 @@
 import { MeetingController } from '@/server/modules/meeting/meeting.controller';
-import { requireCapability } from '@/server/auth/api-auth';
+import { requireAuth, requireCapability } from '@/server/auth/api-auth';
 /**
  * @swagger
  * /api/users:
@@ -10,6 +10,8 @@ import { requireCapability } from '@/server/auth/api-auth';
  *         description: A JSON array of array of meeting objects.
  */
 export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
   return MeetingController.listMeetings();
 }
 
