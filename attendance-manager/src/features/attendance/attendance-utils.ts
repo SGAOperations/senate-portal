@@ -44,7 +44,10 @@ export const meetingAPI = {
   async getUsers(): Promise<z.infer<typeof UserSchema>[]> {
     // eslint-disable-next-line no-useless-catch
     try {
-      const response = await fetch('/api/users/only-name');
+      // The roster with isSenator (from SGAuth positions), NUIDs for check-in and
+      // emails. /api/users/only-name has no isSenator, which put every member
+      // under Officers.
+      const response = await fetch('/api/users');
 
       if (!response.ok) {
         const errorText = await response.text();
