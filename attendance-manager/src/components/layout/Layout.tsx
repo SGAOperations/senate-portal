@@ -1,15 +1,16 @@
+import { userCan } from '@/types';
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
-import Dashboard from '@/components/dashboard/Dashboard';
-import MeetingsPage from '@/components/meetings/MeetingsPage';
-import VotingPage from '@/components/voting/VotingPage';
-import AttendancePage from '@/components/attendance/AttendancePage';
-import ProfilePage from '@/components/profile/ProfilePage';
-import { useAuth } from '@/contexts/AuthContext';
-import LoginPage from '../profile/LoginPage';
-import { useActiveVotingEvent } from '@/hooks/useActiveVotingEvent';
-import ActiveVotingModal from '@/components/voting/ActiveVotingModal';
+import Dashboard from '@/features/dashboard/components/Dashboard';
+import MeetingsPage from '@/features/meetings/components/MeetingsPage';
+import VotingPage from '@/features/voting/components/VotingPage';
+import AttendancePage from '@/features/attendance/components/AttendancePage';
+import ProfilePage from '@/features/profile/components/ProfilePage';
+import { useAuth } from '@/providers/AuthContext';
+import LoginPage from '@/features/profile/components/LoginPage';
+import { useActiveVotingEvent } from '@/features/voting/hooks/useActiveVotingEvent';
+import ActiveVotingModal from '@/features/voting/components/ActiveVotingModal';
 import { TriangleAlert, Vote } from 'lucide-react';
 
 const Layout: React.FC = () => {
@@ -17,12 +18,15 @@ const Layout: React.FC = () => {
     'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile'
   >('dashboard');
   const { user, isLoading } = useAuth();
-  const isAdmin = user?.role === 'EBOARD';
+  const canReadRecords = userCan(user, 'readRecords');
   const { activeEvent } = useActiveVotingEvent();
   const [canVoteInActiveEvent, setCanVoteInActiveEvent] = useState(false);
   const [dismissedVoteId, setDismissedVoteId] = useState<string | null>(null);
 
   const userId = user?.id;
+  // Only Senators vote. This only hides the prompt: POST /api/voting-record
+  // does not check the seat yet (tracked as a follow-up security ticket).
+  const userCanVote = userCan(user, 'vote');
   const votingEventId = activeEvent?.votingEventId;
   const meetingId = activeEvent?.meetingId;
 
@@ -30,6 +34,7 @@ const Layout: React.FC = () => {
     // no polling once the member has dismissed this vote
     if (
       !userId ||
+      !userCanVote ||
       !votingEventId ||
       !meetingId ||
       votingEventId === dismissedVoteId
@@ -108,7 +113,7 @@ const Layout: React.FC = () => {
       isCancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [userId, votingEventId, meetingId, dismissedVoteId]);
+  }, [userId, userCanVote, votingEventId, meetingId, dismissedVoteId]);
 
   const handleProfileClick = () => {
     setActiveTab('profile');
@@ -126,8 +131,8 @@ const Layout: React.FC = () => {
       case 'voting':
         return <VotingPage />;
       case 'attendance':
-        // Check if user is admin
-        if (isAdmin) {
+        // Everyone's attendance: readRecords only
+        if (canReadRecords) {
           return <AttendancePage />;
         } else {
           return (

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { RequestController } from '@/request/request.controller';
-import { toErrorResponse } from '@/utils/api-errors';
+import { RequestController } from '@/server/modules/request/request.controller';
+import { toErrorResponse } from '@/server/http/api-errors';
 
 /**
  * Create a new Request

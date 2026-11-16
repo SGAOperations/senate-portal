@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { SemesterProvider } from '@/contexts/SemesterContext';
+import { AuthProvider } from '@/providers/AuthContext';
+import { SemesterProvider } from '@/providers/SemesterContext';
 import { ReactNode } from 'react';
 
 export const metadata: Metadata = {

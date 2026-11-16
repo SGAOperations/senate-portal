@@ -7,7 +7,6 @@ export default [
       '**/.next/**',
       '**/node_modules/**',
       'src/generated/**',
-      'src/lib/**',
       '**/*.config.js',
       '**/*.config.ts',
       '**/*.config.mjs',
@@ -36,6 +35,7 @@ export default [
         navigator: 'readonly',
         fetch: 'readonly',
         console: 'readonly',
+        process: 'readonly',
       },
     },
     plugins: {

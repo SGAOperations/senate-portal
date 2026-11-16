@@ -22,9 +22,13 @@ Backend:
 Hosting/Deployment:
 - [Vercel](https://vercel.com/docs)
 
-Authentication: Supabase Auth
+Authentication: [SGAuth](https://github.com/SGAOperations/auth-sdk), the SGA single sign-on (`@nusgaops/sgauth`)
 
 Components: TBD
+
+## Project structure
+
+See [docs/project-structure.md](docs/project-structure.md) for how the code is organized and where new code should go.
 
 ## Setting up the development environment
 
@@ -68,6 +72,18 @@ Ensure [Docker](https://www.docker.com/products/docker-desktop/) is downloaded a
 ## Meet the Team
 
 ```
+**Fall 2027**:
+Mahika Sharma
+Anusha Narang
+Logan Ravinuthala
+Prajwala Immareddy
+Aina Sekido
+Hanning Lu
+Hawaz Demissie
+Noli Jegeni
+Sean Snaider
+
+**Spring 2026**:
 Jake Wu-Chen
 Yujin Park
 Anusha Narang

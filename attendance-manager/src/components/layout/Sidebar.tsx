@@ -1,3 +1,4 @@
+import { userCan } from '@/types';
 import React from 'react';
 import {
   LayoutDashboard,
@@ -6,10 +7,10 @@ import {
   ClipboardList,
   Check,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/providers/AuthContext';
 import { MeetingApiData, UserApiData, AttendanceApiData } from '@/types';
-import { getMeetingDateRange } from '@/meeting/meetingDateTime';
-import { useCurrentSemester } from '@/contexts/SemesterContext';
+import { getMeetingDateRange } from '@/lib/datetime/meeting-date-time';
+import { useCurrentSemester } from '@/providers/SemesterContext';
 
 interface SidebarProps {
   activeTab: 'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile';
@@ -20,7 +21,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'EBOARD';
+  // Everyone's attendance and the roster: readRecords only
+  const isAdmin = userCan(user, 'readRecords');
   const { currentSemester, isLoading: isSemesterLoading } =
     useCurrentSemester();
 

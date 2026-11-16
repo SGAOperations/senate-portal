@@ -1,4 +1,4 @@
-import { MeetingController } from '@/meeting/meeting.controller';
+import { MeetingController } from '@/server/modules/meeting/meeting.controller';
 
 /**
  * @swagger
