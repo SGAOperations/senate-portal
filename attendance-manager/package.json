@@ -14,14 +14,12 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@nusgaops/sgauth": "^0.2.0",
     "@prisma/client": "^6.12.0",
     "@scalar/api-reference-react": "^0.9.85",
-    "@supabase/ssr": "^0.7.0",
-    "@supabase/supabase-js": "^2.84.0",
     "@types/react-dom": "^19.1.9",
     "ajv": "^8.18.0",
     "date-fns-tz": "^3.2.0",
-    "jose": "^6.0.12",
     "lucide-react": "^0.575.0",
     "next": "^16.4.3",
     "react": "^19.1.1",
