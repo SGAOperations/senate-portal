@@ -11,7 +11,7 @@ datasource db {
 
 model User {
   userId     String       @id @default(uuid())
-  sgauthUserId String?    @unique // SGAuth user id; NUID never leaves this table
+  sgauthUserId String?    @unique // SGAuth user id. NUID is never sent to SGAuth
   nuid       String       @unique
   email      String       @unique
   firstName  String
