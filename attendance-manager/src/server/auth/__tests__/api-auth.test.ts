@@ -2,6 +2,7 @@ import {
   getAuthenticatedUser,
   requireAuth,
   requireCapability,
+  requireSelfOrCapability,
 } from '../api-auth';
 import { prisma } from '@/server/db/prisma';
 import { sgauthSession } from '@/test/helpers';
@@ -66,6 +67,22 @@ describe('API Auth Utilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
+  /** Runs `test` with `userId`'s profile soft-deleted, then restores it. */
+  async function withRemovedProfile(userId: string, test: () => Promise<void>) {
+    await prisma.user.update({
+      where: { userId },
+      data: { deletedAt: new Date() },
+    });
+    try {
+      await test();
+    } finally {
+      await prisma.user.update({
+        where: { userId },
+        data: { deletedAt: null },
+      });
+    }
+  }
 
   describe('requireAuth', () => {
     it('returns the actor, profile and capabilities when signed in', async () => {
@@ -179,9 +196,88 @@ describe('API Auth Utilities', () => {
       expect((await requireCapability('hostVotes')).error).toBeNull();
       expect((await requireCapability('vote')).error?.status).toBe(403);
     });
+
+    it('returns 401 when signed out', async () => {
+      mockGetSession.mockResolvedValue(null);
+      expect((await requireCapability('manageAttendance')).error?.status).toBe(
+        401,
+      );
+    });
+
+    it('allows a holder of any one of several capabilities', async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      expect(
+        (await requireCapability('superadmin', 'manageAttendance')).error,
+      ).toBeNull();
+    });
+
+    it('returns 403 when they hold none of several capabilities', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect(
+        (await requireCapability('superadmin', 'manageAttendance')).error
+          ?.status,
+      ).toBe(403);
+    });
   });
 
+  describe('requireSelfOrCapability', () => {
+    it('returns 401 when signed out', async () => {
+      mockGetSession.mockResolvedValue(null);
+      expect(
+        (await requireSelfOrCapability(senatorId, 'manageAttendance')).error
+          ?.status,
+      ).toBe(401);
+    });
 
+    it('lets a member through to their own record', async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      const auth = await requireSelfOrCapability(senatorId, 'manageAttendance');
+      expect(auth.error).toBeNull();
+      if (auth.error) return;
+      expect(auth.actor.user?.userId).toBe(senatorId);
+    });
+
+    it("returns 403 for a member on someone else's record", async () => {
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect(
+        (await requireSelfOrCapability(otherId, 'manageAttendance')).error
+          ?.status,
+      ).toBe(403);
+    });
+
+    it("lets a holder of the capability through to anyone's record", async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      expect(
+        (await requireSelfOrCapability(senatorId, 'manageAttendance')).error,
+      ).toBeNull();
+    });
+
+    it('allows only the owner when no capability is given', async () => {
+      signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
+      expect((await requireSelfOrCapability(senatorId)).error?.status).toBe(
+        403,
+      );
+      signInAs(SENATOR_SGAUTH, ['senator']);
+      expect((await requireSelfOrCapability(senatorId)).error).toBeNull();
+    });
+
+    it('does not treat a removed profile as their own', async () => {
+      await withRemovedProfile(otherId, async () => {
+        // Staff positions still sign them in, but the removed profile is not theirs.
+        signInAs(OTHER_SGAUTH, ['speaker-of-the-senate']);
+        expect(
+          (await requireSelfOrCapability(otherId, 'superadmin')).error?.status,
+        ).toBe(403);
+      });
+    });
+
+    it('returns 403 on their own record once no position gives access', async () => {
+      signInAs(SENATOR_SGAUTH, []);
+      expect((await requireSelfOrCapability(senatorId)).error?.status).toBe(
+        403,
+      );
+    });
+  });
 
   describe('getAuthenticatedUser', () => {
     it('returns the profile for a member', async () => {
@@ -192,6 +288,30 @@ describe('API Auth Utilities', () => {
     it('returns null for staff without a profile', async () => {
       signInAs(SPEAKER_SGAUTH, ['speaker-of-the-senate']);
       expect(await getAuthenticatedUser()).toBeNull();
+    });
+
+    it('returns null when signed out', async () => {
+      mockGetSession.mockResolvedValue(null);
+      expect(await getAuthenticatedUser()).toBeNull();
+    });
+
+    it('returns null when the session lookup throws', async () => {
+      mockGetSession.mockRejectedValue(new Error('config'));
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      try {
+        expect(await getAuthenticatedUser()).toBeNull();
+      } finally {
+        errorSpy.mockRestore();
+      }
+    });
+
+    it('returns null for a removed profile off the roster', async () => {
+      await withRemovedProfile(otherId, async () => {
+        signInAs(OTHER_SGAUTH, ['speaker-of-the-senate']);
+        expect(await getAuthenticatedUser()).toBeNull();
+      });
     });
   });
 });
