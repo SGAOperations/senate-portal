@@ -42,13 +42,38 @@ export async function requireAuth(): Promise<Guarded<{ actor: Actor }>> {
   return { error: unauthorized() };
 }
 
-/** Like requireAuth, but answers 403 without `capability`. */
+/** Like requireAuth, but answers 403 unless they hold one of `capabilities`. */
 export async function requireCapability(
-  capability: Capability,
+  ...capabilities: [Capability, ...Capability[]]
 ): Promise<Guarded<{ actor: Actor }>> {
   const auth = await requireAuth();
   if (auth.error) return auth;
-  if (!can(auth.actor, capability)) return { error: forbidden() };
+  if (!capabilities.some((capability) => can(auth.actor, capability))) {
+    return { error: forbidden() };
+  }
+  return auth;
+}
+
+/**
+ * For a route on one person's record: lets through the owner of that record
+ * (their profile is `targetUserId`) or anyone holding one of `capabilities`.
+ * Staff without a profile own nothing, so they need the capability. Answers
+ * 401 when signed out and 403 otherwise.
+ */
+export async function requireSelfOrCapability(
+  targetUserId: string,
+  ...capabilities: Capability[]
+): Promise<Guarded<{ actor: Actor }>> {
+  const auth = await requireAuth();
+  if (auth.error) return auth;
+  const isSelf =
+    auth.actor.user !== null && auth.actor.user.userId === targetUserId;
+  if (
+    !isSelf &&
+    !capabilities.some((capability) => can(auth.actor, capability))
+  ) {
+    return { error: forbidden() };
+  }
   return auth;
 }
 
