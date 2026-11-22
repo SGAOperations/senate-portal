@@ -1,0 +1,28 @@
+name: Linear prefix check
+on:
+  pull_request:
+    branches: [dev]
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  linear-prefix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title and branch name
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          failed=0
+          if ! [[ "$TITLE" =~ ^SNP-[0-9]+ ]]; then
+            echo "PR title must start with a Linear ID (e.g. SNP-123: Add retry logic)"
+            failed=1
+          fi
+          if ! [[ "$BRANCH" =~ (^|/)[Ss][Nn][Pp]-[0-9]+ ]]; then
+            echo "Branch name must contain a Linear ID (e.g. snp-123-add-retry)"
+            failed=1
+          fi
+          if [ "$failed" -eq 0 ]; then
+            echo "Linear ID found in title and branch"
+          fi
+          exit $failed

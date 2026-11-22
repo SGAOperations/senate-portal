@@ -1,4 +1,4 @@
-import { VotingRecordController } from '@/voting-record/voting-record.controller';
+import { VotingRecordController } from '@/server/modules/voting-record/voting-record.controller';
 
 /**
  * @swagger

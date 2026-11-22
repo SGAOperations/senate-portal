@@ -1,5 +1,5 @@
 'use client';
-import AttendancePage from '@/components/attendance/AttendancePage';
+import AttendancePage from '@/features/attendance/components/AttendancePage';
 
 export default function Attendance() {
   return <AttendancePage />;

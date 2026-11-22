@@ -1,5 +1,5 @@
 'use client';
-import MeetingsPage from '@/components/meetings/MeetingsPage';
+import MeetingsPage from '@/features/meetings/components/MeetingsPage';
 
 export default function Meetings() {
   return <MeetingsPage />;

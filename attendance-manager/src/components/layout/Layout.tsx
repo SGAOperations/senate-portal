@@ -1,42 +1,65 @@
+import { userCan } from '@/types';
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
-import Dashboard from '@/components/dashboard/Dashboard';
-import MeetingsPage from '@/components/meetings/MeetingsPage';
-import VotingPage from '@/components/voting/VotingPage';
-import AttendancePage from '@/components/attendance/AttendancePage';
-import ProfilePage from '@/components/profile/ProfilePage';
-import { useAuth } from '@/contexts/AuthContext';
-import LoginPage from '../profile/LoginPage';
-import { useActiveVotingEvent } from '@/hooks/useActiveVotingEvent';
-import ActiveVotingModal from '@/components/voting/ActiveVotingModal';
-import { TriangleAlert } from 'lucide-react';
+import Dashboard from '@/features/dashboard/components/Dashboard';
+import MeetingsPage from '@/features/meetings/components/MeetingsPage';
+import VotingPage from '@/features/voting/components/VotingPage';
+import AttendancePage from '@/features/attendance/components/AttendancePage';
+import ProfilePage from '@/features/profile/components/ProfilePage';
+import { useAuth } from '@/providers/AuthContext';
+import LoginPage from '@/features/profile/components/LoginPage';
+import { useActiveVotingEvent } from '@/features/voting/hooks/useActiveVotingEvent';
+import ActiveVotingModal from '@/features/voting/components/ActiveVotingModal';
+import { TriangleAlert, Vote } from 'lucide-react';
 
 const Layout: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile'
   >('dashboard');
   const { user, isLoading } = useAuth();
-  const isAdmin = user?.role === 'EBOARD';
+  const canReadRecords = userCan(user, 'readRecords');
   const { activeEvent } = useActiveVotingEvent();
   const [canVoteInActiveEvent, setCanVoteInActiveEvent] = useState(false);
+  const [dismissedVoteId, setDismissedVoteId] = useState<string | null>(null);
+
+  const userId = user?.id;
+  // Only Senators vote. This only hides the prompt: POST /api/voting-record
+  // does not check the seat yet (tracked as a follow-up security ticket).
+  const userCanVote = userCan(user, 'vote');
+  const votingEventId = activeEvent?.votingEventId;
+  const meetingId = activeEvent?.meetingId;
 
   useEffect(() => {
-    if (!user || !activeEvent) {
+    // no polling once the member has dismissed this vote
+    if (
+      !userId ||
+      !userCanVote ||
+      !votingEventId ||
+      !meetingId ||
+      votingEventId === dismissedVoteId
+    ) {
       setCanVoteInActiveEvent(false);
       return;
     }
 
+    // new vote or user: don't carry over the previous result
+    setCanVoteInActiveEvent(false);
+
     let isCancelled = false;
+    let isChecking = false;
+    let intervalId: number | undefined;
 
     const checkMeetingSignInStatus = async () => {
-      setCanVoteInActiveEvent(false);
+      // skip if the previous check is still in flight so results can't land out of order
+      if (isChecking) {
+        return;
+      }
+      isChecking = true;
 
       try {
         // check if user is signed in to the meeting associated with the active voting event
-        const res = await fetch(
-          `/api/attendance/meeting/${activeEvent.meetingId}`,
-        );
+        const res = await fetch(`/api/attendance/meeting/${meetingId}`);
 
         if (!res.ok) {
           throw new Error('Failed to fetch meeting attendance');
@@ -48,7 +71,7 @@ const Layout: React.FC = () => {
         }> = await res.json();
 
         const isPresent = attendanceRecords.some(
-          (record) => record.userId === user.id && record.status === 'PRESENT',
+          (record) => record.userId === userId && record.status === 'PRESENT',
         );
 
         if (!isPresent) {
@@ -60,7 +83,7 @@ const Layout: React.FC = () => {
 
         // Check if user has already voted for this event
         const hasVotedRes = await fetch(
-          `/api/voting-record/has-voted/${activeEvent.votingEventId}`,
+          `/api/voting-record/has-voted/${votingEventId}`,
         );
 
         if (!hasVotedRes.ok) {
@@ -71,19 +94,26 @@ const Layout: React.FC = () => {
         if (!isCancelled) {
           setCanVoteInActiveEvent(!hasAlreadyVoted.hasVoted);
         }
-      } catch {
-        if (!isCancelled) {
-          setCanVoteInActiveEvent(false);
+        // nothing left to check once the member has voted
+        if (hasAlreadyVoted.hasVoted) {
+          window.clearInterval(intervalId);
         }
+      } catch {
+        // keep the current state on a failed re-check so a network blip doesn't close the pop-up
+      } finally {
+        isChecking = false;
       }
     };
 
+    // keep re-checking so a member checked in after the vote opens still gets the pop-up
+    intervalId = window.setInterval(checkMeetingSignInStatus, 3000);
     checkMeetingSignInStatus();
 
     return () => {
       isCancelled = true;
+      window.clearInterval(intervalId);
     };
-  }, [activeEvent, user]);
+  }, [userId, userCanVote, votingEventId, meetingId, dismissedVoteId]);
 
   const handleProfileClick = () => {
     setActiveTab('profile');
@@ -101,8 +131,8 @@ const Layout: React.FC = () => {
       case 'voting':
         return <VotingPage />;
       case 'attendance':
-        // Check if user is admin
-        if (isAdmin) {
+        // Everyone's attendance: readRecords only
+        if (canReadRecords) {
           return <AttendancePage />;
         } else {
           return (
@@ -157,13 +187,40 @@ const Layout: React.FC = () => {
         onProfileClick={handleProfileClick}
         onLogoClick={handleLogoClick}
       />
+      {activeEvent && activeEvent.votingEventId === dismissedVoteId && (
+        <div className='bg-[#C8102E] shadow-md px-4 sm:px-6 lg:px-8 py-3'>
+          <div className='flex items-center justify-between gap-4'>
+            <div className='flex items-center gap-3 min-w-0'>
+              <div className='w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0'>
+                <Vote className='w-4 h-4 text-white' />
+              </div>
+              <p className='text-sm text-white truncate'>
+                <span className='font-semibold'>A vote is open:</span>{' '}
+                {activeEvent.name}
+              </p>
+            </div>
+            <button
+              type='button'
+              onClick={() => setDismissedVoteId(null)}
+              className='flex-shrink-0 px-4 py-2 text-sm font-medium text-[#C8102E] bg-white rounded-xl shadow-md hover:bg-gray-50 hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white focus:ring-offset-[#C8102E]'
+            >
+              Vote now
+            </button>
+          </div>
+        </div>
+      )}
       <div className='flex flex-1'>
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         <main className='flex-1 relative'>
           {renderContent()}
-          {activeEvent && canVoteInActiveEvent && (
-            <ActiveVotingModal event={activeEvent} />
-          )}
+          {activeEvent &&
+            canVoteInActiveEvent &&
+            activeEvent.votingEventId !== dismissedVoteId && (
+              <ActiveVotingModal
+                event={activeEvent}
+                onDismiss={() => setDismissedVoteId(activeEvent.votingEventId)}
+              />
+            )}
         </main>
       </div>
     </div>

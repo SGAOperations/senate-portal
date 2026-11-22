@@ -48,6 +48,9 @@ supabase/.local/
 supabase/.temp/
 .supabase/
 
+# local logs
+debug.log
+
 # Playwright
 node_modules/
 /test-results/

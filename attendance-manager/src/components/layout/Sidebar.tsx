@@ -1,8 +1,16 @@
+import { userCan } from '@/types';
 import React from 'react';
-import { LayoutDashboard, Calendar, Vote, ClipboardList } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import {
+  LayoutDashboard,
+  Calendar,
+  Vote,
+  ClipboardList,
+  Check,
+} from 'lucide-react';
+import { useAuth } from '@/providers/AuthContext';
 import { MeetingApiData, UserApiData, AttendanceApiData } from '@/types';
-import { getMeetingDateRange } from '@/meeting/meetingDateTime';
+import { getMeetingDateRange } from '@/lib/datetime/meeting-date-time';
+import { useCurrentSemester } from '@/providers/SemesterContext';
 
 interface SidebarProps {
   activeTab: 'dashboard' | 'meetings' | 'voting' | 'attendance' | 'profile';
@@ -13,7 +21,10 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'EBOARD';
+  // Everyone's attendance and the roster: readRecords only
+  const isAdmin = userCan(user, 'readRecords');
+  const { currentSemester, isLoading: isSemesterLoading } =
+    useCurrentSemester();
 
   const [meetings, setMeetings] = React.useState<MeetingApiData[]>([]);
   const [users, setUsers] = React.useState<UserApiData[]>([]);
@@ -58,16 +69,21 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     return meetingDate >= todayStart && meetingDate < tomorrowStart;
   }).length;
 
-  const pendingAttendance = meetings.filter((m) => {
-    const meetingEnd = new Date(m.endTime);
-    if (meetingEnd > now) {
-      return false; // Only past meetings
-    }
-    return m.attendance.some(
-      (a: AttendanceApiData) =>
-        a.userId === user?.id && a.status === 'UNEXCUSED_ABSENCE',
-    );
-  }).length;
+  const pendingAttendance = currentSemester
+    ? meetings.filter((m) => {
+        if (m.semesterId !== currentSemester.semesterId) {
+          return false;
+        }
+        const meetingEnd = new Date(m.endTime);
+        if (meetingEnd > now) {
+          return false; // Only past meetings
+        }
+        return m.attendance.some(
+          (a: AttendanceApiData) =>
+            a.userId === user?.id && a.status === 'UNEXCUSED_ABSENCE',
+        );
+      }).length
+    : null;
 
   const totalMembers = users.length;
 
@@ -152,7 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
           </h3>
           {error ? (
             <p className='text-xs text-red-500'>Failed to load stats</p>
-          ) : loading ? (
+          ) : loading || isSemesterLoading ? (
             <p className='text-xs text-gray-400'>Loading...</p>
           ) : (
             <div className='space-y-3'>
@@ -167,7 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
                   Pending Attendance
                 </span>
                 <span className='text-sm font-semibold text-[#A4804A]'>
-                  {pendingAttendance}
+                  {pendingAttendance ?? '—'}
                 </span>
               </div>
               {isAdmin && (
@@ -181,7 +197,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
                   <div className='flex items-center justify-between'>
                     <span className='text-xs text-gray-500'>Admin Access</span>
                     <span className='text-sm font-semibold text-[#A4804A]'>
-                      ✓
+                      <Check />
                     </span>
                   </div>
                 </>

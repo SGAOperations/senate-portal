@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AttendanceController } from '../../../../../attendance/attendance.controller';
+import { AttendanceController } from '@/server/modules/attendance/attendance.controller';
 
 /**
  * Get Meeting Attendance
