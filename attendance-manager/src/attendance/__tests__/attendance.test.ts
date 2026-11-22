@@ -283,18 +283,23 @@ describe('AttendanceController', () => {
     }
   });
 
-    it('roster edits preserve statuses', async () => {
+  it('roster edits preserve statuses', async () => {
     try {
       // Arrange: two members already on the roster with recorded statuses
       await prisma.attendance.createMany({
         data: [
           { userId: testUserId, meetingId: testMeeting3Id, status: 'PRESENT' },
-          { userId: testUser2Id, meetingId: testMeeting3Id, status: 'EXCUSED_ABSENCE' },
+          {
+            userId: testUser2Id,
+            meetingId: testMeeting3Id,
+            status: 'EXCUSED_ABSENCE',
+          },
         ],
       });
 
       const statuses = async () => {
-        const rows = await AttendanceController.getMeetingAttendance(testMeeting3Id);
+        const rows =
+          await AttendanceController.getMeetingAttendance(testMeeting3Id);
         return Object.fromEntries(rows.map((r) => [r.userId, r.status]));
       };
 
@@ -328,7 +333,9 @@ describe('AttendanceController', () => {
       ]);
       expect(await statuses()).toEqual(before);
     } finally {
-      await prisma.attendance.deleteMany({ where: { meetingId: testMeeting3Id } });
+      await prisma.attendance.deleteMany({
+        where: { meetingId: testMeeting3Id },
+      });
     }
   });
 

@@ -11,6 +11,6 @@ export const createClient = () => {
         detectSessionInUrl: true,
         flowType: 'pkce',
       },
-    }
+    },
   );
 };

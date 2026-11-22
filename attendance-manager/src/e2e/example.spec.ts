@@ -9,12 +9,16 @@ test('navigating to Meetings work', async ({ page }) => {
   await page.getByLabel('Password').fill(process.env.TEST_USER_PASSWORD!);
 
   // Click login
-  await page.locator('form').getByRole('button', { name: 'Sign In', exact: true }).click();
+  await page
+    .locator('form')
+    .getByRole('button', { name: 'Sign In', exact: true })
+    .click();
 
   // Click on Meetings
   await page.getByRole('button', { name: 'Meetings', exact: true }).click();
 
   // Verify page has Meetings header
-  await expect(page.getByRole('heading', { name: 'Meetings', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Meetings', exact: true }),
+  ).toBeVisible();
 });
-
