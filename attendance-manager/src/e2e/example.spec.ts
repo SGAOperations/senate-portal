@@ -5,8 +5,8 @@ test('navigating to Meetings work', async ({ page }) => {
   await page.goto('https://senate.northeasternsga.com/homepage');
 
   // Fill in credentials
-  await page.getByLabel('Email Address').fill('sgaADMIN@northeastern.edu');
-  await page.getByLabel('Password').fill('password');
+  await page.getByLabel('Email Address').fill(process.env.TEST_USER_EMAIL!);
+  await page.getByLabel('Password').fill(process.env.TEST_USER_PASSWORD!);
 
   // Click login
   await page.locator('form').getByRole('button', { name: 'Sign In', exact: true }).click();
